@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+@import './theme.css';
+@import './utilities.css';
+@import './components.css';
+
+@layer base {
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body {
+    @apply bg-bg-main relative z-1 min-h-screen font-[openSans] dark:bg-[#0A0F1A];
+  }
+
+}

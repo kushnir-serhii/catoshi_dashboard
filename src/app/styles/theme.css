@@ -1,0 +1,34 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+    --index: calc(1vw + 1vh);
+    --index-ratio: 25;
+    /*16:9*/
+}
+
+@theme {
+    --font-*: initial;
+    --font-family: var(--font-openSans), sans-serif;
+    --font-secondary: var(--font-fixelDisplay), sans-serif;
+
+    --breakpoint-*: initial;
+    --breakpoint-2xs: 375px;
+    --breakpoint-xs: 480px;
+    --breakpoint-sm: 640px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 1024px;
+    --breakpoint-xl: 1280px;
+    --breakpoint-2xl: 1440px;
+    --breakpoint-4xl: 1600px;
+
+    --color-white: #ffffff;
+    --color-black: #071429;
+    --color-bg-main: #e7edf8;
+    --color-blue: #0e64ee;
+    --color-ice-blue: #e8ecf4;
+    --color-gray: #cdd0d4;
+    --color-card-bg: oklch(1 0 0 / 80%);
+    --color-card-bg-dark: oklch(1 0 0 / 2%);
+}
+
+

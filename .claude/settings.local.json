@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx next *)",
+      "Bash(./node_modules/.bin/next build *)",
+      "Bash(npm install *)",
+      "Bash(curl -s http://localhost:3000)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(cp \"/c/Users/serg9/.claude/projects/C--Users-serg9-Documents-GitHub-catoshi-dashboard/8928e41f-363a-49b3-b862-bb76d05af0af/tool-results/webfetch-1778272516725-zpumug.bin\" /tmp/landing.tar)",
+      "Read(//tmp/**)",
+      "Bash(tar -tf /tmp/landing.tar)",
+      "Bash(mkdir -p /tmp/landing_extract)",
+      "Bash(tar -xzf /tmp/landing.tar)",
+      "Bash(curl -s http://localhost:3000/landing)",
+      "Bash(cp \"/c/Users/serg9/.claude/projects/C--Users-serg9-Documents-GitHub-catoshi-dashboard/8928e41f-363a-49b3-b862-bb76d05af0af/tool-results/webfetch-1778273249274-w4srom.bin\" /tmp/new_design.tar)",
+      "Bash(mkdir -p /tmp/new_design)",
+      "Bash(tar -xzf /tmp/new_design.tar -C /tmp/new_design)"
+    ]
+  }
+}

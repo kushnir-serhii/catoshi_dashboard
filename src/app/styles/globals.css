@@ -3,6 +3,8 @@
 @import './theme.css';
 @import './utilities.css';
 @import './components.css';
+@import './dashboard.css';
+@import './landing.css';
 
 @layer base {
 

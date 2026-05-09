@@ -1,12 +1,24 @@
 import './styles/globals.css';
 import localFont from 'next/font/local';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { Open_Sans } from 'next/font/google';
+import { Open_Sans, Geist, Geist_Mono } from 'next/font/google';
 
 export const openSans = Open_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '600', '700'],
   variable: '--font-family',
+});
+
+const geist = Geist({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-geist',
+});
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  variable: '--font-geist-mono',
 });
 //
 const fixelDisplay = localFont({
@@ -31,7 +43,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${openSans.variable} ${fixelDisplay.variable} dark`}
+      className={`${openSans.variable} ${fixelDisplay.variable} ${geist.variable} ${geistMono.variable} dark`}
       data-theme="dark"
     >
       <body className={`${openSans.className} font-sans antialiased dark:bg-gray-900`}>

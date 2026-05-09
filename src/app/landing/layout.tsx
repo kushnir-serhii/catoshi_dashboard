@@ -1,4 +1,4 @@
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function LandingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="prowl" style={{ minHeight: '100vh' }}>
       {children}

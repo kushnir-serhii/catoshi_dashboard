@@ -23,10 +23,10 @@
 
     .custom-scrollbar::-webkit-scrollbar-thumb {
         border-radius: 9999px;
-        background-color: var(--color-gray);
+        background-color: var(--color-gray-300);
     }
 
     .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-        background-color: #344054;
+        background-color: var(--color-gray-600);
     }
 }

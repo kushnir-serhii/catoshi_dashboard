@@ -1,0 +1,60 @@
+{
+  "lastUpdated": "2026-05-21T00:00:00.000Z",
+  "nextUpdate": "2026-05-21T06:00:00.000Z",
+  "signals": [
+    {
+      "id": "initial-1",
+      "tag": "BULLISH",
+      "title": "BTC spot ETF inflows hit 3-week high",
+      "body": "US spot ETFs absorbed 4,820 BTC in a single session, the largest single-day inflow since early April.",
+      "source": "coindesk.com",
+      "publishedAt": "2026-05-20T22:00:00.000Z",
+      "coins": ["BTC"]
+    },
+    {
+      "id": "initial-2",
+      "tag": "BULLISH",
+      "title": "ETH staking deposits surge ahead of Pectra",
+      "body": "Over 180,000 ETH deposited to beacon chain validators in the past 48 hours as Pectra upgrade nears.",
+      "source": "theblock.co",
+      "publishedAt": "2026-05-20T20:00:00.000Z",
+      "coins": ["ETH"]
+    },
+    {
+      "id": "initial-3",
+      "tag": "BEARISH",
+      "title": "SOL perpetual funding rate turns deeply negative",
+      "body": "Solana perp funding dropped to -0.035% per 8h, signalling the highest short-side premium in six weeks.",
+      "source": "coinglass.com",
+      "publishedAt": "2026-05-20T23:00:00.000Z",
+      "coins": ["SOL"]
+    },
+    {
+      "id": "initial-4",
+      "tag": "NEUTRAL",
+      "title": "LINK consolidates below key $18 resistance",
+      "body": "Chainlink has traded in a $1.20 range for five sessions; options market implies 22% 30-day realised volatility.",
+      "source": "cryptobriefing.com",
+      "publishedAt": "2026-05-20T19:00:00.000Z",
+      "coins": ["LINK"]
+    },
+    {
+      "id": "initial-5",
+      "tag": "BEARISH",
+      "title": "ARB bridge outflows accelerate for third day",
+      "body": "Net $56M left Arbitrum via canonical bridge over three consecutive days; TVL down 8% from the monthly peak.",
+      "source": "dune.com",
+      "publishedAt": "2026-05-20T21:00:00.000Z",
+      "coins": ["ARB"]
+    },
+    {
+      "id": "initial-6",
+      "tag": "BULLISH",
+      "title": "TAO validator stake up 18% in seven days",
+      "body": "Bittensor delegated stake reached 6.4M TAO following Subnet 9 launch, with active validator count rising 12%.",
+      "source": "taostats.io",
+      "publishedAt": "2026-05-20T18:00:00.000Z",
+      "coins": ["TAO"]
+    }
+  ]
+}

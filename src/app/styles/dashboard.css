@@ -1,23 +1,25 @@
 /* PROWL — Catoshi Crypto Projections dashboard styles */
 
 .prowl {
-  --bg: #0a0a12;
-  --bg-2: #0e0e1a;
-  --surface: #12121e;
-  --surface-2: #181826;
-  --surface-3: #1f1f30;
-  --line: rgba(255,255,255,0.06);
-  --line-2: rgba(255,255,255,0.10);
-  --text: #e8e8f2;
-  --text-2: #a4a4b8;
-  --text-3: #6b6b80;
-  --violet: oklch(0.72 0.22 295);
-  --violet-2: oklch(0.62 0.22 295);
-  --violet-soft: oklch(0.55 0.18 295 / 0.18);
-  --green: oklch(0.86 0.20 145);
-  --green-2: oklch(0.76 0.20 145);
-  --green-soft: oklch(0.70 0.18 145 / 0.18);
-  --red: oklch(0.70 0.20 25);
+  /* Short aliases onto the canonical tokens defined in theme.css's @theme block */
+  --bg: var(--color-bg);
+  --bg-2: var(--color-bg-2);
+  --surface: var(--color-surface);
+  --surface-2: var(--color-surface-2);
+  --surface-3: var(--color-surface-3);
+  --line: var(--color-line);
+  --line-2: var(--color-line-2);
+  --text: var(--color-text);
+  --text-2: var(--color-text-2);
+  --text-3: var(--color-text-3);
+  --violet: var(--color-violet);
+  --violet-2: var(--color-violet-2);
+  --violet-soft: var(--color-violet-soft);
+  --green: var(--color-green);
+  --green-2: var(--color-green-2);
+  --green-soft: var(--color-green-soft);
+  --red: var(--color-red);
+  --warning: var(--color-warning);
   --glow: 1;
   --radius-sm: 6px;
   --radius: 10px;
@@ -45,6 +47,21 @@
   max-width: 1480px;
   margin: 0 auto;
   padding: 22px 28px 40px;
+  overflow-x: hidden;
+}
+.prowl .app > main {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Non-grid page wrapper (Portfolio, Markets, Signals, Models) */
+.prowl .page-content {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
 }
 
 /* Top bar */
@@ -134,8 +151,8 @@
   border-radius: 10px;
   border: 1px solid var(--line);
 }
-.prowl .balance .lbl { font-size: 10px; color: var(--text-3); letter-spacing: 0.16em; }
-.prowl .balance .val { font-size: 14px; font-weight: 500; }
+.prowl .balance .lbl { font-size: 10px; color: var(--text-3); letter-spacing: 0.16em; white-space: nowrap; }
+.prowl .balance .val { font-size: 14px; font-weight: 500; white-space: nowrap; }
 .prowl .balance .delta { color: var(--green); font-size: 11px; }
 .prowl .avatar {
   width: 30px; height: 30px; border-radius: 8px;
@@ -150,7 +167,9 @@
   display: grid;
   gap: 14px;
   margin-top: 16px;
+  min-width: 0;
 }
+.prowl .grid > * { min-width: 0; }
 .prowl .grid.layout-default {
   grid-template-columns: 1fr 360px;
   grid-template-areas:
@@ -270,9 +289,9 @@
   position: relative;
 }
 .prowl .kpi:last-child { border-right: 0; }
-.prowl .kpi .lbl { font-size: 10px; letter-spacing: 0.16em; color: var(--text-3); text-transform: uppercase; }
-.prowl .kpi .val { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; font-feature-settings: "tnum"; }
-.prowl .kpi .sub { font-size: 11px; color: var(--text-2); display: flex; gap: 8px; align-items: center; }
+.prowl .kpi .lbl { font-size: 10px; letter-spacing: 0.16em; color: var(--text-3); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prowl .kpi .val { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; font-feature-settings: "tnum"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prowl .kpi .sub { font-size: 11px; color: var(--text-2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .prowl .kpi .delta-up { color: var(--green); }
 .prowl .kpi .delta-dn { color: var(--red); }
 .prowl .kpi .micro {
@@ -591,11 +610,57 @@
 }
 .prowl .tweaks-btn:hover { color: var(--text); border-color: var(--line-2); }
 
+/* ── HeroUI Modal overlay structural CSS (no HeroUI theme import needed) ── */
+.modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  width: 100%;
+}
+.modal__backdrop[data-entering="true"] {
+  animation: heroui-fade-in 150ms ease-out;
+}
+.modal__backdrop[data-exiting="true"] {
+  animation: heroui-fade-out 100ms ease-out;
+}
+@keyframes heroui-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes heroui-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+.modal__container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 16px;
+  pointer-events: none;
+}
+.modal__container[data-entering="true"] {
+  animation: heroui-slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal__container[data-exiting="true"] {
+  animation: heroui-slide-down 100ms ease-out;
+}
+@keyframes heroui-slide-up   { from { opacity: 0; transform: scale(1.03) translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes heroui-slide-down { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.97); } }
+
+.modal__dialog {
+  position: relative;
+  width: 100%;
+  outline: none;
+  pointer-events: auto;
+}
+
 /* ── Responsive layout utilities (used by pages.tsx) ───────────── */
-.prowl .pg-split      { display: grid; grid-template-columns: 1fr 360px; gap: 14px; }
+.prowl .pg-split      { display: grid; grid-template-columns: 1fr 360px; gap: 14px; min-width: 0; }
+.prowl .pg-split > *  { min-width: 0; }
 .prowl .pg-sectors    { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
 .prowl .pg-signals-2  { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.prowl .pg-thirds     { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.prowl .pg-thirds     { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; min-width: 0; }
+.prowl .pg-thirds > * { min-width: 0; }
 
 /* Table scroll wrapper */
 .prowl .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -608,9 +673,10 @@
 @media (max-width: 1024px) {
   .prowl .app { padding: 14px 16px 32px; }
 
-  .prowl .topbar { gap: 10px; flex-wrap: nowrap; }
+  .prowl .topbar { gap: 10px; flex-wrap: nowrap; justify-content: space-between; }
   .prowl .nav    { display: none; }
   .prowl .search { display: none; }
+  .prowl .balance { margin-left: auto; }
 
   .prowl .mobile-nav {
     display: flex; gap: 2px; overflow-x: auto;
@@ -745,4 +811,146 @@
   .prowl .scen-row { grid-template-columns: 68px 1fr 46px; gap: 6px; font-size: 10px; }
   .prowl .card { padding: 10px; }
   .prowl .mobile-nav a { padding: 5px 9px; font-size: 10px; }
+}
+
+/* ── Hover & focus effects ──────────────────────────────────────── */
+
+/* Primary button */
+.prowl .btn-primary {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.prowl .btn-primary:hover {
+  filter: brightness(1.12);
+  transform: scale(1.02);
+  box-shadow: 0 0 calc(26px * var(--glow)) oklch(0.6 0.22 295 / calc(0.65 * var(--glow)));
+}
+.prowl .btn-primary:active { transform: scale(0.98); }
+
+/* Ghost button — strengthen existing rule */
+.prowl .btn-ghost {
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.prowl .btn-ghost:hover {
+  color: var(--text);
+  border-color: var(--line-2);
+  background: var(--surface-2);
+}
+.prowl .btn-ghost:active { opacity: 0.75; }
+
+/* Chart timeframe tabs */
+.prowl .chart-tabs button:not(.active):hover {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+/* Nav links in topbar — strengthen active + hover */
+.prowl .nav a {
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.prowl .nav a:hover:not(.active) {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* Table rows */
+.prowl .watch-table tbody tr {
+  transition: background 0.12s ease;
+}
+.prowl .watch-table tbody tr:hover td {
+  background: var(--surface-2);
+}
+
+/* Signal cards */
+.prowl .signal {
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: default;
+}
+.prowl .signal:hover {
+  transform: translateY(-2px);
+}
+.prowl .signal.bullish:hover {
+  border-color: oklch(0.70 0.18 145 / 0.45);
+  box-shadow: 0 4px 20px oklch(0.70 0.18 145 / calc(0.08 * var(--glow)));
+}
+.prowl .signal.bearish:hover {
+  border-color: oklch(0.65 0.18 25 / 0.45);
+  box-shadow: 0 4px 20px oklch(0.65 0.18 25 / calc(0.08 * var(--glow)));
+}
+.prowl .signal.neutral:hover {
+  border-color: var(--line-2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+
+/* Holdings rows */
+.prowl .holdings-row {
+  transition: background 0.12s ease;
+  border-radius: 6px;
+  cursor: default;
+}
+.prowl .holdings-row:hover {
+  background: var(--surface-2);
+}
+
+/* AI prediction cards */
+.prowl .ai-pred {
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  cursor: default;
+}
+.prowl .ai-pred:hover {
+  border-color: oklch(0.55 0.20 295 / 0.45);
+  transform: translateY(-1px);
+}
+
+/* Tweak radio buttons */
+.prowl .tweak-radio button:not(.active):hover {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+/* ── Custom scrollbar ───────────────────────────────────────────── */
+
+/* Webkit (Chrome, Safari, Edge) */
+.prowl ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.prowl ::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+.prowl ::-webkit-scrollbar-thumb {
+  background: oklch(0.55 0.18 295 / 0.35);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+.prowl ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.65 0.20 295 / 0.60);
+}
+.prowl ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+.prowl * {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.55 0.18 295 / 0.35) transparent;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .prowl .btn-primary,
+  .prowl .btn-ghost,
+  .prowl .chart-tabs button,
+  .prowl .nav a,
+  .prowl .watch-table tbody tr,
+  .prowl .signal,
+  .prowl .holdings-row,
+  .prowl .ai-pred {
+    transition: none;
+  }
+  .prowl .btn-primary:hover,
+  .prowl .signal:hover,
+  .prowl .ai-pred:hover {
+    transform: none;
+  }
 }

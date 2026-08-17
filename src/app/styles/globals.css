@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
 @import './theme.css';
 @import './utilities.css';
@@ -23,7 +24,31 @@
 
   html,
   body {
-    @apply bg-bg-main relative z-1 min-h-screen font-[openSans] dark:bg-[#0A0F1A];
+    @apply bg-white relative z-1 min-h-screen font-[openSans] dark:bg-bg;
+  }
+
+  /* Dark-theme page-level scrollbar (html element) — matches .prowl palette */
+  html::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  html::-webkit-scrollbar-track {
+    background: #0a0a12;
+  }
+
+  html::-webkit-scrollbar-thumb {
+    background: oklch(0.55 0.18 295 / 0.35);
+    border-radius: 999px;
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.65 0.20 295 / 0.60);
+  }
+
+  /* Firefox */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.55 0.18 295 / 0.35) #0a0a12;
   }
 
 }

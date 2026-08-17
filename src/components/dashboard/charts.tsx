@@ -1,5 +1,51 @@
 'use client';
 
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import {
+  ComposedChart,
+  Area,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+  Legend,
+  useXAxisScale,
+  useYAxisScale,
+  ResponsiveContainer,
+} from 'recharts';
+import type { LegendPayload } from 'recharts';
+import { computeYDomain, formatPrice } from '@/lib/projectionSeries';
+import type { ChartRow } from '@/lib/projectionSeries';
+import { MIN_PX_PER_POINT } from '@/consts/projections';
+
+// ─── Container width measurement (for horizontal-scroll sizing) ───────────────
+
+function useContainerWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
+  const ref = useRef<T | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    setWidth(el.getBoundingClientRect().width);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width];
+}
+
+// ─── Seeded fallback data (used only when no real rows are supplied) ──────────
+
+const MS_PER_DAY = 86_400_000;
+
 function seededRand(seed: number) {
   let s = seed;
   return () => {
@@ -8,19 +54,17 @@ function seededRand(seed: number) {
   };
 }
 
-function generateProjection() {
+function generateProjection(): { hist: number[]; bull: number[]; base: number[]; bear: number[] } {
   const rnd = seededRand(42);
-  const histLen = 90;
-  const fwdLen = 60;
-  let hist: number[] = [];
+  const hist: number[] = [];
   let v = 62000;
-  for (let i = 0; i < histLen; i++) {
+  for (let i = 0; i < 90; i++) {
     v *= 1 + (rnd() - 0.48) * 0.022;
     hist.push(v);
   }
   const last = hist[hist.length - 1];
-  let bull = [last], base = [last], bear = [last];
-  for (let i = 1; i < fwdLen; i++) {
+  const bull = [last], base = [last], bear = [last];
+  for (let i = 1; i < 60; i++) {
     const noise = (rnd() - 0.5) * 0.012;
     bull.push(bull[i - 1] * (1 + 0.0058 + noise));
     base.push(base[i - 1] * (1 + 0.0021 + noise));
@@ -29,134 +73,350 @@ function generateProjection() {
   return { hist, bull, base, bear };
 }
 
-export const PROJ = generateProjection();
+const PROJ = generateProjection();
 
-export function ProjectionChart({ width = 820, height = 320, glow = 1 }: { width?: number; height?: number; glow?: number }) {
-  const padL = 14, padR = 60, padT = 14, padB = 28;
-  const W = width, H = height;
-  const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
-  const total = PROJ.hist.length + PROJ.bull.length - 1;
-  const allMax = Math.max(...PROJ.hist, ...PROJ.bull);
-  const allMin = Math.min(...PROJ.hist, ...PROJ.bear);
-  const yPad = (allMax - allMin) * 0.08;
-  const yMax = allMax + yPad;
-  const yMin = allMin - yPad;
+function buildFallbackRows(): ChartRow[] {
+  const todayTs = Date.now();
+  const rows: ChartRow[] = [];
 
-  const x = (i: number) => padL + (i / (total - 1)) * innerW;
-  const y = (val: number) => padT + (1 - (val - yMin) / (yMax - yMin)) * innerH;
+  PROJ.hist.forEach((v, i) => {
+    const isLast = i === PROJ.hist.length - 1;
+    const t = todayTs - (PROJ.hist.length - 1 - i) * MS_PER_DAY;
+    rows.push({
+      t,
+      hist: v,
+      ...(isLast ? { bull: PROJ.bull[0], base: PROJ.base[0], bear: PROJ.bear[0] } : {}),
+    });
+  });
 
-  const histPath = PROJ.hist
-    .map((val, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(val).toFixed(1)}`)
-    .join(' ');
-
-  const projOffset = PROJ.hist.length - 1;
-  const linePath = (arr: number[]) =>
-    arr.map((val, i) => `${i === 0 ? 'M' : 'L'} ${x(i + projOffset).toFixed(1)} ${y(val).toFixed(1)}`).join(' ');
-
-  const bandPath = [
-    ...PROJ.bull.map((val, i) => `${i === 0 ? 'M' : 'L'} ${x(i + projOffset).toFixed(1)} ${y(val).toFixed(1)}`),
-    ...PROJ.bear.slice().reverse().map((val, i, arr2) => `L ${x(arr2.length - 1 - i + projOffset).toFixed(1)} ${y(val).toFixed(1)}`),
-    'Z',
-  ].join(' ');
-
-  const yTicks = 4;
-  const yTickArr: { v: number; yPos: number }[] = [];
-  for (let i = 0; i <= yTicks; i++) {
-    const val = yMin + ((yMax - yMin) * i) / yTicks;
-    yTickArr.push({ v: val, yPos: y(val) });
+  for (let j = 1; j < PROJ.bull.length; j++) {
+    rows.push({
+      t: todayTs + j * MS_PER_DAY,
+      bull: PROJ.bull[j],
+      base: PROJ.base[j],
+      bear: PROJ.bear[j],
+    });
   }
 
-  const labels = [
-    { i: 0, t: 'Mar' },
-    { i: Math.floor(total * 0.25), t: 'Apr' },
-    { i: Math.floor(total * 0.5), t: 'May' },
-    { i: projOffset, t: 'Today' },
-    { i: Math.floor(total * 0.85), t: 'Jun' },
-    { i: total - 1, t: 'Jul' },
-  ];
+  return rows;
+}
 
-  const fmt = (val: number) => '$' + val.toLocaleString('en-US', { maximumFractionDigits: 0 });
+const FALLBACK_ROWS = buildFallbackRows();
+const FALLBACK_Y_DOMAIN = computeYDomain(FALLBACK_ROWS);
 
-  const todayX = x(projOffset);
-  const todayY = y(PROJ.hist[PROJ.hist.length - 1]);
+// ─── Chart types ──────────────────────────────────────────────────────────────
 
-  const bullEnd = { xPos: x(total - 1), yPos: y(PROJ.bull[PROJ.bull.length - 1]) };
-  const baseEnd = { xPos: x(total - 1), yPos: y(PROJ.base[PROJ.base.length - 1]) };
-  const bearEnd = { xPos: x(total - 1), yPos: y(PROJ.bear[PROJ.bear.length - 1]) };
+export type Timeframe = '1W' | '1M' | '3M' | '6M' | '1Y' | 'All';
 
+const CHART_HEIGHT = 320;
+const CHART_Y_AXIS_WIDTH = 56;
+
+const formatDateTick = (t: number): string =>
+  new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+// ─── Recharts sub-components ──────────────────────────────────────────────────
+
+const YTick = ({ x, y, payload }: { x?: number; y?: number; payload?: { value: number } }) => {
+  if (!payload) return null;
   return (
-    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
-      <defs>
-        <linearGradient id="bandFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="oklch(0.72 0.22 295)" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="oklch(0.72 0.22 295)" stopOpacity="0.02" />
-        </linearGradient>
-        <linearGradient id="histFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="oklch(0.86 0.20 145)" stopOpacity="0.12" />
-          <stop offset="100%" stopColor="oklch(0.86 0.20 145)" stopOpacity="0" />
-        </linearGradient>
-        <filter id="glowViolet" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation={2.5 * glow} result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-        <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation={2 * glow} result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
+    <text
+      x={(x ?? 0) + 4} y={(y ?? 0) + 4}
+      fill="var(--text-3)"
+      style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)' }}
+    >
+      {formatPrice(payload.value)}
+    </text>
+  );
+};
 
-      <g className="chart-grid">
-        {yTickArr.map((t, i) => (
-          <line key={i} x1={padL} x2={W - padR} y1={t.yPos} y2={t.yPos} />
-        ))}
-      </g>
-
-      {yTickArr.map((t, i) => (
-        <text key={i} className="axis-text" x={W - padR + 6} y={t.yPos + 3}>{fmt(t.v)}</text>
-      ))}
-
-      {labels.map((l, i) => (
-        <text key={i} className="axis-text" x={x(l.i)} y={H - 8} textAnchor="middle">{l.t}</text>
-      ))}
-
-      <path d={bandPath} fill="url(#bandFill)" />
-
-      <path
-        d={`${histPath} L ${x(projOffset).toFixed(1)} ${(H - padB).toFixed(1)} L ${padL.toFixed(1)} ${(H - padB).toFixed(1)} Z`}
-        fill="url(#histFill)"
-      />
-
-      <path d={histPath} fill="none" stroke="oklch(0.86 0.20 145)" strokeWidth="1.6" filter="url(#glowGreen)" />
-      <path d={linePath(PROJ.bull)} fill="none" stroke="oklch(0.86 0.20 145)" strokeWidth="1.4" strokeDasharray="4 3" opacity="0.9" />
-      <path d={linePath(PROJ.base)} fill="none" stroke="oklch(0.78 0.22 295)" strokeWidth="1.6" filter="url(#glowViolet)" />
-      <path d={linePath(PROJ.bear)} fill="none" stroke="oklch(0.65 0.18 25)" strokeWidth="1.4" strokeDasharray="4 3" opacity="0.85" />
-
-      <line x1={todayX} x2={todayX} y1={padT} y2={H - padB} stroke="rgba(176,139,255,0.30)" strokeDasharray="3 3" />
-      <circle cx={todayX} cy={todayY} r="4" fill="oklch(0.86 0.20 145)" stroke="#0a0a12" strokeWidth="2" filter="url(#glowGreen)" />
-
-      <circle cx={bullEnd.xPos} cy={bullEnd.yPos} r="3" fill="oklch(0.86 0.20 145)" />
-      <circle cx={baseEnd.xPos} cy={baseEnd.yPos} r="3" fill="oklch(0.78 0.22 295)" />
-      <circle cx={bearEnd.xPos} cy={bearEnd.yPos} r="3" fill="oklch(0.65 0.18 25)" />
-    </svg>
+function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartRow }> }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  const isForecast = d.bull != null;
+  return (
+    <div style={{
+      background: 'var(--surface-2)',
+      border: '1px solid var(--line-2)',
+      borderRadius: 8,
+      padding: '8px 12px',
+      fontSize: 11,
+      fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+      color: 'var(--text)',
+      lineHeight: 1.9,
+      pointerEvents: 'none',
+    }}>
+      <div style={{ color: 'var(--text-3)', marginBottom: 2 }}>
+        {new Date(d.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+      </div>
+      {d.hist != null && <div style={{ color: 'oklch(0.86 0.20 145)' }}>{formatPrice(d.hist)}</div>}
+      {isForecast && (
+        <>
+          <div style={{ color: 'oklch(0.86 0.20 145)', opacity: 0.9 }}>Bull  {formatPrice(d.bull!)}</div>
+          <div style={{ color: 'oklch(0.78 0.22 295)' }}>Base  {formatPrice(d.base!)}</div>
+          <div style={{ color: 'oklch(0.65 0.18 25)', opacity: 0.9 }}>Bear  {formatPrice(d.bear!)}</div>
+        </>
+      )}
+    </div>
   );
 }
+
+// ─── Confidence band (fill between bull and bear lines) ───────────────────────
+
+function ConfidenceBand({ rows }: { rows: ChartRow[] }) {
+  const xScale = useXAxisScale();
+  const yScale = useYAxisScale();
+
+  const points = useMemo(() => {
+    if (!xScale || !yScale) return [];
+    return rows
+      .filter((r): r is ChartRow & { bull: number; bear: number } => r.bull != null && r.bear != null)
+      .map((r) => ({
+        x: xScale(r.t),
+        top: yScale(r.bull),
+        bottom: yScale(r.bear),
+      }))
+      .filter((p): p is { x: number; top: number; bottom: number } =>
+        typeof p.x === 'number' && typeof p.top === 'number' && typeof p.bottom === 'number',
+      );
+  }, [rows, xScale, yScale]);
+
+  if (points.length < 2) return null;
+
+  const topPath = points.map((p) => `${p.x},${p.top}`).join(' L ');
+  const bottomPath = points.slice().reverse().map((p) => `${p.x},${p.bottom}`).join(' L ');
+  const d = `M ${topPath} L ${bottomPath} Z`;
+
+  return <path d={d} fill="oklch(0.78 0.22 295 / 0.10)" stroke="none" />;
+}
+
+// ─── Legend ───────────────────────────────────────────────────────────────────
+
+function ChartLegend({ payload }: { payload?: ReadonlyArray<LegendPayload> }) {
+  if (!payload?.length) return null;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 16,
+        justifyContent: 'flex-end',
+        paddingBottom: 6,
+        fontSize: 11,
+        fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+        color: 'var(--text-3)',
+      }}
+    >
+      {payload.map((entry) => (
+        <div key={entry.value} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: entry.color,
+              flexShrink: 0,
+            }}
+          />
+          {entry.value}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main chart component ─────────────────────────────────────────────────────
+
+export function ProjectionChart({
+  glow: _glow = 1,
+  rows,
+  yDomain,
+  todayMs = Date.now(),
+}: {
+  width?: number;
+  height?: number;
+  glow?: number;
+  rows?: ChartRow[];
+  yDomain?: [number, number];
+  todayMs?: number;
+}) {
+  const chartRows = rows && rows.length > 0 ? rows : FALLBACK_ROWS;
+  const chartYDomain = rows && rows.length > 0 ? (yDomain ?? computeYDomain(rows)) : FALLBACK_Y_DOMAIN;
+
+  const xDomain = useMemo<[number, number]>(() => {
+    if (chartRows.length === 0) return [0, 1];
+    return [chartRows[0].t, chartRows[chartRows.length - 1].t];
+  }, [chartRows]);
+
+  const [scrollRef, containerWidth] = useContainerWidth<HTMLDivElement>();
+  const plotWidth = Math.max(containerWidth, chartRows.length * MIN_PX_PER_POINT);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div
+        ref={scrollRef}
+        style={{ overflowX: 'auto', overflowY: 'hidden', paddingRight: CHART_Y_AXIS_WIDTH }}
+      >
+        <ComposedChart
+          width={plotWidth}
+          height={CHART_HEIGHT}
+          data={chartRows}
+          margin={{ top: 16, right: 48, bottom: 26, left: 0 }}
+        >
+
+          <defs>
+            <linearGradient id="rc-hist-fill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="oklch(0.86 0.20 145)" stopOpacity={0.16} />
+              <stop offset="100%" stopColor="oklch(0.86 0.20 145)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+
+          <CartesianGrid
+            stroke="rgba(255,255,255,0.04)"
+            strokeDasharray="2 4"
+            vertical={false}
+          />
+
+          <XAxis
+            dataKey="t"
+            type="number"
+            domain={xDomain}
+            tickFormatter={formatDateTick}
+            axisLine={false}
+            tickLine={false}
+            height={28}
+            tick={{ fill: 'var(--text-3)', fontSize: 12, fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)' }}
+          />
+
+          <YAxis
+            hide
+            orientation="right"
+            domain={chartYDomain}
+            width={0}
+          />
+
+          <Tooltip
+            content={<ChartTooltip />}
+            cursor={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
+            offset={12}
+          />
+
+          <Legend verticalAlign="top" align="right" content={<ChartLegend />} />
+
+          <Area
+            dataKey="hist"
+            type="linear"
+            stroke="oklch(0.86 0.20 145)"
+            strokeWidth={1.8}
+            fill="url(#rc-hist-fill)"
+            dot={false}
+            activeDot={{ r: 4, fill: 'oklch(0.86 0.20 145)', stroke: '#0a0a12', strokeWidth: 2 }}
+            connectNulls={false}
+            isAnimationActive={false}
+            legendType="none"
+          />
+
+          <ConfidenceBand rows={chartRows} />
+
+          <ReferenceLine
+            x={todayMs}
+            stroke="oklch(0.78 0.22 295)"
+            strokeDasharray="3 3"
+            strokeWidth={1}
+            label={{
+              value: 'Today',
+              position: 'insideTopLeft',
+              fill: 'oklch(0.78 0.22 295)',
+              fontSize: 11,
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+            }}
+          />
+
+          <Line
+            dataKey="bull"
+            name="Bull case"
+            type="linear"
+            stroke="oklch(0.86 0.20 145)"
+            strokeWidth={1.4}
+            strokeDasharray="5 3"
+            dot={false}
+            activeDot={{ r: 3, fill: 'oklch(0.86 0.20 145)', strokeWidth: 0 }}
+            connectNulls={false}
+            isAnimationActive={false}
+          />
+
+          <Line
+            dataKey="base"
+            name="Base case"
+            type="linear"
+            stroke="oklch(0.78 0.22 295)"
+            strokeWidth={1.8}
+            dot={false}
+            activeDot={{ r: 4, fill: 'oklch(0.78 0.22 295)', stroke: '#0a0a12', strokeWidth: 2 }}
+            connectNulls={false}
+            isAnimationActive={false}
+          />
+
+          <Line
+            dataKey="bear"
+            name="Bear case"
+            type="linear"
+            stroke="oklch(0.65 0.18 25)"
+            strokeWidth={1.4}
+            strokeDasharray="5 3"
+            dot={false}
+            activeDot={{ r: 3, fill: 'oklch(0.65 0.18 25)', strokeWidth: 0 }}
+            connectNulls={false}
+            isAnimationActive={false}
+          />
+
+        </ComposedChart>
+      </div>
+
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: CHART_Y_AXIS_WIDTH,
+          pointerEvents: 'none',
+        }}
+      >
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <ComposedChart data={chartRows} margin={{ top: 16, right: 0, bottom: 26, left: 0 }}>
+            <YAxis
+              orientation="right"
+              domain={chartYDomain}
+              tick={<YTick />}
+              axisLine={false}
+              tickLine={false}
+              tickCount={5}
+              width={CHART_Y_AXIS_WIDTH}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sparkline ────────────────────────────────────────────────────────────────
 
 export function Sparkline({ width = 110, height = 28, seed = 1, color = 'green' }: {
   width?: number; height?: number; seed?: number; color?: 'green' | 'violet' | 'red';
 }) {
   const rnd = seededRand(seed);
   const N = 28;
-  let v = 50;
+  let val = 50;
   const arr: number[] = [];
   for (let i = 0; i < N; i++) {
-    v += (rnd() - 0.45) * 6;
-    arr.push(v);
+    val += (rnd() - 0.45) * 6;
+    arr.push(val);
   }
   const min = Math.min(...arr), max = Math.max(...arr);
   const xPos = (i: number) => (i / (N - 1)) * (width - 2) + 1;
-  const yPos = (val: number) => height - 2 - ((val - min) / (max - min || 1)) * (height - 4);
-  const path = arr.map((val, i) => `${i === 0 ? 'M' : 'L'} ${xPos(i).toFixed(1)} ${yPos(val).toFixed(1)}`).join(' ');
+  const yPos = (v: number) => height - 2 - ((v - min) / (max - min || 1)) * (height - 4);
+  const path = arr.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xPos(i).toFixed(1)} ${yPos(v).toFixed(1)}`).join(' ');
   const stroke = color === 'violet' ? 'oklch(0.78 0.22 295)' : color === 'red' ? 'oklch(0.7 0.20 25)' : 'oklch(0.86 0.20 145)';
   const fillId = `sparkFill_${seed}_${color}`;
   return (
@@ -172,6 +432,8 @@ export function Sparkline({ width = 110, height = 28, seed = 1, color = 'green' 
     </svg>
   );
 }
+
+// ─── HoldingsDonut ────────────────────────────────────────────────────────────
 
 interface DonutSegment { name: string; value: number; color: string; }
 

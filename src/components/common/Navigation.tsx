@@ -1,3 +1,5 @@
+'use client';
+
 import {
   IconLogout,
   IconReceipt,
@@ -7,7 +9,8 @@ import {
   IconHome,
   IconPackage,
 } from '@/assets/icons';
-import {ButtonOrLink} from '@/components/ui';
+import { Button } from '@heroui/react';
+import Link from 'next/link';
 import { cn } from '@/utils/cn';
 
 export const ICONS: Record<string, React.ElementType> = {
@@ -18,6 +21,7 @@ export const ICONS: Record<string, React.ElementType> = {
   IconSwitch,
   IconReceipt,
 };
+
 export const Navigation: React.FC = () => {
   type NavItem = {
     name: string;
@@ -67,26 +71,43 @@ export const Navigation: React.FC = () => {
           const IconItem = ICONS[item.icon];
           return (
             <li key={index} className="flex items-center justify-center">
-              <ButtonOrLink
-                href={item.path}
-                aria-label={item.name}
-                isActive={isActive}
-                variant="ghost"
-              >
-                <IconItem
-                  className={cn('size-5 dark:text-white', {
-                    'text-blue-500 dark:text-blue-500': isActive,
-                  })}
-                />
-              </ButtonOrLink>
+              {item.path ? (
+                <Link
+                  href={item.path}
+                  aria-label={item.name}
+                  className={cn(
+                    'inline-flex items-center justify-center rounded-full size-11.5 transition duration-300 hover:bg-black/5 dark:hover:bg-white/10',
+                    isActive && 'bg-white text-black dark:text-black dark:bg-blue/15',
+                  )}
+                >
+                  <IconItem className={cn('size-5 dark:text-white', isActive && 'text-blue-500 dark:text-blue-500')} />
+                </Link>
+              ) : (
+                <Button
+                  isIconOnly
+                  variant="ghost"
+                  aria-label={item.name}
+                  className={cn(
+                    'rounded-full size-11.5',
+                    isActive && 'bg-white text-black dark:text-black dark:bg-blue/15',
+                  )}
+                >
+                  <IconItem className={cn('size-5 dark:text-white', isActive && 'text-blue-500 dark:text-blue-500')} />
+                </Button>
+              )}
             </li>
           );
         })}
       </ul>
       <div className="rounded-full bg-gray-100 md:sticky md:bottom-4 dark:bg-black">
-        <ButtonOrLink variant="ghost" className="bg-black/5 dark:md:bg-white/5">
-          <IconLogout className={'size-5 dark:text-white'} />
-        </ButtonOrLink>
+        <Button
+          isIconOnly
+          variant="ghost"
+          aria-label="Logout"
+          className="rounded-full size-11.5 bg-black/5 dark:md:bg-white/5"
+        >
+          <IconLogout className="size-5 dark:text-white" />
+        </Button>
       </div>
       <div className="absolute inset-0 -z-10 bg-white blur-[15px] md:hidden"></div>
     </div>

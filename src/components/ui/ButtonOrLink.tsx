@@ -1,19 +1,22 @@
 'use client';
 
-import { cn } from '@/utils/cn';
+import { Button } from '@heroui/react';
 import Link from 'next/link';
 import React from 'react';
+import { cn } from '@/utils/cn';
 
 type ButtonOrLinkProps = {
   ariaLabel?: string;
   onClick?: () => void;
-  children: React.ReactNode; // Icons / text / anything
+  children: React.ReactNode;
   className?: string;
   href?: string;
   isActive?: boolean;
   variant?: 'primary' | 'secondary' | 'ghost';
-} & React.ButtonHTMLAttributes<HTMLButtonElement> &
+} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'> &
   React.AnchorHTMLAttributes<HTMLAnchorElement>;
+
+const iconBtnBase = 'inline-flex items-center justify-center rounded-full size-11.5 transition duration-300';
 
 export const ButtonOrLink = ({
   children,
@@ -24,37 +27,30 @@ export const ButtonOrLink = ({
   isActive,
   ...props
 }: ButtonOrLinkProps) => {
-  const baseStyles =
-    'flex items-center justify-center rounded-full size-[46px] transition duration-300 hover:bg-black-100/5 dark:hover:bg-black-200';
+  const activeClass = isActive ? 'bg-white text-black dark:text-black dark:bg-blue/15' : '';
 
-  const variantStyles = {
-    primary:
-      'bg-black/4 hover:bg-black/10 dark:bg-black/35 dark:hover:bg-blue/20 active:bg-blue/25 active:dark:bg-blue/30',
-    secondary: 'bg-blue hover:bg-blue/10',
-    ghost: 'bg-transparent hover:bg-black/15 dark:hover:bg-white/15 dark:bg-white/5',
-  };
-  const activeStyles = isActive ? 'bg-white text-black dark:text-black dark:bg-blue/15' : '';
-  const classes = cn(baseStyles, variantStyles[props.variant || 'primary'], className);
-
-  // 👉 Render Link if href exists
   if (href) {
     return (
-      <Link href={href} className={cn(classes, activeStyles)} {...props}>
+      <Link
+        href={href}
+        aria-label={ariaLabel}
+        className={cn(iconBtnBase, 'hover:bg-black-100/5 dark:hover:bg-black-200', activeClass, className)}
+        {...(props as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
+      >
         {children}
       </Link>
     );
   }
 
-  // 👉 Otherwise render Button
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <Button
+      variant="ghost"
+      isIconOnly
+      onPress={onClick}
       aria-label={ariaLabel}
-      className={cn(classes, activeStyles)}
-      {...props}
+      className={cn('rounded-full size-11.5', activeClass, className)}
     >
       {children}
-    </button>
+    </Button>
   );
 };

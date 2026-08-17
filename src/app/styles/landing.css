@@ -79,17 +79,17 @@
   padding: 14px 22px; border-radius: 12px; border: 0; cursor: pointer; font-family: inherit;
   text-decoration: none; display: inline-block;
   box-shadow: 0 0 calc(40px * var(--glow)) oklch(0.55 0.22 295 / calc(0.55 * var(--glow))), inset 0 -2px 0 rgba(0,0,0,0.18);
-  transition: opacity 0.15s;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
-.prowl .btn-cta:hover { opacity: 0.9; }
+.prowl .btn-cta:hover { filter: brightness(1.12); transform: scale(1.02) translateY(-1px); box-shadow: 0 8px 30px oklch(0.55 0.22 295 / calc(0.55 * var(--glow))); }
 .prowl .btn-cta-ghost {
   background: transparent; color: var(--text);
   border: 1px solid var(--line-2);
   padding: 14px 22px; border-radius: 12px; font-size: 14px;
   cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
-.prowl .btn-cta-ghost:hover { border-color: var(--line-2); color: var(--text); }
+.prowl .btn-cta-ghost:hover { border-color: oklch(0.55 0.20 295 / 0.5); background: var(--surface-2); transform: translateY(-1px); color: var(--text); }
 .prowl .hero-meta {
   display: flex; gap: 20px; justify-content: center; margin-top: 28px;
   font-size: 12px; color: var(--text-3);
@@ -277,19 +277,30 @@
 
 /* FAQ */
 .prowl .faq { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
-.prowl .faq details {
-  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 18px 22px;
-  transition: border-color 0.2s;
+.prowl .faq-item {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+  padding: 0 22px; cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease;
+  user-select: none;
 }
-.prowl .faq details[open] { border-color: oklch(0.55 0.20 295 / 0.30); }
-.prowl .faq summary {
-  cursor: pointer; font-size: 15px; font-weight: 500;
-  list-style: none; display: flex; justify-content: space-between; align-items: center;
+.prowl .faq-item.open {
+  border-color: oklch(0.55 0.20 295 / 0.35);
+  background: linear-gradient(180deg, oklch(0.55 0.18 295 / 0.06), transparent), var(--surface);
 }
-.prowl .faq summary::-webkit-details-marker { display: none; }
-.prowl .faq summary::after { content: '+'; color: var(--text-3); font-size: 20px; transition: transform 0.2s; }
-.prowl .faq details[open] summary::after { content: '−'; }
-.prowl .faq p { margin: 14px 0 0; font-size: 14px; color: var(--text-2); line-height: 1.65; }
+.prowl .faq-item:hover:not(.open) { border-color: var(--line-2); }
+.prowl .faq-q {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 16px; padding: 18px 0; font-size: 15px; font-weight: 500;
+}
+.prowl .faq-icon {
+  flex-shrink: 0; font-size: 20px; color: var(--text-3); line-height: 1;
+  transition: transform 0.3s ease, color 0.2s ease;
+}
+.prowl .faq-item.open .faq-icon { transform: rotate(45deg); color: var(--violet); }
+.prowl .faq-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.35s ease; }
+.prowl .faq-item.open .faq-body { grid-template-rows: 1fr; }
+.prowl .faq-body > div { overflow: hidden; }
+.prowl .faq-body p { margin: 0; padding-bottom: 18px; font-size: 14px; color: var(--text-2); line-height: 1.65; }
 
 /* Responsive */
 @media (max-width: 880px) {
@@ -323,7 +334,7 @@
   .prowl .logos-row { gap: 28px; }
 
   .prowl .pricing-card { padding: 24px 20px; }
-  .prowl .faq-item summary { font-size: 14px; padding: 14px 0; }
+  .prowl .faq-q { font-size: 14px; padding: 14px 0; }
 }
 
 /* ── Landing mobile ≤480px ──────────────────────────────────────── */

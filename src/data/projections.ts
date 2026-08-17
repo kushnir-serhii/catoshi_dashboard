@@ -1,0 +1,39 @@
+import type { KpiItem, AiPred, WatchlistRow, HoldingSegment, Signal } from './types';
+
+export const projectionKpis: KpiItem[] = [
+  { lbl: 'Portfolio value',  val: '$248,392.41', sparkSeed: 4,  sparkColor: 'green',  deltaText: '+ $12,409', deltaClass: 'delta-up mono', subText: 'last 30d' },
+  { lbl: '90-day projection', val: '$291,400',   sparkSeed: 11, sparkColor: 'violet', deltaText: '+ 17.3%',  deltaClass: 'delta-up mono', subText: 'base case' },
+  { lbl: 'Risk score',        val: '6.2 / 10',  sparkSeed: 19, sparkColor: 'violet', deltaText: 'moderate', deltaClass: 'muted',         subText: 'σ 0.34' },
+  { lbl: 'AI confidence',     val: '74%',        sparkSeed: 27, sparkColor: 'green',  deltaText: '+ 3.1pt',  deltaClass: 'delta-up mono', subText: 'last cycle' },
+];
+
+export const aiPredictions: AiPred[] = [
+  { sym: 'BTC',  name: 'Bitcoin',   target: '$78,420', delta: '+12.4%', conf: 81, horizon: '60D', from: '$69,750' },
+  { sym: 'ETH',  name: 'Ethereum',  target: '$4,890',  delta: '+18.1%', conf: 74, horizon: '60D', from: '$4,140' },
+  { sym: 'SOL',  name: 'Solana',    target: '$284',    delta: '+9.6%',  conf: 68, horizon: '60D', from: '$259' },
+  { sym: 'TAO',  name: 'Bittensor', target: '$612',    delta: '+34.2%', conf: 52, horizon: '60D', from: '$456' },
+];
+
+export const watchlistRows: WatchlistRow[] = [
+  { sym: 'BTC',  name: 'Bitcoin',   price: '$69,750.40', d24: '+1.84%', up: true,  proj: '+12.4%', side: 'bull', spark: 3 },
+  { sym: 'ETH',  name: 'Ethereum',  price: '$4,140.18',  d24: '+2.62%', up: true,  proj: '+18.1%', side: 'bull', spark: 7 },
+  { sym: 'SOL',  name: 'Solana',    price: '$259.04',    d24: '–0.78%', up: false, proj: '+9.6%',  side: 'bull', spark: 9 },
+  { sym: 'LINK', name: 'Chainlink', price: '$22.41',     d24: '+0.41%', up: true,  proj: '+6.2%',  side: 'bull', spark: 13 },
+  { sym: 'ARB',  name: 'Arbitrum',  price: '$1.04',      d24: '–2.12%', up: false, proj: '–4.1%',  side: 'bear', spark: 17 },
+  { sym: 'TAO',  name: 'Bittensor', price: '$456.20',    d24: '+5.20%', up: true,  proj: '+34.2%', side: 'bull', spark: 21 },
+];
+
+export const holdingSegments: HoldingSegment[] = [
+  { name: 'BTC',  value: 42, color: 'oklch(0.78 0.22 295)' },
+  { name: 'ETH',  value: 28, color: 'oklch(0.86 0.20 145)' },
+  { name: 'SOL',  value: 14, color: 'oklch(0.62 0.22 295)' },
+  { name: 'TAO',  value: 9,  color: 'oklch(0.55 0.20 145)' },
+  { name: 'Cash', value: 7,  color: 'oklch(0.40 0.04 280)' },
+];
+
+export const panelSignals: Signal[] = [
+  { side: 'bullish', tag: 'BULLISH', src: 'On-chain · BTC',   title: 'Whale accumulation up 14% w/w; supply on exchanges hits 5y low.', meta: '4 sources · 2h ago' },
+  { side: 'bullish', tag: 'BULLISH', src: 'Macro',            title: 'Real yields trending down. Risk-on assets gaining bid.',          meta: 'Reuters · 5h ago' },
+  { side: 'bearish', tag: 'BEARISH', src: 'Sentiment · SOL',  title: 'Funding rates compressing after 9d positive streak.',            meta: 'Coinglass · 1h ago' },
+  { side: 'neutral', tag: 'NEUTRAL', src: 'Technicals · ETH', title: 'Pinned at $4.1K resistance; 50/200 EMA cross pending.',          meta: 'Auto · 30m ago' },
+];

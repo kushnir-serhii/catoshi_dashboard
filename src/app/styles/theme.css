@@ -1,11 +1,5 @@
 @custom-variant dark (&:is(.dark *));
 
-:root {
-    --index: calc(1vw + 1vh);
-    --index-ratio: 25;
-    /*16:9*/
-}
-
 @theme {
     --font-*: initial;
     --font-family: var(--font-openSans), sans-serif;
@@ -21,14 +15,35 @@
     --breakpoint-2xl: 1440px;
     --breakpoint-4xl: 1600px;
 
-    --color-white: #ffffff;
-    --color-black: #071429;
-    --color-bg-main: #e7edf8;
-    --color-blue: #0e64ee;
-    --color-ice-blue: #e8ecf4;
-    --color-gray: #cdd0d4;
-    --color-card-bg: oklch(1 0 0 / 80%);
-    --color-card-bg-dark: oklch(1 0 0 / 2%);
+    /*
+     * Prowl — the dashboard's design-system palette. This is the only color
+     * system the app renders with; every token here backs a real Tailwind
+     * utility (bg-violet, text-text-2, border-line, etc.) and is also read
+     * directly as a CSS var by dashboard.css / landing.css.
+     */
+    --color-bg: #0a0a12;
+    --color-bg-2: #0e0e1a;
+    --color-surface: #12121e;
+    --color-surface-2: #181826;
+    --color-surface-3: #1f1f30;
+    --color-line: rgba(255, 255, 255, 0.06);
+    --color-line-2: rgba(255, 255, 255, 0.10);
+    --color-text: #e8e8f2;
+    --color-text-2: #a4a4b8;
+    --color-text-3: #6b6b80;
+    --color-violet: oklch(0.72 0.22 295);
+    --color-violet-light: oklch(0.78 0.22 295);
+    --color-violet-2: oklch(0.62 0.22 295);
+    --color-violet-soft: oklch(0.55 0.18 295 / 0.18);
+    --color-green: oklch(0.86 0.20 145);
+    --color-green-2: oklch(0.76 0.20 145);
+    --color-green-soft: oklch(0.70 0.18 145 / 0.18);
+    --color-red: oklch(0.70 0.20 25);
+    --color-warning: #f59e0b;
 }
 
-
+:root {
+    --index: calc(1vw + 1vh);
+    --index-ratio: 25;
+    /*16:9*/
+}

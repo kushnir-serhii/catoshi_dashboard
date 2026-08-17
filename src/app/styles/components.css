@@ -1,22 +1,5 @@
 @layer components {
 
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-        @apply font-[fixelDisplay] font-semibold text-black dark:text-white/95;
-    }
-
-    .text-description {
-        @apply text-black/50 dark:text-white/80;
-    }
-
-    .card-bg {
-        @apply bg-white/50 dark:bg-white/5;
-    }
-
     /* Dynamic Headings */
     .dynamic-h2 {
         @apply text-4xl xl:text-[calc((var(--index)*36)/var(--index-ratio))];

@@ -2,6 +2,7 @@ import './styles/globals.css';
 import localFont from 'next/font/local';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { Open_Sans, Geist, Geist_Mono } from 'next/font/google';
+import { DashboardProvider } from '@/components/dashboard/context';
 
 export const openSans = Open_Sans({
   subsets: ['latin'],
@@ -47,7 +48,9 @@ export default function RootLayout({
       data-theme="dark"
     >
       <body className={`${openSans.className} font-sans antialiased dark:bg-gray-900`}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <DashboardProvider>{children}</DashboardProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

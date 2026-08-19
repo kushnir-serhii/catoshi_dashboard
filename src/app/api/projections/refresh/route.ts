@@ -1,9 +1,15 @@
-import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
-import { fetchMarketData } from '@/lib/marketData';
-import { generateForecast } from '@/lib/forecastProvider';
-import { FORECAST_GRID_DAYS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
+import { NextResponse } from 'next/server';
+
+import type { ForecastTarget } from '@/consts/projections';
+import {
+  DEFAULT_FORECAST_TARGETS,
+  FORECAST_GRID_DAYS,
+  PROJECTION_SCHEMA_VERSION,
+} from '@/consts/projections';
 import type { ForecastPoint, ProjectionData, ProjectionsResponse } from '@/data/types';
+import { generateForecast } from '@/lib/forecastProvider';
+import { fetchMarketData } from '@/lib/marketData';
 
 // Seeded pseudo-random number generator (mulberry32) for reproducible mock data
 function seededRng(seed: number): () => number {
@@ -109,6 +115,39 @@ function buildProjection(cfg: CoinConfig): ProjectionData {
   };
 }
 
+/** Deterministic string hash, used to seed mock data for coins outside
+ * `COIN_CONFIGS` so mock mode still works when reforecasting an arbitrary coin. */
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+}
+
+function buildMockProjectionForCoin(target: ForecastTarget): ProjectionData {
+  const known = COIN_CONFIGS.find((cfg) => cfg.coin === target.symbol);
+  if (known) return buildProjection(known);
+
+  const seed = hashString(target.id);
+  const rng = seededRng(seed);
+  // Plausible-looking price across small-cap to large-cap ranges, derived
+  // deterministically from the coin id so re-mocking the same coin is stable.
+  const currentPrice = Math.round(10 ** (rng() * 5) * 100) / 100;
+
+  return buildProjection({
+    coin: target.symbol,
+    currentPrice,
+    histSeed: seed % 100000,
+    bullDrift: 0.006 + rng() * 0.004,
+    baseDrift: 0.001 + rng() * 0.003,
+    bearDrift: -0.003 - rng() * 0.004,
+    reasoning: [
+      `Mock projection for ${target.name} (no live data — NEXT_PUBLIC_USE_MOCK_DATA is set)`,
+    ],
+  });
+}
+
 const ALLOWED: Record<string, string[]> = {
   claude: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-8'],
   openai: ['gpt-4o-mini', 'gpt-4o'],
@@ -125,10 +164,32 @@ function validateParams(service: string, model: string): { service: string; mode
   return { service, model };
 }
 
+interface RefreshRequestBody {
+  service?: string;
+  model?: string;
+  /** When present, only this one coin is (re)forecasted instead of the
+   * default tracked batch — used by the chart's and Scenario Simulator's
+   * per-coin "Reforecast" actions, so switching to an arbitrary coin only
+   * costs an AI call when the user actually asks for one. */
+  coin?: { id?: string; symbol?: string; name?: string };
+}
+
+function isValidTarget(coin: RefreshRequestBody['coin']): coin is ForecastTarget {
+  return (
+    !!coin &&
+    typeof coin.id === 'string' &&
+    coin.id.length > 0 &&
+    typeof coin.symbol === 'string' &&
+    coin.symbol.length > 0 &&
+    typeof coin.name === 'string' &&
+    coin.name.length > 0
+  );
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
-  let body: { service?: string; model?: string } = {};
+  let body: RefreshRequestBody = {};
   try {
-    body = (await request.json()) as { service?: string; model?: string };
+    body = (await request.json()) as RefreshRequestBody;
   } catch {
     // body remains empty — use defaults
   }
@@ -138,19 +199,27 @@ export async function POST(request: Request): Promise<NextResponse> {
     body.model ?? DEFAULT_MODEL,
   );
 
+  const singleTarget: ForecastTarget | null = isValidTarget(body.coin)
+    ? { id: body.coin.id, symbol: body.coin.symbol.toUpperCase(), name: body.coin.name }
+    : null;
+
   // Bust the ISR cache for all projections
   revalidateTag('projections', { expire: 0 });
 
   // When mock data is enabled, return seeded mock data immediately
   if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') {
-    const projections: ProjectionData[] = COIN_CONFIGS.map(buildProjection);
+    const projections: ProjectionData[] = singleTarget
+      ? [buildMockProjectionForCoin(singleTarget)]
+      : COIN_CONFIGS.map(buildProjection);
     const response: ProjectionsResponse = { projections, generatedAt: new Date().toISOString() };
     return NextResponse.json(response);
   }
 
+  const targets = singleTarget ? [singleTarget] : DEFAULT_FORECAST_TARGETS;
+
   try {
-    const marketData = await fetchMarketData();
-    const projections = await generateForecast(service, model, marketData);
+    const marketData = await fetchMarketData(targets);
+    const projections = await generateForecast(service, model, marketData, targets);
     const response: ProjectionsResponse = { projections, generatedAt: new Date().toISOString() };
     return NextResponse.json(response);
   } catch {

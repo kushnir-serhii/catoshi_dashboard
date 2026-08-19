@@ -111,6 +111,42 @@
   color: var(--green-2);
   letter-spacing: 0.12em;
 }
+/* Burger button (mobile nav trigger) */
+.prowl .burger {
+  display: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+.prowl .burger:hover { background: var(--surface-2); }
+.prowl .burger span {
+  position: absolute;
+  left: 8px;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text-2);
+  transition: transform 0.25s ease, opacity 0.2s ease, top 0.25s ease;
+}
+.prowl .burger span:nth-child(1) { top: 12px; }
+.prowl .burger span:nth-child(2) { top: 16px; }
+.prowl .burger span:nth-child(3) { top: 20px; }
+.prowl .burger.open span:nth-child(1) { top: 16px; transform: rotate(45deg); }
+.prowl .burger.open span:nth-child(2) { opacity: 0; }
+.prowl .burger.open span:nth-child(3) { top: 16px; transform: rotate(-45deg); }
+
+/* Mobile nav dropdown (hidden on desktop, animated open/close) */
+.prowl .mobile-menu {
+  display: none;
+}
+
 .prowl .search {
   flex: 1;
   display: flex;
@@ -321,9 +357,10 @@
 }
 .prowl .chart-tabs button.active { background: var(--surface-2); color: var(--text); }
 .prowl .legend {
-  display: flex; gap: 14px;
+  display: flex; gap: 14px; flex-wrap: wrap;
   font-size: 11px; color: var(--text-2);
 }
+.prowl .legend > span { white-space: nowrap; }
 .prowl .legend .sw {
   display: inline-block;
   width: 10px; height: 10px;
@@ -386,6 +423,104 @@
 }
 
 /* Scenario simulator */
+.prowl .scen-coin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+.prowl .scen-coin-label { display: flex; align-items: baseline; gap: 8px; }
+.prowl .scen-coin-label .sym {
+  font-family: "Geist Mono", monospace; font-size: 13px; font-weight: 500;
+}
+.prowl .scen-coin-label .name { font-size: 12px; color: var(--text-3); }
+.prowl .scen-spot { margin-left: auto; display: flex; align-items: baseline; gap: 8px; }
+.prowl .scen-spot .lbl {
+  font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3);
+}
+.prowl .scen-spot .val { font-size: 15px; font-weight: 500; font-feature-settings: "tnum"; }
+
+.prowl .scen-note {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+.prowl .scen-result .cell .chg {
+  margin-top: 2px; font-size: 11px; color: var(--text-3);
+  font-family: "Geist Mono", monospace;
+}
+
+/* Coin picker — borrows the topbar .search field treatment for its query input */
+.prowl .coin-select { position: relative; }
+.prowl .coin-select-trigger {
+  display: flex; align-items: center; gap: 8px;
+  height: 34px; padding: 0 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.prowl .coin-select-trigger:hover { border-color: oklch(0.55 0.20 295 / 0.5); }
+.prowl .coin-select-trigger .sym {
+  font-family: "Geist Mono", monospace; font-size: 13px; font-weight: 500;
+}
+.prowl .coin-select-trigger .name {
+  font-size: 12px; color: var(--text-3);
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.prowl .coin-select-trigger .caret { font-size: 10px; color: var(--text-3); }
+
+.prowl .coin-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  width: 280px;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+.prowl .coin-select-menu .search {
+  display: flex; align-items: center; gap: 10px;
+  height: 34px; padding: 0 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text-3);
+}
+.prowl .coin-select-menu .search input {
+  flex: 1; background: transparent; border: 0; outline: 0;
+  color: var(--text); font-size: 13px; font-family: inherit;
+}
+.prowl .coin-select-list {
+  list-style: none; margin: 8px 0 0; padding: 0;
+  max-height: 260px; overflow-y: auto;
+}
+.prowl .coin-select-list .empty {
+  padding: 10px 12px; font-size: 12px; color: var(--text-3);
+}
+.prowl .coin-select-list button {
+  display: flex; align-items: baseline; gap: 8px;
+  width: 100%; padding: 7px 12px;
+  background: transparent; border: 0; border-radius: 8px;
+  color: var(--text); font-family: inherit; text-align: left; cursor: pointer;
+}
+.prowl .coin-select-list button.active { background: var(--surface-3); }
+.prowl .coin-select-list button[aria-selected="true"] .sym { color: var(--violet); }
+.prowl .coin-select-list button .sym {
+  font-family: "Geist Mono", monospace; font-size: 12px; min-width: 52px;
+}
+.prowl .coin-select-list button .name {
+  font-size: 12px; color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 .prowl .scen-row {
   display: grid;
   grid-template-columns: 110px 1fr 80px;
@@ -677,17 +812,36 @@
   .prowl .nav    { display: none; }
   .prowl .search { display: none; }
   .prowl .balance { margin-left: auto; }
+  .prowl .burger  { display: inline-flex; }
+
+  .prowl .mobile-menu {
+    display: block;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+    margin-top: 0;
+    transition: max-height 0.3s ease, opacity 0.22s ease, transform 0.22s ease, margin-top 0.3s ease;
+  }
+  .prowl .mobile-menu.open {
+    max-height: 480px;
+    opacity: 1;
+    transform: translateY(0);
+    margin-top: 10px;
+  }
 
   .prowl .mobile-nav {
-    display: flex; gap: 2px; overflow-x: auto;
-    scrollbar-width: none; padding: 10px 0 0;
-    -webkit-overflow-scrolling: touch;
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--surface);
+    backdrop-filter: blur(8px);
   }
-  .prowl .mobile-nav::-webkit-scrollbar { display: none; }
   .prowl .mobile-nav a {
-    flex-shrink: 0; padding: 7px 14px; font-size: 12px;
+    padding: 10px 12px; font-size: 13px;
     color: var(--text-2); text-decoration: none;
-    border-radius: 8px; border: 1px solid transparent; white-space: nowrap;
+    border-radius: 8px; border: 1px solid transparent;
   }
   .prowl .mobile-nav a.active {
     color: var(--text); background: var(--surface-2); border-color: var(--line);
@@ -719,6 +873,13 @@
   .prowl .legend { flex-wrap: wrap; }
   .prowl .chart-tabs button { padding: 4px 8px; font-size: 10px; }
   .prowl .scen-row { grid-template-columns: 100px 1fr 65px; gap: 10px; }
+
+  /* Chart card header: let the coin selector drop to its own line instead
+     of vertically centering inside a title row that's wrapped to 2 lines */
+  .prowl .chart-head-row { flex-wrap: wrap; row-gap: 8px; }
+  .prowl .chart-legend-row { flex-wrap: wrap; row-gap: 10px; }
+  .prowl .chart-tabs { overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .prowl .chart-tabs::-webkit-scrollbar { display: none; }
 }
 
 /* ── Phablet ≤768px ─────────────────────────────────────────────── */
@@ -753,6 +914,10 @@
   /* Cards */
   .prowl .card { padding: 12px; }
   .prowl .card-header { margin-bottom: 10px; }
+
+  /* Chart card header: coin select gets its own full-width row */
+  .prowl .chart-head-coin { margin-left: 0 !important; flex-basis: 100%; }
+  .prowl .chart-head-coin .coin-select-trigger { width: 100%; justify-content: space-between; }
 
   /* KPIs: stay 2×2 but smaller */
   .prowl .kpi { padding: 12px 14px; }

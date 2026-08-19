@@ -1,13 +1,20 @@
 import OpenAI from 'openai';
+
+import type { ForecastTarget } from '@/consts/projections';
+import { FORECAST_GRID_DAYS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
 import type { ProjectionData } from '@/data/types';
 import type { MarketData } from '@/lib/marketData';
-import { FORECAST_GRID_DAYS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
+
 import { snapScenarioToGrid } from './gridSnap';
 
 const SCENARIO_POINT_SCHEMA = {
   type: 'object',
   properties: {
-    d: { type: 'number', description: 'Day offset from today, must be one of the exact grid values given in the prompt' },
+    d: {
+      type: 'number',
+      description:
+        'Day offset from today, must be one of the exact grid values given in the prompt',
+    },
     p: { type: 'number', description: 'Forecasted USD price at day d' },
   },
   required: ['d', 'p'],
@@ -82,8 +89,16 @@ function isProjectionsJson(value: unknown): value is ProjectionsJson {
   });
 }
 
-function buildPrompt(marketData: MarketData): string {
-  return `You are a professional cryptocurrency market analyst. Generate price projections for BTC, ETH, and SOL based on the following market data.
+function buildPrompt(marketData: MarketData, targets: readonly ForecastTarget[]): string {
+  const coinList = targets.map((t) => t.symbol).join(', ');
+  const historyLines = targets
+    .map(
+      (t) =>
+        `- ${t.name} 90-day data points: ${marketData.historicalPrices[t.id]?.length ?? 0} entries`,
+    )
+    .join('\n');
+
+  return `You are a professional cryptocurrency market analyst. Generate price projections for ${coinList} based on the following market data.
 
 ## Current Market Data
 
@@ -100,12 +115,10 @@ ${marketData.trending}
 ${marketData.reddit}
 
 ### Historical Price Context
-- Bitcoin 90-day data points: ${marketData.historicalPrices['bitcoin']?.length ?? 0} entries
-- Ethereum 90-day data points: ${marketData.historicalPrices['ethereum']?.length ?? 0} entries
-- Solana 90-day data points: ${marketData.historicalPrices['solana']?.length ?? 0} entries
+${historyLines}
 
 ## Instructions
-Return a JSON object with a "projections" array containing objects for BTC, ETH, and SOL. For each coin:
+Return a JSON object with a "projections" array containing objects for ${coinList}. For each coin:
 - Set currentPrice to the last known price from historical data or your best estimate
 - Each of the bull, base, and bear scenario arrays must contain exactly one {d,p} point for each of the ${FORECAST_GRID_DAYS.length} day offsets in the grid below, with d exactly matching one of the given grid values:
   - Daily, days 1 through 30
@@ -122,8 +135,11 @@ Return a JSON object with a "projections" array containing objects for BTC, ETH,
 export async function generateOpenAIForecast(
   marketData: MarketData,
   model: string,
+  targets: readonly ForecastTarget[],
 ): Promise<ProjectionData[]> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  const coinList = targets.map((t) => t.symbol).join(', ');
 
   const completion = await client.chat.completions.create({
     model,
@@ -132,8 +148,7 @@ export async function generateOpenAIForecast(
       type: 'json_schema',
       json_schema: {
         name: 'generate_projections',
-        description:
-          'Price projections for BTC, ETH, and SOL across bull, base, and bear scenarios on a fixed day grid.',
+        description: `Price projections for ${coinList} across bull, base, and bear scenarios on a fixed day grid.`,
         schema: PROJECTIONS_JSON_SCHEMA,
         strict: true,
       },
@@ -146,7 +161,7 @@ export async function generateOpenAIForecast(
       },
       {
         role: 'user',
-        content: buildPrompt(marketData),
+        content: buildPrompt(marketData, targets),
       },
     ],
   });

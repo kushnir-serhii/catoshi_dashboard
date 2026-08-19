@@ -80,16 +80,6 @@ export interface Prediction {
   conf: number;
 }
 
-export interface AiPred {
-  sym: string;
-  name: string;
-  target: string;
-  delta: string;
-  conf: number;
-  horizon: string;
-  from: string;
-}
-
 export interface WatchlistRow {
   sym: string;
   name: string;

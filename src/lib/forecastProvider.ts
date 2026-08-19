@@ -1,7 +1,8 @@
+import type { ForecastTarget } from '@/consts/projections';
 import type { ProjectionData } from '@/data/types';
-import type { MarketData } from '@/lib/marketData';
 import { generateClaudeForecast } from '@/lib/forecast/claude';
 import { generateOpenAIForecast } from '@/lib/forecast/openai';
+import type { MarketData } from '@/lib/marketData';
 
 const ALLOWED: Record<string, string[]> = {
   claude: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-8'],
@@ -23,12 +24,13 @@ export async function generateForecast(
   service: string,
   model: string,
   marketData: MarketData,
+  targets: readonly ForecastTarget[],
 ): Promise<ProjectionData[]> {
   const validated = validateParams(service, model);
 
   if (validated.service === 'openai') {
-    return generateOpenAIForecast(marketData, validated.model);
+    return generateOpenAIForecast(marketData, validated.model, targets);
   }
 
-  return generateClaudeForecast(marketData, validated.model);
+  return generateClaudeForecast(marketData, validated.model, targets);
 }

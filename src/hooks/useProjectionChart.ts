@@ -1,8 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { usePrices } from '@/hooks/usePrices';
+
+import {
+  FORECAST_GRID_DAYS,
+  HISTORY_FETCH_DAYS,
+  RANGE_DAYS,
+  type RANGE_OPTIONS,
+} from '@/consts/projections';
+import type { CoinListItem, ProjectionData } from '@/data/types';
 import { useHistoricalPrices } from '@/hooks/useHistoricalPrices';
+import { usePrices } from '@/hooks/usePrices';
+import type { ChartRow, ForecastScenarios, ScenarioPoint } from '@/lib/projectionSeries';
 import {
   anchorScenario,
   buildChartRows,
@@ -11,18 +20,18 @@ import {
   isAnchorRatioSane,
   sliceHistory,
 } from '@/lib/projectionSeries';
-import type { ChartRow, ForecastScenarios } from '@/lib/projectionSeries';
-import {
-  COINGECKO_ID_BY_SYMBOL,
-  HISTORY_FETCH_DAYS,
-  PROJECTION_COINS,
-  RANGE_DAYS,
-  type RANGE_OPTIONS,
-} from '@/consts/projections';
-import type { ProjectionData } from '@/data/types';
+import { projectScenarios } from '@/lib/scenarioStats';
+
+/** The Scenario Simulator's current assumptions, used to draw its own
+ * median-projection overlay line on the chart independent of AI coverage. */
+export interface ScenarioOverride {
+  volPct: number;
+  driftPct: number;
+  horizonDays: number;
+}
 
 export interface UseProjectionChartParams {
-  coin: (typeof PROJECTION_COINS)[number];
+  coin: CoinListItem;
   histRange: (typeof RANGE_OPTIONS)[number];
   /** Range applied to the forecast side of the chart — determines how far out
    * (in days) the scenario badges are interpolated. */
@@ -31,6 +40,9 @@ export interface UseProjectionChartParams {
    * call) — passed in rather than fetched again here to avoid a redundant
    * SWR request for the same data. */
   projections?: ProjectionData[] | null;
+  /** Current Scenario Simulator sliders, or `null`/`undefined` to omit the
+   * overlay line entirely. */
+  scenarioOverride?: ScenarioOverride | null;
 }
 
 /** Interpolated end-of-`fcastRange` price for each forecast scenario. `undefined`
@@ -86,8 +98,10 @@ export function useProjectionChart({
   histRange,
   fcastRange,
   projections,
+  scenarioOverride,
 }: UseProjectionChartParams): UseProjectionChartResult {
-  const coinGeckoId = COINGECKO_ID_BY_SYMBOL[coin];
+  const coinGeckoId = coin.id;
+  const coinSymbol = coin.symbol.toUpperCase();
 
   const { prices, error: pricesError, mutate: mutatePrices } = usePrices([coinGeckoId]);
   const {
@@ -98,7 +112,9 @@ export function useProjectionChart({
 
   const livePrice = prices?.[coinGeckoId]?.usd;
 
-  const isStale = (!!pricesError && livePrice !== undefined) || (!!historyError && !!history && history.length > 0);
+  const isStale =
+    (!!pricesError && livePrice !== undefined) ||
+    (!!historyError && !!history && history.length > 0);
 
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   // Also doubles as a stable "now" for the non-forecast `todayMs` fallback below,
@@ -112,7 +128,6 @@ export function useProjectionChart({
       setNowMs(now);
     }
     // Only re-record when a fresh value actually arrives.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [livePrice, history]);
 
   async function retry(): Promise<void> {
@@ -120,8 +135,8 @@ export function useProjectionChart({
   }
 
   const projection = useMemo(
-    () => projections?.find((p) => p.coin === coin) ?? null,
-    [projections, coin],
+    () => projections?.find((p) => p.coin === coinSymbol) ?? null,
+    [projections, coinSymbol],
   );
 
   const useForecast =
@@ -138,7 +153,6 @@ export function useProjectionChart({
       base: anchorScenario(projection.base, projection.currentPrice, livePrice),
       bear: anchorScenario(projection.bear, projection.currentPrice, livePrice),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useForecast, projection, livePrice]);
 
   const slicedHistory = useMemo(
@@ -146,9 +160,18 @@ export function useProjectionChart({
     [history, histRange],
   );
 
+  const scenarioOverlayPoints: ScenarioPoint[] | undefined = useMemo(() => {
+    if (!scenarioOverride || livePrice === undefined) return undefined;
+    const days = FORECAST_GRID_DAYS.filter((d) => d <= scenarioOverride.horizonDays);
+    return days.map((d) => ({
+      d,
+      p: projectScenarios(livePrice, d, scenarioOverride.volPct, scenarioOverride.driftPct).base,
+    }));
+  }, [scenarioOverride, livePrice]);
+
   const rows = useMemo(
-    () => buildChartRows(slicedHistory, scenarios, todayMs, livePrice),
-    [slicedHistory, scenarios, todayMs, livePrice],
+    () => buildChartRows(slicedHistory, scenarios, todayMs, livePrice, scenarioOverlayPoints),
+    [slicedHistory, scenarios, todayMs, livePrice, scenarioOverlayPoints],
   );
 
   const yDomain = useMemo(() => computeYDomain(rows), [rows]);
@@ -179,5 +202,16 @@ export function useProjectionChart({
     };
   }, [scenarios, fcastRange]);
 
-  return { rows, yDomain, livePrice, isLoading, todayMs, histChange, badges, isStale, lastUpdatedAt, retry };
+  return {
+    rows,
+    yDomain,
+    livePrice,
+    isLoading,
+    todayMs,
+    histChange,
+    badges,
+    isStale,
+    lastUpdatedAt,
+    retry,
+  };
 }

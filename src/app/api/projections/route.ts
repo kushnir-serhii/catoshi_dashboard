@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
-import { fetchMarketData } from '@/lib/marketData';
-import { generateForecast } from '@/lib/forecastProvider';
-import { FORECAST_GRID_DAYS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
+import { NextResponse } from 'next/server';
+
+import {
+  DEFAULT_FORECAST_TARGETS,
+  FORECAST_GRID_DAYS,
+  PROJECTION_SCHEMA_VERSION,
+} from '@/consts/projections';
 import type { ForecastPoint, ProjectionData, ProjectionsResponse } from '@/data/types';
+import { generateForecast } from '@/lib/forecastProvider';
+import { fetchMarketData } from '@/lib/marketData';
 
 // Seeded pseudo-random number generator (mulberry32) for reproducible mock data
 function seededRng(seed: number): () => number {
@@ -115,8 +120,13 @@ const DEFAULT_MODEL = 'claude-sonnet-4-6';
 function getCachedForecast(service: string, model: string) {
   return unstable_cache(
     async (): Promise<ProjectionsResponse> => {
-      const marketData = await fetchMarketData();
-      const projections = await generateForecast(service, model, marketData);
+      const marketData = await fetchMarketData(DEFAULT_FORECAST_TARGETS);
+      const projections = await generateForecast(
+        service,
+        model,
+        marketData,
+        DEFAULT_FORECAST_TARGETS,
+      );
       return { projections, generatedAt: new Date().toISOString() };
     },
     ['projections', service, model],

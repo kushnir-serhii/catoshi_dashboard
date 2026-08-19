@@ -1,7 +1,8 @@
 'use client';
 
 import useSWR from 'swr';
-import type { ProjectionsResponse } from '@/data/types';
+
+import type { CoinListItem, ProjectionsResponse } from '@/data/types';
 
 async function fetchProjections(
   _key: string,
@@ -14,13 +15,15 @@ async function fetchProjections(
   return res.json() as Promise<ProjectionsResponse | null>;
 }
 
-export function useProjections(
-  service: string = 'claude',
-  model: string = 'claude-sonnet-4-6',
-) {
+export function useProjections(service: string = 'claude', model: string = 'claude-sonnet-4-6') {
   const key = ['projections', service, model] as const;
 
-  const { data, error, isLoading: swrLoading, mutate } = useSWR<ProjectionsResponse | null>(
+  const {
+    data,
+    error,
+    isLoading: swrLoading,
+    mutate,
+  } = useSWR<ProjectionsResponse | null>(
     key,
     (k: readonly [string, string, string]) => fetchProjections(k[0], k[1], k[2]),
     {
@@ -43,11 +46,43 @@ export function useProjections(
     await mutate(fresh, { revalidate: false });
   }
 
+  /** Generates a real AI forecast for a single coin — the only way to get AI
+   * coverage for a coin outside the default tracked batch — and merges the
+   * result into the local projections list without touching any other
+   * coin's cached forecast. */
+  async function refreshCoin(
+    coin: CoinListItem,
+    nextService: string,
+    nextModel: string,
+  ): Promise<void> {
+    const res = await fetch('/api/projections/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service: nextService,
+        model: nextModel,
+        coin: { id: coin.id, symbol: coin.symbol, name: coin.name },
+      }),
+    });
+    if (!res.ok) throw new Error(`refreshCoin failed: ${res.status}`);
+    const fresh = (await res.json()) as ProjectionsResponse;
+    const symbol = coin.symbol.toUpperCase();
+
+    await mutate(
+      (current) => {
+        const kept = (current?.projections ?? []).filter((p) => p.coin !== symbol);
+        return { projections: [...kept, ...fresh.projections], generatedAt: fresh.generatedAt };
+      },
+      { revalidate: false },
+    );
+  }
+
   return {
     projections: data?.projections ?? null,
     generatedAt: data?.generatedAt ?? null,
     isLoading,
     isStale,
     refresh,
+    refreshCoin,
   };
 }

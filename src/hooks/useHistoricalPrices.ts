@@ -24,7 +24,6 @@ export function useHistoricalPrices(coinId: string, days: number) {
 
   // isLoading = true only on first load, not during background revalidation
   const isLoading = swrLoading && !data;
-  console.log("DATA_+++++>>>>>>",data)
   return {
     data,
     isLoading,

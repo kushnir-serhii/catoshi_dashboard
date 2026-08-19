@@ -1,4 +1,6 @@
 import { FlatCompat } from '@eslint/eslintrc';
+import prettierPlugin from 'eslint-plugin-prettier';
+import simpleImportSortPlugin from 'eslint-plugin-simple-import-sort';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -7,13 +9,26 @@ const __dirname = dirname(__filename);
 const compat = new FlatCompat({ baseDirectory: __dirname });
 
 export default [
+  // Build output, tooling caches and non-source docs — never lint these
+  {
+    ignores: [
+      '.next/**',
+      '.vercel/**',
+      '.awos/**',
+      '.idea/**',
+      '.vscode/**',
+      'context/**',
+      'node_modules/**',
+    ],
+  },
+
   // Extend Next.js recommended rules
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
 
   // Prettier integration
   {
     plugins: {
-      prettier: require('eslint-plugin-prettier'),
+      prettier: prettierPlugin,
     },
     rules: {
       'prettier/prettier': 'error',
@@ -22,7 +37,7 @@ export default [
 
   // Simple import sort
   {
-    plugins: { 'simple-import-sort': require('eslint-plugin-simple-import-sort') },
+    plugins: { 'simple-import-sort': simpleImportSortPlugin },
     rules: {
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',

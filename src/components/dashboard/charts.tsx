@@ -1,25 +1,26 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { LegendPayload } from 'recharts';
 import {
-  ComposedChart,
   Area,
-  Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
-  ReferenceLine,
+  ComposedChart,
   Legend,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   useXAxisScale,
   useYAxisScale,
-  ResponsiveContainer,
+  XAxis,
+  YAxis,
 } from 'recharts';
-import type { LegendPayload } from 'recharts';
-import { computeYDomain, formatPrice } from '@/lib/projectionSeries';
-import type { ChartRow } from '@/lib/projectionSeries';
+
 import { MIN_PX_PER_POINT } from '@/consts/projections';
+import type { ChartRow } from '@/lib/projectionSeries';
+import { computeYDomain, formatPrice } from '@/lib/projectionSeries';
 
 // ─── Container width measurement (for horizontal-scroll sizing) ───────────────
 
@@ -63,7 +64,9 @@ function generateProjection(): { hist: number[]; bull: number[]; base: number[];
     hist.push(v);
   }
   const last = hist[hist.length - 1];
-  const bull = [last], base = [last], bear = [last];
+  const bull = [last],
+    base = [last],
+    bear = [last];
   for (let i = 1; i < 60; i++) {
     const noise = (rnd() - 0.5) * 0.012;
     bull.push(bull[i - 1] * (1 + 0.0058 + noise));
@@ -120,7 +123,8 @@ const YTick = ({ x, y, payload }: { x?: number; y?: number; payload?: { value: n
   if (!payload) return null;
   return (
     <text
-      x={(x ?? 0) + 4} y={(y ?? 0) + 4}
+      x={(x ?? 0) + 4}
+      y={(y ?? 0) + 4}
       fill="var(--text-3)"
       style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)' }}
     >
@@ -129,33 +133,52 @@ const YTick = ({ x, y, payload }: { x?: number; y?: number; payload?: { value: n
   );
 };
 
-function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartRow }> }) {
+function ChartTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: ChartRow }>;
+}) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   if (!d) return null;
   const isForecast = d.bull != null;
   return (
-    <div style={{
-      background: 'var(--surface-2)',
-      border: '1px solid var(--line-2)',
-      borderRadius: 8,
-      padding: '8px 12px',
-      fontSize: 11,
-      fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
-      color: 'var(--text)',
-      lineHeight: 1.9,
-      pointerEvents: 'none',
-    }}>
+    <div
+      style={{
+        background: 'var(--surface-2)',
+        border: '1px solid var(--line-2)',
+        borderRadius: 8,
+        padding: '8px 12px',
+        fontSize: 11,
+        fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+        color: 'var(--text)',
+        lineHeight: 1.9,
+        pointerEvents: 'none',
+      }}
+    >
       <div style={{ color: 'var(--text-3)', marginBottom: 2 }}>
-        {new Date(d.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        {new Date(d.t).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}
       </div>
       {d.hist != null && <div style={{ color: 'oklch(0.86 0.20 145)' }}>{formatPrice(d.hist)}</div>}
       {isForecast && (
         <>
-          <div style={{ color: 'oklch(0.86 0.20 145)', opacity: 0.9 }}>Bull  {formatPrice(d.bull!)}</div>
-          <div style={{ color: 'oklch(0.78 0.22 295)' }}>Base  {formatPrice(d.base!)}</div>
-          <div style={{ color: 'oklch(0.65 0.18 25)', opacity: 0.9 }}>Bear  {formatPrice(d.bear!)}</div>
+          <div style={{ color: 'oklch(0.86 0.20 145)', opacity: 0.9 }}>
+            Bull {formatPrice(d.bull!)}
+          </div>
+          <div style={{ color: 'oklch(0.78 0.22 295)' }}>Base {formatPrice(d.base!)}</div>
+          <div style={{ color: 'oklch(0.65 0.18 25)', opacity: 0.9 }}>
+            Bear {formatPrice(d.bear!)}
+          </div>
         </>
+      )}
+      {d.scenario != null && (
+        <div style={{ color: 'oklch(0.80 0.18 85)' }}>Your scenario {formatPrice(d.scenario)}</div>
       )}
     </div>
   );
@@ -170,21 +193,28 @@ function ConfidenceBand({ rows }: { rows: ChartRow[] }) {
   const points = useMemo(() => {
     if (!xScale || !yScale) return [];
     return rows
-      .filter((r): r is ChartRow & { bull: number; bear: number } => r.bull != null && r.bear != null)
+      .filter(
+        (r): r is ChartRow & { bull: number; bear: number } => r.bull != null && r.bear != null,
+      )
       .map((r) => ({
         x: xScale(r.t),
         top: yScale(r.bull),
         bottom: yScale(r.bear),
       }))
-      .filter((p): p is { x: number; top: number; bottom: number } =>
-        typeof p.x === 'number' && typeof p.top === 'number' && typeof p.bottom === 'number',
+      .filter(
+        (p): p is { x: number; top: number; bottom: number } =>
+          typeof p.x === 'number' && typeof p.top === 'number' && typeof p.bottom === 'number',
       );
   }, [rows, xScale, yScale]);
 
   if (points.length < 2) return null;
 
   const topPath = points.map((p) => `${p.x},${p.top}`).join(' L ');
-  const bottomPath = points.slice().reverse().map((p) => `${p.x},${p.bottom}`).join(' L ');
+  const bottomPath = points
+    .slice()
+    .reverse()
+    .map((p) => `${p.x},${p.bottom}`)
+    .join(' L ');
   const d = `M ${topPath} L ${bottomPath} Z`;
 
   return <path d={d} fill="oklch(0.78 0.22 295 / 0.10)" stroke="none" />;
@@ -240,7 +270,8 @@ export function ProjectionChart({
   todayMs?: number;
 }) {
   const chartRows = rows && rows.length > 0 ? rows : FALLBACK_ROWS;
-  const chartYDomain = rows && rows.length > 0 ? (yDomain ?? computeYDomain(rows)) : FALLBACK_Y_DOMAIN;
+  const chartYDomain =
+    rows && rows.length > 0 ? (yDomain ?? computeYDomain(rows)) : FALLBACK_Y_DOMAIN;
 
   const xDomain = useMemo<[number, number]>(() => {
     if (chartRows.length === 0) return [0, 1];
@@ -262,7 +293,6 @@ export function ProjectionChart({
           data={chartRows}
           margin={{ top: 16, right: 48, bottom: 26, left: 0 }}
         >
-
           <defs>
             <linearGradient id="rc-hist-fill" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="oklch(0.86 0.20 145)" stopOpacity={0.16} />
@@ -270,11 +300,7 @@ export function ProjectionChart({
             </linearGradient>
           </defs>
 
-          <CartesianGrid
-            stroke="rgba(255,255,255,0.04)"
-            strokeDasharray="2 4"
-            vertical={false}
-          />
+          <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="2 4" vertical={false} />
 
           <XAxis
             dataKey="t"
@@ -284,15 +310,14 @@ export function ProjectionChart({
             axisLine={false}
             tickLine={false}
             height={28}
-            tick={{ fill: 'var(--text-3)', fontSize: 12, fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)' }}
+            tick={{
+              fill: 'var(--text-3)',
+              fontSize: 12,
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+            }}
           />
 
-          <YAxis
-            hide
-            orientation="right"
-            domain={chartYDomain}
-            width={0}
-          />
+          <YAxis hide orientation="right" domain={chartYDomain} width={0} />
 
           <Tooltip
             content={<ChartTooltip />}
@@ -369,6 +394,18 @@ export function ProjectionChart({
             isAnimationActive={false}
           />
 
+          <Line
+            dataKey="scenario"
+            name="Your scenario"
+            type="linear"
+            stroke="oklch(0.80 0.18 85)"
+            strokeWidth={1.6}
+            strokeDasharray="2 3"
+            dot={false}
+            activeDot={{ r: 3, fill: 'oklch(0.80 0.18 85)', strokeWidth: 0 }}
+            connectNulls={false}
+            isAnimationActive={false}
+          />
         </ComposedChart>
       </div>
 
@@ -402,8 +439,16 @@ export function ProjectionChart({
 
 // ─── Sparkline ────────────────────────────────────────────────────────────────
 
-export function Sparkline({ width = 110, height = 28, seed = 1, color = 'green' }: {
-  width?: number; height?: number; seed?: number; color?: 'green' | 'violet' | 'red';
+export function Sparkline({
+  width = 110,
+  height = 28,
+  seed = 1,
+  color = 'green',
+}: {
+  width?: number;
+  height?: number;
+  seed?: number;
+  color?: 'green' | 'violet' | 'red';
 }) {
   const rnd = seededRand(seed);
   const N = 28;
@@ -413,21 +458,37 @@ export function Sparkline({ width = 110, height = 28, seed = 1, color = 'green' 
     val += (rnd() - 0.45) * 6;
     arr.push(val);
   }
-  const min = Math.min(...arr), max = Math.max(...arr);
+  const min = Math.min(...arr),
+    max = Math.max(...arr);
   const xPos = (i: number) => (i / (N - 1)) * (width - 2) + 1;
   const yPos = (v: number) => height - 2 - ((v - min) / (max - min || 1)) * (height - 4);
-  const path = arr.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xPos(i).toFixed(1)} ${yPos(v).toFixed(1)}`).join(' ');
-  const stroke = color === 'violet' ? 'oklch(0.78 0.22 295)' : color === 'red' ? 'oklch(0.7 0.20 25)' : 'oklch(0.86 0.20 145)';
+  const path = arr
+    .map((v, i) => `${i === 0 ? 'M' : 'L'} ${xPos(i).toFixed(1)} ${yPos(v).toFixed(1)}`)
+    .join(' ');
+  const stroke =
+    color === 'violet'
+      ? 'oklch(0.78 0.22 295)'
+      : color === 'red'
+        ? 'oklch(0.7 0.20 25)'
+        : 'oklch(0.86 0.20 145)';
   const fillId = `sparkFill_${seed}_${color}`;
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      style={{ display: 'block' }}
+    >
       <defs>
         <linearGradient id={fillId} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
           <stop offset="100%" stopColor={stroke} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={`${path} L ${xPos(N - 1).toFixed(1)} ${height} L ${xPos(0).toFixed(1)} ${height} Z`} fill={`url(#${fillId})`} />
+      <path
+        d={`${path} L ${xPos(N - 1).toFixed(1)} ${height} L ${xPos(0).toFixed(1)} ${height} Z`}
+        fill={`url(#${fillId})`}
+      />
       <path d={path} fill="none" stroke={stroke} strokeWidth="1.2" />
     </svg>
   );
@@ -435,12 +496,23 @@ export function Sparkline({ width = 110, height = 28, seed = 1, color = 'green' 
 
 // ─── HoldingsDonut ────────────────────────────────────────────────────────────
 
-interface DonutSegment { name: string; value: number; color: string; }
+interface DonutSegment {
+  name: string;
+  value: number;
+  color: string;
+}
 
-export function HoldingsDonut({ size = 160, segments, glow = 1 }: {
-  size?: number; segments: DonutSegment[]; glow?: number;
+export function HoldingsDonut({
+  size = 160,
+  segments,
+  glow = 1,
+}: {
+  size?: number;
+  segments: DonutSegment[];
+  glow?: number;
 }) {
-  const cx = size / 2, cy = size / 2;
+  const cx = size / 2,
+    cy = size / 2;
   const r = size / 2 - 12;
   const inner = r - 14;
   const total = segments.reduce((s, x) => s + x.value, 0);
@@ -460,10 +532,14 @@ export function HoldingsDonut({ size = 160, segments, glow = 1 }: {
         const a1 = acc + frac * Math.PI * 2;
         acc = a1;
         const large = a1 - a0 > Math.PI ? 1 : 0;
-        const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
-        const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
-        const x0i = cx + inner * Math.cos(a1), y0i = cy + inner * Math.sin(a1);
-        const x1i = cx + inner * Math.cos(a0), y1i = cy + inner * Math.sin(a0);
+        const x0 = cx + r * Math.cos(a0),
+          y0 = cy + r * Math.sin(a0);
+        const x1 = cx + r * Math.cos(a1),
+          y1 = cy + r * Math.sin(a1);
+        const x0i = cx + inner * Math.cos(a1),
+          y0i = cy + inner * Math.sin(a1);
+        const x1i = cx + inner * Math.cos(a0),
+          y1i = cy + inner * Math.sin(a0);
         return (
           <path
             key={i}

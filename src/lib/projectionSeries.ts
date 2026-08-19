@@ -14,6 +14,10 @@ export interface ChartRow {
   bull?: number;
   base?: number;
   bear?: number;
+  /** Scenario Simulator's own median (drift-only) projection, overlaid
+   * alongside the AI bull/base/bear series so the user can directly compare
+   * their manual assumptions against the AI ensemble on the same chart. */
+  scenario?: number;
 }
 
 /**
@@ -42,10 +46,7 @@ export interface ForecastScenarios {
  * measured back from the last point's timestamp. `prices` is expected to be
  * sorted ascending by timestamp (as returned by `useHistoricalPrices`).
  */
-export function sliceHistory(
-  prices: readonly HistoricalPrice[],
-  days: number,
-): HistoricalPrice[] {
+export function sliceHistory(prices: readonly HistoricalPrice[], days: number): HistoricalPrice[] {
   if (prices.length === 0) return [];
 
   const lastTimestamp = prices[prices.length - 1].timestamp;
@@ -105,6 +106,7 @@ export function buildChartRows(
   scenarios: ForecastScenarios | undefined,
   todayMs: number,
   livePrice: number | undefined,
+  scenarioOverlay?: readonly ScenarioPoint[],
 ): ChartRow[] {
   const rowsByTime = new Map<number, ChartRow>();
 
@@ -129,15 +131,27 @@ export function buildChartRows(
         getRow(t)[key] = point.p;
       }
     }
+  }
 
-    if (livePrice !== undefined) {
-      const todayRow = getRow(todayMs);
-      if (history.length > 0) {
-        todayRow.hist = livePrice;
-      }
+  if (scenarioOverlay) {
+    for (const point of scenarioOverlay) {
+      const t = todayMs + point.d * MS_PER_DAY;
+      getRow(t).scenario = point.p;
+    }
+  }
+
+  if ((scenarios || scenarioOverlay) && livePrice !== undefined) {
+    const todayRow = getRow(todayMs);
+    if (history.length > 0) {
+      todayRow.hist = livePrice;
+    }
+    if (scenarios) {
       todayRow.bull = livePrice;
       todayRow.base = livePrice;
       todayRow.bear = livePrice;
+    }
+    if (scenarioOverlay) {
+      todayRow.scenario = livePrice;
     }
   }
 
@@ -153,7 +167,7 @@ export function computeYDomain(rows: readonly ChartRow[]): [number, number] {
   let max = -Infinity;
 
   for (const row of rows) {
-    const values = [row.hist, row.bull, row.base, row.bear];
+    const values = [row.hist, row.bull, row.base, row.bear, row.scenario];
     for (const value of values) {
       if (value === undefined) continue;
       if (value < min) min = value;

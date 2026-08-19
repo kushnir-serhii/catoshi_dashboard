@@ -1,25 +1,26 @@
 'use client';
 
-import { useState } from 'react';
 import { Surface } from '@heroui/react';
+import { useState } from 'react';
+
 import { ProjectionChart } from '@/components/dashboard/charts';
 import { ForecastContextPanel } from '@/components/dashboard/ForecastContextPanel';
 import { ForecastSettingsModal } from '@/components/dashboard/ForecastSettingsModal';
+import { CoinSelect } from '@/components/ui/CoinSelect';
+import { RANGE_OPTIONS } from '@/consts/projections';
+import type { CoinListItem, ForecastSnapshot, ProjectionData } from '@/data/types';
+import type { ScenarioOverride } from '@/hooks/useProjectionChart';
 import { useProjectionChart } from '@/hooks/useProjectionChart';
 import { formatPrice } from '@/lib/projectionSeries';
-import { RANGE_OPTIONS } from '@/consts/projections';
-import type { ForecastSnapshot, ProjectionData } from '@/data/types';
 
 type ChartRange = (typeof RANGE_OPTIONS)[number];
 type RangeTarget = 'history' | 'forecast';
 
-type CoinTab = 'BTC' | 'ETH' | 'SOL';
-
 interface ChartPanelProps {
   glow: number;
   projections: ProjectionData[] | null;
-  selectedCoin: CoinTab;
-  setSelectedCoin: (c: CoinTab) => void;
+  selectedCoin: CoinListItem;
+  setSelectedCoin: (c: CoinListItem) => void;
   isLoading: boolean;
   isStale: boolean;
   service: string;
@@ -29,17 +30,26 @@ interface ChartPanelProps {
   isSettingsOpen: boolean;
   setIsSettingsOpen: (v: boolean) => void;
   refresh: (service: string, model: string) => Promise<void>;
+  /** Generates a real AI forecast for just `selectedCoin` — the "Reforecast"
+   * action, usable for any coin regardless of whether it's in the default
+   * tracked batch. */
+  onReforecast: () => Promise<void>;
+  /** The Scenario Simulator's current sliders, drawn as an overlay line on
+   * the chart so its effect is directly visible next to the AI forecast. */
+  scenarioOverride?: ScenarioOverride | null;
   /** @deprecated use projections + selectedCoin instead */
   projData?: ProjectionData | null;
   snapshotOverride?: ProjectionData | null;
   snapshots: ForecastSnapshot[];
-  onSaveSnapshot: (name: string, coin: string, projection: ProjectionData) => Promise<string | null>;
+  onSaveSnapshot: (
+    name: string,
+    coin: string,
+    projection: ProjectionData,
+  ) => Promise<string | null>;
   onLoadSnapshot: (id: string) => void;
   onRenameSnapshot: (id: string, name: string) => Promise<void>;
   onRemoveSnapshot: (id: string) => Promise<void>;
 }
-
-const COIN_TABS: CoinTab[] = ['BTC', 'ETH', 'SOL'];
 
 /** Formats a scenario badge's price + %-vs-livePrice, e.g. "$314.8K · +27%".
  * Falls back to an em-dash when `value` is unavailable (no sane forecast). */
@@ -93,6 +103,8 @@ export function ChartPanel({
   isSettingsOpen,
   setIsSettingsOpen,
   refresh,
+  onReforecast,
+  scenarioOverride,
   projData: legacyProjData,
   snapshotOverride,
   snapshots,
@@ -121,16 +133,19 @@ export function ChartPanel({
     histRange,
     fcastRange,
     projections,
+    scenarioOverride,
   });
   const [isRetrying, setIsRetrying] = useState(false);
   const [isSavePromptOpen, setIsSavePromptOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const coinSymbol = selectedCoin.symbol.toUpperCase();
+
   async function handleRefresh() {
     setIsRefreshing(true);
     try {
-      await refresh(service, model);
+      await onReforecast();
     } finally {
       setIsRefreshing(false);
     }
@@ -146,17 +161,18 @@ export function ChartPanel({
   }
 
   const activeProjData =
-    snapshotOverride ??
-    projections?.find((p) => p.coin === selectedCoin) ??
-    legacyProjData ??
-    null;
+    snapshotOverride ?? projections?.find((p) => p.coin === coinSymbol) ?? legacyProjData ?? null;
 
   const atSnapshotLimit = snapshots.length >= 5;
 
   async function handleSaveConfirm() {
     if (!activeProjData) return;
     setSaveError(null);
-    const err = await onSaveSnapshot(saveName.trim() || `${selectedCoin} forecast`, selectedCoin, activeProjData);
+    const err = await onSaveSnapshot(
+      saveName.trim() || `${coinSymbol} forecast`,
+      coinSymbol,
+      activeProjData,
+    );
     if (err) {
       setSaveError(err);
     } else {
@@ -169,9 +185,18 @@ export function ChartPanel({
     return (
       <Surface className="card glow-violet area-chart animate-pulse">
         <div className="card-header">
-          <div style={{ height: 14, width: '40%', borderRadius: 4, background: 'var(--surface-3)' }} />
+          <div
+            style={{ height: 14, width: '40%', borderRadius: 4, background: 'var(--surface-3)' }}
+          />
         </div>
-        <div style={{ height: 320, borderRadius: 'var(--radius)', background: 'var(--surface-3)', marginTop: 12 }} />
+        <div
+          style={{
+            height: 320,
+            borderRadius: 'var(--radius)',
+            background: 'var(--surface-3)',
+            marginTop: 12,
+          }}
+        />
       </Surface>
     );
   }
@@ -180,9 +205,10 @@ export function ChartPanel({
     <>
       <Surface className="card glow-violet area-chart">
         <div className="card-header">
-          <div className="row" style={{ gap: 14 }}>
+          <div className="row chart-head-row" style={{ gap: 14 }}>
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="marker"></span>{selectedCoin} price forecast
+              <span className="marker"></span>
+              {coinSymbol} price forecast
               <button
                 className="btn-ghost"
                 onClick={() => setIsSettingsOpen(true)}
@@ -192,23 +218,27 @@ export function ChartPanel({
                 <GearIcon />
               </button>
             </div>
-            <div className="chart-tabs" style={{ marginLeft: 'auto' }}>
-              {COIN_TABS.map((coin) => (
-                <button
-                  key={coin}
-                  className={selectedCoin === coin ? 'active' : ''}
-                  onClick={() => setSelectedCoin(coin)}
-                >
-                  {coin}
-                </button>
-              ))}
+            <div className="chart-head-coin" style={{ marginLeft: 'auto' }}>
+              <CoinSelect value={selectedCoin} onChange={setSelectedCoin} />
             </div>
           </div>
-          <div className="row">
+          <div className="row chart-legend-row">
             <div className="legend">
-              <span><span className="sw" style={{ background: 'oklch(0.86 0.20 145)' }}></span>Bull case</span>
-              <span><span className="sw" style={{ background: 'oklch(0.78 0.22 295)' }}></span>Base case</span>
-              <span><span className="sw" style={{ background: 'oklch(0.65 0.18 25)' }}></span>Bear case</span>
+              <span>
+                <span className="sw" style={{ background: 'oklch(0.86 0.20 145)' }}></span>Bull case
+              </span>
+              <span>
+                <span className="sw" style={{ background: 'oklch(0.78 0.22 295)' }}></span>Base case
+              </span>
+              <span>
+                <span className="sw" style={{ background: 'oklch(0.65 0.18 25)' }}></span>Bear case
+              </span>
+              {scenarioOverride && (
+                <span>
+                  <span className="sw" style={{ background: 'oklch(0.80 0.18 85)' }}></span>Your
+                  scenario
+                </span>
+              )}
             </div>
             <div className="chart-tabs" style={{ alignItems: 'center', gap: 6 }}>
               {RANGE_OPTIONS.map((r) => {
@@ -235,8 +265,14 @@ export function ChartPanel({
             </div>
           </div>
         </div>
-        <div className="row chart-price-row" style={{ alignItems: 'baseline', gap: 18, marginBottom: 6 }}>
-          <div style={{ fontSize: 32, fontWeight: 500, letterSpacing: '-0.02em' }} className="tnum glow-text-violet">
+        <div
+          className="row chart-price-row"
+          style={{ alignItems: 'baseline', gap: 18, marginBottom: 6 }}
+        >
+          <div
+            style={{ fontSize: 32, fontWeight: 500, letterSpacing: '-0.02em' }}
+            className="tnum glow-text-violet"
+          >
             {livePrice !== undefined ? formatPrice(livePrice) : '$—'}
           </div>
           {histChange.label && (
@@ -263,7 +299,9 @@ export function ChartPanel({
                   }
                 }}
                 disabled={atSnapshotLimit || !activeProjData}
-                title={atSnapshotLimit ? 'Delete a saved forecast to save a new one' : 'Save snapshot'}
+                title={
+                  atSnapshotLimit ? 'Delete a saved forecast to save a new one' : 'Save snapshot'
+                }
                 style={{ opacity: atSnapshotLimit || !activeProjData ? 0.45 : 1 }}
               >
                 Save snapshot
@@ -289,12 +327,15 @@ export function ChartPanel({
                   <input
                     autoFocus
                     type="text"
-                    placeholder={`${selectedCoin} forecast`}
+                    placeholder={`${coinSymbol} forecast`}
                     value={saveName}
                     onChange={(e) => setSaveName(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') void handleSaveConfirm();
-                      if (e.key === 'Escape') { setIsSavePromptOpen(false); setSaveName(''); }
+                      if (e.key === 'Escape') {
+                        setIsSavePromptOpen(false);
+                        setSaveName('');
+                      }
                     }}
                     style={{
                       background: 'var(--surface-3)',
@@ -327,7 +368,11 @@ export function ChartPanel({
                     </button>
                     <button
                       className="btn-ghost"
-                      onClick={() => { setIsSavePromptOpen(false); setSaveName(''); setSaveError(null); }}
+                      onClick={() => {
+                        setIsSavePromptOpen(false);
+                        setSaveName('');
+                        setSaveError(null);
+                      }}
                       style={{ padding: '5px 10px', fontSize: 13 }}
                     >
                       Cancel
@@ -340,9 +385,10 @@ export function ChartPanel({
               className="btn-ghost"
               onClick={handleRefresh}
               disabled={isRefreshing}
+              title={`Generate a fresh AI forecast for ${coinSymbol}`}
               style={{ opacity: isRefreshing ? 0.6 : 1 }}
             >
-              {isRefreshing ? 'Refreshing…' : 'Refresh forecast'}
+              {isRefreshing ? 'Reforecasting…' : 'Reforecast'}
             </button>
           </div>
         </div>
@@ -382,15 +428,24 @@ export function ChartPanel({
         )}
         <div className="chart-stage">
           <ProjectionChart glow={glow} rows={chartRows} yDomain={chartYDomain} todayMs={todayMs} />
-          <div className="scenario-tag" style={{ top: 18, right: 56, color: 'oklch(0.86 0.20 145)' }}>
+          <div
+            className="scenario-tag"
+            style={{ top: 18, right: 56, color: 'oklch(0.86 0.20 145)' }}
+          >
             <span className="dot" style={{ background: 'oklch(0.86 0.20 145)' }}></span>
             Bull · {formatBadgeValue(badges.bull, livePrice)}
           </div>
-          <div className="scenario-tag" style={{ top: 130, right: 56, color: 'oklch(0.78 0.22 295)' }}>
+          <div
+            className="scenario-tag"
+            style={{ top: 130, right: 56, color: 'oklch(0.78 0.22 295)' }}
+          >
             <span className="dot" style={{ background: 'oklch(0.78 0.22 295)' }}></span>
             Base · {formatBadgeValue(badges.base, livePrice)}
           </div>
-          <div className="scenario-tag" style={{ top: 232, right: 56, color: 'oklch(0.65 0.18 25)' }}>
+          <div
+            className="scenario-tag"
+            style={{ top: 232, right: 56, color: 'oklch(0.65 0.18 25)' }}
+          >
             <span className="dot" style={{ background: 'oklch(0.65 0.18 25)' }}></span>
             Bear · {formatBadgeValue(badges.bear, livePrice)}
           </div>

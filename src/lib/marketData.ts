@@ -1,13 +1,16 @@
+import type { ForecastTarget } from '@/consts/projections';
+import { DEFAULT_FORECAST_TARGETS } from '@/consts/projections';
+
 export interface MarketData {
   news: string;
   fearGreed: string;
   trending: string;
   reddit: string;
+  /** Keyed by CoinGecko id, one entry per requested forecast target. */
   historicalPrices: Record<string, number[]>;
 }
 
-const COINGECKO_BASE_URL =
-  process.env.COINGECKO_BASE_URL ?? 'https://api.coingecko.com/api/v3';
+const COINGECKO_BASE_URL = process.env.COINGECKO_BASE_URL ?? 'https://api.coingecko.com/api/v3';
 
 const RSS_FEEDS = [
   'https://www.coindesk.com/arc/outboundfeeds/rss/',
@@ -80,10 +83,9 @@ async function fetchTrending(): Promise<string> {
 
 async function fetchRedditSentiment(): Promise<string> {
   try {
-    const res = await fetch(
-      'https://www.reddit.com/r/CryptoCurrency/hot.json?limit=10',
-      { next: { revalidate: 1800 } },
-    );
+    const res = await fetch('https://www.reddit.com/r/CryptoCurrency/hot.json?limit=10', {
+      next: { revalidate: 1800 },
+    });
     if (!res.ok) return 'Reddit unavailable';
     const data = (await res.json()) as {
       data?: { children?: Array<{ data?: { title?: string } }> };
@@ -112,27 +114,21 @@ async function fetchCoinHistory(coinId: string): Promise<number[]> {
   }
 }
 
-export async function fetchMarketData(): Promise<MarketData> {
-  const [news, fearGreed, trending, reddit, bitcoin, ethereum, solana] =
-    await Promise.all([
-      fetchNewsHeadlines(),
-      fetchFearGreed(),
-      fetchTrending(),
-      fetchRedditSentiment(),
-      fetchCoinHistory('bitcoin'),
-      fetchCoinHistory('ethereum'),
-      fetchCoinHistory('solana'),
-    ]);
+export async function fetchMarketData(
+  targets: readonly ForecastTarget[] = DEFAULT_FORECAST_TARGETS,
+): Promise<MarketData> {
+  const [news, fearGreed, trending, reddit, histories] = await Promise.all([
+    fetchNewsHeadlines(),
+    fetchFearGreed(),
+    fetchTrending(),
+    fetchRedditSentiment(),
+    Promise.all(targets.map((t) => fetchCoinHistory(t.id))),
+  ]);
 
-  return {
-    news,
-    fearGreed,
-    trending,
-    reddit,
-    historicalPrices: {
-      bitcoin,
-      ethereum,
-      solana,
-    },
-  };
+  const historicalPrices: Record<string, number[]> = {};
+  targets.forEach((t, i) => {
+    historicalPrices[t.id] = histories[i];
+  });
+
+  return { news, fearGreed, trending, reddit, historicalPrices };
 }

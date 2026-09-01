@@ -214,7 +214,7 @@ export interface MarketListItem {
 }
 
 /**
- * Mirrors a row of `public.snapshots` (supabase/migrations/0001_analytics.sql).
+ * Mirrors a row of `public.snapshots` (db/migrations/0001_analytics.sql).
  * camelCase field names map to snake_case columns 1:1 (e.g. `pctFromMa7Daily`
  * <-> `pct_from_ma7_1d`) — see the column map in src/lib/db/analytics.ts.
  *
@@ -291,7 +291,7 @@ export interface MarketSnapshot {
 }
 
 /**
- * Mirrors a row of `public.forecasts` (supabase/migrations/0001_analytics.sql).
+ * Mirrors a row of `public.forecasts` (db/migrations/0001_analytics.sql).
  * One row per generation (never upserted) — see AC 2.1.
  *
  * Nullability matches the migration: `assetId`, `asOf`, `scenarios`, `source`,

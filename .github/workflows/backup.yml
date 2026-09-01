@@ -1,0 +1,45 @@
+name: Weekly database backup
+
+# Neon's free tier keeps no automatic backups — only a 6-hour instant-restore
+# window (technical-considerations.md §5). A dropped table or a bad migration
+# older than that is otherwise unrecoverable, so this workflow takes its own
+# weekly logical dump independent of Neon's restore window.
+#
+# Uses DATABASE_URL_UNPOOLED rather than the pooled DATABASE_URL: pg_dump
+# opens a single long-lived session and issues catalog queries the pooler
+# (in transaction mode) can mishandle — the same reasoning scripts/migrate.mjs
+# documents for DDL. A one-off weekly connection has no concurrency to pool.
+#
+# Destination: actions/upload-artifact, not a push to a private repository.
+# An artifact needs no additional repository, no extra deploy key or PAT
+# with write access to manage, and Actions artifacts already default to
+# private with a configurable retention — plenty for a rolling weekly
+# safety net. Revisit only if a longer retention than Actions' cap (400
+# days) or off-GitHub redundancy is later required.
+#
+# Required repository secret: DATABASE_URL_UNPOOLED (the Neon direct/unpooled
+# connection string — see .env.example and scripts/migrate.mjs).
+on:
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+
+      - name: Dump database
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+        run: |
+          pg_dump "$DATABASE_URL_UNPOOLED" --format=custom --file=snapshot.dump
+
+      - name: Upload dump as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: catoshi-db-backup-${{ github.run_id }}
+          path: snapshot.dump
+          retention-days: 90

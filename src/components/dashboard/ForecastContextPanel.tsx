@@ -23,9 +23,27 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
   if (!projData) {
     return (
       <div className="forecast-context animate-pulse" style={{ marginTop: 12 }}>
-        <div style={{ height: 14, width: '30%', borderRadius: 4, background: 'var(--surface-3)' }} />
-        <div style={{ height: 12, width: '60%', borderRadius: 4, background: 'var(--surface-3)', marginTop: 8 }} />
-        <div style={{ height: 12, width: '80%', borderRadius: 4, background: 'var(--surface-3)', marginTop: 6 }} />
+        <div
+          style={{ height: 14, width: '30%', borderRadius: 4, background: 'var(--surface-3)' }}
+        />
+        <div
+          style={{
+            height: 12,
+            width: '60%',
+            borderRadius: 4,
+            background: 'var(--surface-3)',
+            marginTop: 8,
+          }}
+        />
+        <div
+          style={{
+            height: 12,
+            width: '80%',
+            borderRadius: 4,
+            background: 'var(--surface-3)',
+            marginTop: 6,
+          }}
+        />
       </div>
     );
   }
@@ -75,6 +93,28 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
           <span className="muted small">confidence</span>
         </div>
 
+        {projData.scenarioProbabilities && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              fontSize: 12,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            <span style={{ color: 'oklch(0.86 0.20 145)' }}>
+              Bull {projData.scenarioProbabilities.bull}%
+            </span>
+            <span style={{ color: 'oklch(0.78 0.22 295)' }}>
+              Base {projData.scenarioProbabilities.base}%
+            </span>
+            <span style={{ color: 'oklch(0.65 0.18 25)' }}>
+              Bear {projData.scenarioProbabilities.bear}%
+            </span>
+          </div>
+        )}
+
         <span className="muted small">{relativeTime}</span>
 
         <span
@@ -93,10 +133,7 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
       </div>
 
       {reasoningText && (
-        <p
-          className="muted small"
-          style={{ marginTop: 6, lineHeight: 1.5, marginBottom: 0 }}
-        >
+        <p className="muted small" style={{ marginTop: 6, lineHeight: 1.5, marginBottom: 0 }}>
           {reasoningText}
         </p>
       )}

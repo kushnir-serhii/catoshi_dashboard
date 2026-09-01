@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { MarketListItem } from '@/data/types';
-import { MARKETS_PAGE_SIZE } from '@/consts/prices';
+import { MARKETS_PAGE_SIZE, COINGECKO_API_KEY_HEADER } from '@/consts/prices';
 
 const MOCK_MARKETS: MarketListItem[] = [
   {
@@ -82,7 +82,7 @@ export async function GET(): Promise<NextResponse> {
 
   const apiKey = process.env.COINGECKO_API_KEY;
   const headers: Record<string, string> = apiKey
-    ? { 'x-cg-pro-api-key': apiKey }
+    ? { [COINGECKO_API_KEY_HEADER]: apiKey }
     : {};
 
   let response: Response;

@@ -4,7 +4,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="prowl min-h-screen pb-12">
       <Header />
-      <main >{children}</main>
+      <main>{children}</main>
     </div>
   );
 }

@@ -51,6 +51,7 @@ interface CoinConfig {
   baseDrift: number;
   bearDrift: number;
   reasoning: string[];
+  scenarioProbabilities: { bull: number; base: number; bear: number };
 }
 
 const COIN_CONFIGS: CoinConfig[] = [
@@ -66,6 +67,7 @@ const COIN_CONFIGS: CoinConfig[] = [
       'Fear & Greed neutral at 54',
       'Whale accumulation rising',
     ],
+    scenarioProbabilities: { bull: 30, base: 50, bear: 20 },
   },
   {
     coin: 'ETH',
@@ -79,6 +81,7 @@ const COIN_CONFIGS: CoinConfig[] = [
       'Layer-2 TVL up 12% this month',
       'Developer activity at 6-month peak',
     ],
+    scenarioProbabilities: { bull: 32, base: 46, bear: 22 },
   },
   {
     coin: 'SOL',
@@ -92,6 +95,7 @@ const COIN_CONFIGS: CoinConfig[] = [
       'Network uptime at 99.9% last 30 days',
       'Institutional interest growing via ETF filings',
     ],
+    scenarioProbabilities: { bull: 35, base: 40, bear: 25 },
   },
 ];
 
@@ -108,6 +112,7 @@ function buildProjection(cfg: CoinConfig): ProjectionData {
     currentPrice: cfg.currentPrice,
     generatedAt: new Date().toISOString(),
     confidence: 72,
+    scenarioProbabilities: cfg.scenarioProbabilities,
     reasoning: cfg.reasoning,
     service: 'claude',
     model: 'claude-sonnet-4-6',
@@ -134,6 +139,8 @@ function buildMockProjectionForCoin(target: ForecastTarget): ProjectionData {
   // Plausible-looking price across small-cap to large-cap ranges, derived
   // deterministically from the coin id so re-mocking the same coin is stable.
   const currentPrice = Math.round(10 ** (rng() * 5) * 100) / 100;
+  const bull = 25 + Math.round(rng() * 15);
+  const bear = 15 + Math.round(rng() * 15);
 
   return buildProjection({
     coin: target.symbol,
@@ -145,6 +152,7 @@ function buildMockProjectionForCoin(target: ForecastTarget): ProjectionData {
     reasoning: [
       `Mock projection for ${target.name} (no live data — NEXT_PUBLIC_USE_MOCK_DATA is set)`,
     ],
+    scenarioProbabilities: { bull, base: 100 - bull - bear, bear },
   });
 }
 
@@ -219,8 +227,11 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     const marketData = await fetchMarketData(targets);
-    const projections = await generateForecast(service, model, marketData, targets);
-    const response: ProjectionsResponse = { projections, generatedAt: new Date().toISOString() };
+    const result = await generateForecast(service, model, marketData, targets);
+    const response: ProjectionsResponse = {
+      projections: result.projections,
+      generatedAt: new Date().toISOString(),
+    };
     return NextResponse.json(response);
   } catch {
     return NextResponse.json({ error: 'Forecast refresh failed' }, { status: 500 });

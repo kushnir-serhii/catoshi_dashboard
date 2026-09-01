@@ -36,7 +36,7 @@ Self-directed individual crypto investors who actively track their holdings and 
 
 - **Live Market Prices** — Real-time and auto-refreshing prices, 24h changes, volume, and market cap for key assets.
 - **Portfolio Overview** — Holdings summary with cost basis, current value, unrealized P&L, and allocation breakdown.
-- **AI Signals** — Curated bullish/bearish/neutral signals from multiple sources, updated regularly.
+- **AI Signals** — Curated bullish/bearish/neutral signals drawn from crypto news RSS feeds and Reddit sentiment, classified by AI and updated regularly.
 - **Projections & Forecasting** — Model-driven price projections and scenario planning for tracked assets.
 - **Models Explorer** — View and compare the AI/quantitative models that power the signals and projections.
 
@@ -53,7 +53,7 @@ A user opens Catoshi and lands on the main dashboard. They immediately see live 
 - Live USD prices, 24h change, volume, and market cap on the Markets page (powered by CoinGecko).
 - Auto-refreshing KPI cards and asset list with skeleton loading and stale-data warnings.
 - Portfolio holdings view with cost basis, current value, and unrealized P&L.
-- AI/market signals feed (powered by CryptoPanic) with bullish/bearish/neutral tagging.
+- AI/market signals feed (powered by crypto news RSS feeds via an RSS-to-JSON bridge, combined with Reddit sentiment) with bullish/bearish/neutral tagging.
 - Price projections and scenario planning with model-driven forecasts.
 - A live price ticker on the main chart for BTC, ETH, and SOL (powered by Binance WebSocket).
 - Landing/marketing page.

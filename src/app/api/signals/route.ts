@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { query } from '@/lib/db/client';
 import { mockSignalsResponse } from '@/data/signals';
 import type { SignalsResponse, SignalItem } from '@/data/types';
 
 export const revalidate = 21600;
+
+interface SignalRow {
+  id: string;
+  tag: SignalItem['tag'];
+  title: string;
+  body: string;
+  source: string;
+  published_at: string;
+  coins: SignalItem['coins'];
+}
 
 export async function GET(): Promise<NextResponse> {
   if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') {
@@ -11,17 +21,12 @@ export async function GET(): Promise<NextResponse> {
   }
 
   try {
-    const { data, error } = await supabase
-      .from('signals')
-      .select('*')
-      .order('published_at', { ascending: false })
-      .limit(20);
+    const rows = await query<SignalRow>(
+      'select * from signals order by published_at desc limit $1',
+      [20],
+    );
 
-    if (error || !data?.length) {
-      return NextResponse.json(mockSignalsResponse);
-    }
-
-    const signals: SignalItem[] = data.map((row) => ({
+    const signals: SignalItem[] = rows.map((row) => ({
       id: row.id,
       tag: row.tag,
       title: row.title,
@@ -38,7 +43,20 @@ export async function GET(): Promise<NextResponse> {
     };
 
     return NextResponse.json(response);
-  } catch {
-    return NextResponse.json(mockSignalsResponse);
+  } catch (error: unknown) {
+    // A dead database (or, currently, a `signals` table that doesn't exist
+    // yet in Neon — see spec 010 migration gap) must not silently look like
+    // working live data. Log it and return an honest, degraded response
+    // instead of dressing up mock data as real.
+    console.error('[signals] query failed:', error);
+
+    const response: SignalsResponse = {
+      lastUpdated: new Date().toISOString(),
+      nextUpdate: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      fetchError: true,
+      signals: [],
+    };
+
+    return NextResponse.json(response);
   }
 }

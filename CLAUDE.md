@@ -40,7 +40,7 @@ All external API calls must go through Route Handlers — never call third-party
 
 ### Key Directories
 
-- **`src/lib/`** — server-side integrations: `coingecko.ts`, `marketData.ts` (aggregates news/fear-greed/Reddit), `forecastProvider.ts` (validates service+model, delegates to `forecast/claude.ts` or `forecast/openai.ts`), `supabaseClient.ts`
+- **`src/lib/`** — server-side integrations: `coingecko.ts`, `marketData.ts` (aggregates news/fear-greed/Reddit), `forecastProvider.ts` (validates service+model, delegates to `forecast/claude.ts` or `forecast/openai.ts`), `db/client.ts`
 - **`src/hooks/`** — SWR-based data hooks with polling: `usePrices.ts` (60s), `useSignals.ts`, `useProjections.ts`, `useMarkets.ts`, `useHistoricalPrices.ts`, `useCoinSearch.ts`. `useForecastSnapshots.ts` wraps IndexedDB (max 5 snapshots, graceful fallback for private browsing).
 - **`src/data/types.ts`** — canonical TypeScript interfaces: `PriceMap`, `MarketAsset`, `ProjectionData`, `ForecastSnapshot`, `Signal`, `KpiItem`, `SignalItem`
 - **`src/consts/`** — shared constants only (see memory rule). `prices.ts` holds `DEFAULT_ASSET_IDS`, refresh intervals, cache TTLs. `signals.ts` holds `TRACKED_COINS`, model names, revalidation seconds.
@@ -62,7 +62,7 @@ The `CLAUDE_SIGNALS_MODEL` constant in `src/consts/signals.ts` is `'claude-sonne
 
 - **`DashboardContext`** (`src/components/dashboard/context.tsx`) — single piece of UI state: `glow` (0–100), written to `--glow` CSS custom property
 - **IndexedDB** (`useForecastSnapshots`) — persists up to 5 forecast snapshots client-side
-- **Supabase** — server-side persistence via `src/lib/supabaseClient.ts`
+- **Neon Postgres** — server-side persistence via `src/lib/db/client.ts` (`pg` Pool over the pooled `DATABASE_URL`). Provisioned in spec 010; see `context/spec/010-market-snapshot-store/`
 
 ### Styling
 

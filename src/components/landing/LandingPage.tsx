@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Cat, CatoshiWordmark } from '@/components/ui/CatLogo';
+import { useEffect, useState } from 'react';
+
 import { ProjectionChart, Sparkline } from '@/components/dashboard/charts';
 import type { LogoVariant } from '@/components/ui/CatLogo';
+import { Cat, CatoshiWordmark } from '@/components/ui/CatLogo';
+
+import { FaqSection } from './FaqSection';
 
 const APP_HREF = '/';
 
@@ -72,7 +75,7 @@ function Showcase({ glow }: { glow: number }) {
               </div>
             </div>
             <div style={{ height: 240 }}>
-              <ProjectionChart width={680} height={240} glow={glow} />
+              <ProjectionChart width={680} height={240} glow={glow} interactive={false} />
             </div>
           </div>
           <div className="card" style={{ padding: 16 }}>
@@ -121,6 +124,102 @@ function Showcase({ glow }: { glow: number }) {
   );
 }
 
+function seededRand(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+/** Static, non-interactive mini projection chart for the "How it works"
+ * preview box. Purely decorative — unlike the dashboard's ProjectionChart it
+ * has no scroll/zoom, and scales to its container via viewBox instead of
+ * relying on measured pixel dimensions. */
+function MiniProjection({ glow = 1 }: { glow?: number }) {
+  const W = 300;
+  const H = 110;
+  const MID = W * 0.42;
+  const rnd = seededRand(11);
+
+  const hist: [number, number][] = [];
+  let v = 60;
+  for (let i = 0; i <= 12; i++) {
+    v += (rnd() - 0.42) * 8;
+    hist.push([(i / 12) * MID, H * 0.62 - v * 0.35]);
+  }
+  const last = hist[hist.length - 1];
+
+  const project = (drift: number): [number, number][] => {
+    const pts: [number, number][] = [last];
+    let y = last[1];
+    for (let i = 1; i <= 10; i++) {
+      y -= drift + (rnd() - 0.5) * 5;
+      pts.push([MID + (i / 10) * (W - MID), y]);
+    }
+    return pts;
+  };
+  const bull = project(3.4);
+  const base = project(1.2);
+  const bear = project(-0.6);
+
+  const toPath = (pts: [number, number][]) =>
+    pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+
+  const bandPath =
+    toPath(bull) +
+    ' L ' +
+    bear
+      .slice()
+      .reverse()
+      .map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`)
+      .join(' L ') +
+    ' Z';
+
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      style={{
+        display: 'block',
+        filter: `drop-shadow(0 0 ${6 * glow}px oklch(0.6 0.22 295 / ${0.25 * glow}))`,
+      }}
+    >
+      <path d={bandPath} fill="oklch(0.78 0.22 295 / 0.10)" stroke="none" />
+      <line
+        x1={MID}
+        y1={4}
+        x2={MID}
+        y2={H - 4}
+        stroke="oklch(0.78 0.22 295)"
+        strokeWidth={1}
+        strokeDasharray="3 3"
+        opacity={0.6}
+      />
+      <path d={toPath(hist)} fill="none" stroke="oklch(0.86 0.20 145)" strokeWidth={1.6} />
+      <path
+        d={toPath(bull)}
+        fill="none"
+        stroke="oklch(0.86 0.20 145)"
+        strokeWidth={1.2}
+        strokeDasharray="4 3"
+        opacity={0.9}
+      />
+      <path d={toPath(base)} fill="none" stroke="oklch(0.78 0.22 295)" strokeWidth={1.6} />
+      <path
+        d={toPath(bear)}
+        fill="none"
+        stroke="oklch(0.65 0.18 25)"
+        strokeWidth={1.2}
+        strokeDasharray="4 3"
+        opacity={0.9}
+      />
+    </svg>
+  );
+}
+
 function StepPreview({ kind, glow = 1 }: { kind: 'connect' | 'project' | 'act'; glow?: number }) {
   if (kind === 'connect') {
     return (
@@ -148,11 +247,7 @@ function StepPreview({ kind, glow = 1 }: { kind: 'connect' | 'project' | 'act'; 
     );
   }
   if (kind === 'project') {
-    return (
-      <div style={{ width: '100%', height: '100%' }}>
-        <ProjectionChart width={300} height={110} glow={glow} />
-      </div>
-    );
+    return <MiniProjection glow={glow} />;
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', padding: 16 }}>
@@ -195,25 +290,9 @@ function StepPreview({ kind, glow = 1 }: { kind: 'connect' | 'project' | 'act'; 
   );
 }
 
-function FaqItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`faq-item${open ? 'open' : ''}`} onClick={() => setOpen(!open)}>
-      <div className="faq-q">
-        <span>{q}</span>
-        <span className="faq-icon">+</span>
-      </div>
-      <div className="faq-body">
-        <div>
-          <p>{a}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+const LOGO_VARIANT: LogoVariant = 'ears';
 
 export function LandingPage() {
-  const [logo, setLogo] = useState<LogoVariant>('ears');
   const [glow] = useState(1);
 
   useEffect(() => {
@@ -339,35 +418,12 @@ export function LandingPage() {
     },
   ];
 
-  const faqs = [
-    {
-      q: 'How are projections actually generated?',
-      a: 'Five models — Tabnet-Pro, OnChain-LSTM, Macro-XGB, Sentiment-BERT and TFT-Ensemble — each produce a forward distribution. The ensemble averages them weighted by 90-day calibration. The 5th / 50th / 95th percentile slices become bear / base / bull.',
-    },
-    {
-      q: 'Do you trade for me?',
-      a: 'No. Catoshi is a projection and analytics layer. You execute trades on your own exchange or wallet — we just make the call clearer.',
-    },
-    {
-      q: 'What about my keys?',
-      a: 'We only request read-only API keys, validated at link time. Wallet addresses are watch-only. Nothing custodial, nothing signing.',
-    },
-    {
-      q: 'Where does the data come from?',
-      a: 'Glassnode & Dune for on-chain, FRED & Bloomberg for macro, LunarCrush for social, and direct exchange APIs for prices. ~340 features per asset, refreshed hourly.',
-    },
-    {
-      q: 'Can I trust a 74% accuracy claim?',
-      a: 'The Models page shows live calibration: predicted vs realized, Brier score, and per-model hit rates over 30 / 90 / 365 days. We publish the numbers — including when they slip.',
-    },
-  ];
-
   return (
     <div className="landing">
       {/* Nav */}
       <nav className="land-nav">
         <div className="brand-flex">
-          <Cat variant={logo} size={26} glow={glow} />
+          <Cat variant={LOGO_VARIANT} size={26} glow={glow} />
           <CatoshiWordmark size={16} />
         </div>
         <div className="land-nav-links">
@@ -453,7 +509,12 @@ export function LandingPage() {
         </div>
         <div className="features">
           {features.map((f, i) => (
-            <div key={i} className={`feature${f.green ? 'green' : ''}${f.wide ? 'wide' : ''}`}>
+            <div
+              key={i}
+              className={['feature', f.green && 'green', f.wide && 'wide']
+                .filter(Boolean)
+                .join(' ')}
+            >
               <div className="icon">{f.num}</div>
               <h3>{f.title}</h3>
               <p>{f.body}</p>
@@ -505,7 +566,10 @@ export function LandingPage() {
         </div>
         <div className="pricing">
           {plans.map((plan, i) => (
-            <div key={i} className={`plan${plan.featured ? 'featured' : ''}`}>
+            <div
+              key={i}
+              className={['plan', plan.featured && 'featured'].filter(Boolean).join(' ')}
+            >
               <div className="name">{plan.name}</div>
               <div className="price">
                 {plan.price} <small>{plan.period}</small>
@@ -525,17 +589,7 @@ export function LandingPage() {
       </section>
 
       {/* FAQ */}
-      <section className="section" id="faq">
-        <div className="section-head">
-          <div className="kicker">FAQ</div>
-          <h2>Questions, with the small print.</h2>
-        </div>
-        <div className="faq">
-          {faqs.map((item, i) => (
-            <FaqItem key={i} q={item.q} a={item.a} />
-          ))}
-        </div>
-      </section>
+      <FaqSection />
 
       {/* Final CTA */}
       <section className="section">
@@ -559,34 +613,12 @@ export function LandingPage() {
       <footer className="footer">
         <div style={{ flex: '0 0 240px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <Cat variant={logo} size={26} glow={glow} />
+            <Cat variant={LOGO_VARIANT} size={26} glow={glow} />
             <CatoshiWordmark size={16} />
           </div>
           <p className="small muted" style={{ lineHeight: 1.6, margin: 0 }}>
             Crypto projections that show their work. Made for the data-curious.
           </p>
-          {/* Logo variant picker */}
-          <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
-            {(['tail', 'ears', 'mono'] as LogoVariant[]).map((v) => (
-              <div
-                key={v}
-                onClick={() => setLogo(v)}
-                style={{
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  fontSize: 10,
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-3)',
-                  background: logo === v ? 'var(--violet-soft)' : 'transparent',
-                  border: `1px solid ${logo === v ? 'oklch(0.55 0.20 295 / 0.30)' : 'var(--line)'}`,
-                }}
-              >
-                {v}
-              </div>
-            ))}
-          </div>
         </div>
         {[
           {
@@ -612,7 +644,7 @@ export function LandingPage() {
             links: [
               { t: 'Docs', h: '#' },
               { t: 'API', h: '#' },
-              { t: 'Models', h: '#' },
+              { t: 'Models', h: '/models' },
               { t: 'Status', h: '#' },
             ],
           },

@@ -128,6 +128,13 @@ export interface ForecastPoint {
 
 export type ProjectionRange = (typeof RANGE_OPTIONS)[number];
 
+/** Likelihood the AI assigns each scenario, in whole percentage points summing to 100. */
+export interface ScenarioProbabilities {
+  bull: number;
+  base: number;
+  bear: number;
+}
+
 export interface ProjectionData {
   coin: string;
   bull: ForecastPoint[];
@@ -137,6 +144,8 @@ export interface ProjectionData {
   currentPrice: number;
   generatedAt: string;
   confidence: number;
+  /** Likelihood of each scenario playing out, distinct from `confidence` (the AI's overall certainty). */
+  scenarioProbabilities: ScenarioProbabilities;
   reasoning: string[];
   service: 'claude' | 'openai';
   model: string;
@@ -156,6 +165,25 @@ export interface ForecastSnapshot {
 export interface ProjectionsResponse {
   projections: ProjectionData[];
   generatedAt: string;
+}
+
+/** Token counts for one provider API call, used for analytics cost tracking. */
+export interface ForecastUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Return shape of `generateClaudeForecast`/`generateOpenAIForecast`/
+ * `generateForecast` (spec 010 Slice 6). `promptVersion` and `usage` ride
+ * alongside the projections so callers can persist them (see
+ * `src/lib/db/analytics.ts#persistForecasts`) without the provider modules
+ * needing to know anything about persistence themselves.
+ */
+export interface ForecastGenerationResult {
+  projections: ProjectionData[];
+  promptVersion: number;
+  usage: ForecastUsage;
 }
 
 export interface HistoricalPrice {
@@ -183,4 +211,122 @@ export interface MarketListItem {
   market_cap: number;
   total_volume: number;
   sparkline_in_7d: { price: number[] };
+}
+
+/**
+ * Mirrors a row of `public.snapshots` (db/migrations/0001_analytics.sql).
+ * camelCase field names map to snake_case columns 1:1 (e.g. `pctFromMa7Daily`
+ * <-> `pct_from_ma7_1d`) — see the column map in src/lib/db/analytics.ts.
+ *
+ * `assetId` is the already-resolved `assets.id` foreign key, not a symbol —
+ * resolving symbol -> id is the caller's job (the future snapshotBuilder.ts /
+ * `/api/collect`), keeping this module a plain data-access layer.
+ *
+ * Nullability matches the migration: every indicator/derivative/flow column
+ * is nullable; only `assetId`, `ts` and `price` are required.
+ */
+export interface MarketSnapshot {
+  id?: number;
+  assetId: number;
+  ts: string;
+  price: number;
+  createdAt?: string;
+
+  marketCapUsd: number | null;
+  volume24hUsd: number | null;
+
+  rsi15m: number | null;
+  rsi1h: number | null;
+  rsi4h: number | null;
+  rsi1d: number | null;
+
+  ma715m: number | null;
+  ma2515m: number | null;
+  ma9915m: number | null;
+  atr15m: number | null;
+  volumeZ15m: number | null;
+  structure15m: 'HH-HL' | 'LH-LL' | 'RANGE' | null;
+
+  ma71h: number | null;
+  ma251h: number | null;
+  ma991h: number | null;
+  atr1h: number | null;
+  volumeZ1h: number | null;
+  structure1h: 'HH-HL' | 'LH-LL' | 'RANGE' | null;
+
+  ma74h: number | null;
+  ma254h: number | null;
+  ma994h: number | null;
+  atr4h: number | null;
+  volumeZ4h: number | null;
+  structure4h: 'HH-HL' | 'LH-LL' | 'RANGE' | null;
+
+  ma7Daily: number | null;
+  ma25Daily: number | null;
+  ma99Daily: number | null;
+  pctFromMa7Daily: number | null;
+  pctFromMa25Daily: number | null;
+  pctFromMa99Daily: number | null;
+
+  atrDaily: number | null;
+  volumeZDaily: number | null;
+  structureDaily: 'HH-HL' | 'LH-LL' | 'RANGE' | null;
+
+  fundingRate: number | null;
+  fundingRateDelta24h: number | null;
+  openInterestUsd: number | null;
+  openInterestChange24hPct: number | null;
+  longShortRatio: number | null;
+  liquidations24hUsd: number | null;
+  liquidationsDominantSide: 'long' | 'short' | null;
+
+  etfNetFlowUsd: number | null;
+  etfStreakDays: number | null;
+  etfFlow7dUsd: number | null;
+  fearGreed: number | null;
+  fearGreed7dAgo: number | null;
+
+  /** Full payload of everything gathered, so a new source needs no migration. */
+  raw: Record<string, unknown>;
+}
+
+/**
+ * Mirrors a row of `public.forecasts` (db/migrations/0001_analytics.sql).
+ * One row per generation (never upserted) — see AC 2.1.
+ *
+ * Nullability matches the migration: `assetId`, `asOf`, `scenarios`, `source`,
+ * `model` and `promptVersion` are required; everything else is nullable.
+ */
+export interface StoredForecast {
+  id?: number;
+  assetId: number;
+  snapshotId: number | null;
+  asOf: string;
+  createdAt?: string;
+
+  scenarios: ScenarioProbabilities;
+  confidence: number | null;
+  reasoning: string[] | null;
+  anchorPrice: number | null;
+
+  source: string;
+  model: string;
+  promptVersion: string;
+  schemaVersion: string | null;
+
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costUsd: number | null;
+}
+
+/**
+ * Outcome of one parallel data-collection attempt (klines, funding, ETF
+ * flows, fear/greed, etc.). Kept deliberately generic — consumed by the
+ * future snapshotBuilder.ts / `/api/collect` to report per-source success or
+ * failure without over-fitting to today's source list.
+ */
+export interface SourceStatus {
+  source: string;
+  ok: boolean;
+  error?: string;
 }

@@ -213,6 +213,30 @@ export function interpolateAt(points: readonly ScenarioPoint[], day: number): nu
 }
 
 /**
+ * Trims a scenario series to `maxDay`, adding an interpolated point exactly
+ * at `maxDay` when the series extends past it — so the chart line and the
+ * range badge both end precisely at the selected forecast range's boundary
+ * instead of stopping at whatever grid point happens to fall short of it.
+ */
+export function clipScenarioToRange(
+  points: readonly ScenarioPoint[],
+  maxDay: number,
+): ScenarioPoint[] {
+  const within = points.filter((p) => p.d <= maxDay);
+  const next = points.find((p) => p.d > maxDay);
+  if (next) {
+    const last = within[within.length - 1];
+    if (last && next.d !== last.d) {
+      const t = (maxDay - last.d) / (next.d - last.d);
+      within.push({ d: maxDay, p: last.p + (next.p - last.p) * t });
+    } else {
+      within.push({ d: maxDay, p: next.p });
+    }
+  }
+  return within;
+}
+
+/**
  * Adaptive currency formatter for prices spanning small-cap fractions to
  * large whole-dollar values.
  */

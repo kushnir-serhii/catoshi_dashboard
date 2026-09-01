@@ -2,10 +2,18 @@ import OpenAI from 'openai';
 
 import type { ForecastTarget } from '@/consts/projections';
 import { FORECAST_GRID_DAYS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
-import type { ProjectionData } from '@/data/types';
+import type { ForecastGenerationResult, ProjectionData } from '@/data/types';
 import type { MarketData } from '@/lib/marketData';
 
-import { snapScenarioToGrid } from './gridSnap';
+import { normalizeProbabilities, snapScenarioToGrid } from './gridSnap';
+
+/**
+ * Bump whenever the prompt text changes — this is what keeps the accuracy
+ * metric in spec 011 meaningful. Starting at 1: no prior forecast prompt was
+ * formally versioned before spec 010, so this is the first tracked version
+ * of the current prompt text (see `buildPrompt` below).
+ */
+export const PROMPT_VERSION = 1;
 
 const SCENARIO_POINT_SCHEMA = {
   type: 'object',
@@ -38,6 +46,18 @@ const PROJECTIONS_JSON_SCHEMA = {
           coin: { type: 'string' },
           currentPrice: { type: 'number' },
           confidence: { type: 'number', description: '0-100' },
+          scenarioProbabilities: {
+            type: 'object',
+            properties: {
+              bull: { type: 'number', description: '0-100' },
+              base: { type: 'number', description: '0-100' },
+              bear: { type: 'number', description: '0-100' },
+            },
+            required: ['bull', 'base', 'bear'],
+            additionalProperties: false,
+            description:
+              'Likelihood of each scenario playing out; bull + base + bear must sum to 100',
+          },
           reasoning: {
             type: 'array',
             items: { type: 'string' },
@@ -47,7 +67,16 @@ const PROJECTIONS_JSON_SCHEMA = {
           base: SCENARIO_ARRAY_SCHEMA,
           bear: SCENARIO_ARRAY_SCHEMA,
         },
-        required: ['coin', 'currentPrice', 'confidence', 'reasoning', 'bull', 'base', 'bear'],
+        required: [
+          'coin',
+          'currentPrice',
+          'confidence',
+          'scenarioProbabilities',
+          'reasoning',
+          'bull',
+          'base',
+          'bear',
+        ],
         additionalProperties: false,
       },
     },
@@ -60,6 +89,7 @@ interface ProjectionItem {
   coin: string;
   currentPrice: number;
   confidence: number;
+  scenarioProbabilities: { bull: number; base: number; bear: number };
   reasoning: string[];
   bull: Array<{ d: number; p: number }>;
   base: Array<{ d: number; p: number }>;
@@ -81,6 +111,8 @@ function isProjectionsJson(value: unknown): value is ProjectionsJson {
       typeof p['coin'] === 'string' &&
       typeof p['currentPrice'] === 'number' &&
       typeof p['confidence'] === 'number' &&
+      typeof p['scenarioProbabilities'] === 'object' &&
+      p['scenarioProbabilities'] !== null &&
       Array.isArray(p['reasoning']) &&
       Array.isArray(p['bull']) &&
       Array.isArray(p['base']) &&
@@ -129,14 +161,15 @@ Return a JSON object with a "projections" array containing objects for ${coinLis
 - Base scenario: most likely outlook
 - Bear scenario: pessimistic outlook
 - Provide 2-3 concise reasoning bullets explaining your projections
-- Set confidence 0-100 reflecting certainty level`;
+- Set confidence 0-100 reflecting certainty level
+- Set scenarioProbabilities.bull/base/bear to the likelihood (0-100) of each scenario actually playing out, summing to exactly 100 — this is distinct from confidence`;
 }
 
 export async function generateOpenAIForecast(
   marketData: MarketData,
   model: string,
   targets: readonly ForecastTarget[],
-): Promise<ProjectionData[]> {
+): Promise<ForecastGenerationResult> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   const coinList = targets.map((t) => t.symbol).join(', ');
@@ -184,7 +217,7 @@ export async function generateOpenAIForecast(
 
   const generatedAt = new Date().toISOString();
 
-  return parsed.projections
+  const projections = parsed.projections
     .map((p): ProjectionData | null => {
       const bull = snapScenarioToGrid(p.bull);
       const base = snapScenarioToGrid(p.base);
@@ -200,6 +233,7 @@ export async function generateOpenAIForecast(
         currentPrice: p.currentPrice,
         generatedAt,
         confidence: p.confidence,
+        scenarioProbabilities: normalizeProbabilities(p.scenarioProbabilities),
         reasoning: p.reasoning,
         service: 'openai' as const,
         model,
@@ -207,4 +241,13 @@ export async function generateOpenAIForecast(
       };
     })
     .filter((x): x is ProjectionData => x !== null);
+
+  return {
+    projections,
+    promptVersion: PROMPT_VERSION,
+    usage: {
+      inputTokens: completion.usage?.prompt_tokens ?? 0,
+      outputTokens: completion.usage?.completion_tokens ?? 0,
+    },
+  };
 }

@@ -15,6 +15,7 @@ import type { ChartRow, ForecastScenarios, ScenarioPoint } from '@/lib/projectio
 import {
   anchorScenario,
   buildChartRows,
+  clipScenarioToRange,
   computeYDomain,
   interpolateAt,
   isAnchorRatioSane,
@@ -146,14 +147,18 @@ export function useProjectionChart({
 
   const todayMs = useForecast ? new Date(projection.generatedAt).getTime() : nowMs;
 
+  const fcastDays = RANGE_DAYS[fcastRange];
+
   const scenarios: ForecastScenarios | undefined = useMemo(() => {
     if (!useForecast) return undefined;
+    const clip = (points: ScenarioPoint[]) =>
+      clipScenarioToRange(anchorScenario(points, projection.currentPrice, livePrice), fcastDays);
     return {
-      bull: anchorScenario(projection.bull, projection.currentPrice, livePrice),
-      base: anchorScenario(projection.base, projection.currentPrice, livePrice),
-      bear: anchorScenario(projection.bear, projection.currentPrice, livePrice),
+      bull: clip(projection.bull),
+      base: clip(projection.base),
+      bear: clip(projection.bear),
     };
-  }, [useForecast, projection, livePrice]);
+  }, [useForecast, projection, livePrice, fcastDays]);
 
   const slicedHistory = useMemo(
     () => sliceHistory(history ?? [], RANGE_DAYS[histRange]),

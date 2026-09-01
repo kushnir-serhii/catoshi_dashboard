@@ -1,5 +1,5 @@
 import type { ForecastTarget } from '@/consts/projections';
-import type { ProjectionData } from '@/data/types';
+import type { ForecastGenerationResult } from '@/data/types';
 import { generateClaudeForecast } from '@/lib/forecast/claude';
 import { generateOpenAIForecast } from '@/lib/forecast/openai';
 import type { MarketData } from '@/lib/marketData';
@@ -25,7 +25,7 @@ export async function generateForecast(
   model: string,
   marketData: MarketData,
   targets: readonly ForecastTarget[],
-): Promise<ProjectionData[]> {
+): Promise<ForecastGenerationResult> {
   const validated = validateParams(service, model);
 
   if (validated.service === 'openai') {

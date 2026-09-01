@@ -1,5 +1,5 @@
-import type { ForecastPoint } from '@/data/types';
 import { FORECAST_GRID_DAYS } from '@/consts/projections';
+import type { ForecastPoint } from '@/data/types';
 
 /**
  * Snaps a provider-returned scenario (bull/base/bear) array of {d,p} points onto the
@@ -27,4 +27,19 @@ export function snapScenarioToGrid(
   }
 
   return result;
+}
+
+/** Clamps to non-negative and rescales to sum to exactly 100, guarding against
+ * a model returning scenario probabilities that don't add up cleanly. */
+export function normalizeProbabilities(
+  input: { bull: number; base: number; bear: number } | undefined,
+): { bull: number; base: number; bear: number } {
+  const bull = Math.max(0, input?.bull ?? 0);
+  const base = Math.max(0, input?.base ?? 0);
+  const bear = Math.max(0, input?.bear ?? 0);
+  const total = bull + base + bear;
+  if (total <= 0) return { bull: 0, base: 100, bear: 0 };
+  const bullPct = Math.round((bull / total) * 100);
+  const basePct = Math.round((base / total) * 100);
+  return { bull: bullPct, base: basePct, bear: 100 - bullPct - basePct };
 }

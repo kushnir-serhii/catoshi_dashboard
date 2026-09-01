@@ -1,16 +1,13 @@
 'use client';
 
 import type { RefObject } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { LegendPayload } from 'recharts';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Area,
   CartesianGrid,
   ComposedChart,
-  Legend,
   Line,
   ReferenceLine,
-  ResponsiveContainer,
   Tooltip,
   useXAxisScale,
   useYAxisScale,
@@ -41,6 +38,28 @@ function useContainerWidth<T extends HTMLElement>(): [RefObject<T | null>, numbe
   }, []);
 
   return [ref, width];
+}
+
+/** Mirrors `useContainerWidth` but for height — used so the chart can size
+ * itself to whatever height its `.chart-stage` wrapper is given at the
+ * current breakpoint (e.g. shrunk on mobile) instead of a fixed constant. */
+function useContainerHeight<T extends HTMLElement>(): [RefObject<T | null>, number] {
+  const ref = useRef<T | null>(null);
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setHeight(entry.contentRect.height);
+    });
+    observer.observe(el);
+    setHeight(el.getBoundingClientRect().height);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, height];
 }
 
 // ─── Seeded fallback data (used only when no real rows are supplied) ──────────
@@ -115,23 +134,67 @@ const CHART_HEIGHT = 320;
 const CHART_Y_AXIS_WIDTH = 56;
 
 const formatDateTick = (t: number): string =>
-  new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+
+// Mirrors the ComposedChart's own margin so the manually-drawn Y-axis overlay
+// (below) lines up pixel-for-pixel with the plot area inside the SVG.
+const CHART_MARGIN_TOP = 16;
+const CHART_MARGIN_BOTTOM = 26;
+
+const Y_TICK_COUNT = 5;
+
+/** Evenly-spaced tick values across `[min, max]`, inclusive of both ends. */
+function computeYTicks([min, max]: [number, number], count: number): number[] {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return [min];
+  const step = (max - min) / (count - 1);
+  return Array.from({ length: count }, (_, i) => min + step * i);
+}
+
+// ─── Y-axis overlay (drawn in plain HTML, not Recharts, so it renders
+// reliably pinned to the right edge while the plot scrolls beneath it) ────────
+
+function YAxisOverlay({ yDomain, height }: { yDomain: [number, number]; height: number }) {
+  const ticks = computeYTicks(yDomain, Y_TICK_COUNT);
+  const [min, max] = yDomain;
+  const plotHeight = height - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: CHART_Y_AXIS_WIDTH,
+        height,
+        pointerEvents: 'none',
+      }}
+    >
+      {ticks.map((v, i) => {
+        const frac = max === min ? 0.5 : (v - min) / (max - min);
+        const top = CHART_MARGIN_TOP + (1 - frac) * plotHeight;
+        return (
+          <span
+            key={i}
+            style={{
+              position: 'absolute',
+              top,
+              left: 6,
+              transform: 'translateY(-50%)',
+              fontSize: 12,
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+              color: 'var(--text-3)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {formatPrice(v)}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── Recharts sub-components ──────────────────────────────────────────────────
-
-const YTick = ({ x, y, payload }: { x?: number; y?: number; payload?: { value: number } }) => {
-  if (!payload) return null;
-  return (
-    <text
-      x={(x ?? 0) + 4}
-      y={(y ?? 0) + 4}
-      fill="var(--text-3)"
-      style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)' }}
-    >
-      {formatPrice(payload.value)}
-    </text>
-  );
-};
 
 function ChartTooltip({
   active,
@@ -220,40 +283,6 @@ function ConfidenceBand({ rows }: { rows: ChartRow[] }) {
   return <path d={d} fill="oklch(0.78 0.22 295 / 0.10)" stroke="none" />;
 }
 
-// ─── Legend ───────────────────────────────────────────────────────────────────
-
-function ChartLegend({ payload }: { payload?: ReadonlyArray<LegendPayload> }) {
-  if (!payload?.length) return null;
-  return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 16,
-        justifyContent: 'flex-end',
-        paddingBottom: 6,
-        fontSize: 11,
-        fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
-        color: 'var(--text-3)',
-      }}
-    >
-      {payload.map((entry) => (
-        <div key={entry.value} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: entry.color,
-              flexShrink: 0,
-            }}
-          />
-          {entry.value}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ─── Main chart component ─────────────────────────────────────────────────────
 
 export function ProjectionChart({
@@ -261,6 +290,7 @@ export function ProjectionChart({
   rows,
   yDomain,
   todayMs = Date.now(),
+  interactive = true,
 }: {
   width?: number;
   height?: number;
@@ -268,6 +298,10 @@ export function ProjectionChart({
   rows?: ChartRow[];
   yDomain?: [number, number];
   todayMs?: number;
+  /** Disable wheel-zoom and horizontal scroll — for static/decorative usage
+   * (e.g. the marketing landing page) where the chart shouldn't hijack the
+   * page's scroll gesture. */
+  interactive?: boolean;
 }) {
   const chartRows = rows && rows.length > 0 ? rows : FALLBACK_ROWS;
   const chartYDomain =
@@ -279,19 +313,66 @@ export function ProjectionChart({
   }, [chartRows]);
 
   const [scrollRef, containerWidth] = useContainerWidth<HTMLDivElement>();
-  const plotWidth = Math.max(containerWidth, chartRows.length * MIN_PX_PER_POINT);
+  const [heightRef, containerHeight] = useContainerHeight<HTMLDivElement>();
+  const chartHeight = containerHeight > 0 ? containerHeight : CHART_HEIGHT;
+  const baseWidth = Math.max(containerWidth, chartRows.length * MIN_PX_PER_POINT);
+
+  // Binance-style scroll-to-zoom: mouse wheel over the chart stretches/shrinks
+  // the plot horizontally, keeping the data point under the cursor stationary.
+  const [zoom, setZoom] = useState(1);
+  const wheelAnchorRef = useRef<{ frac: number; offsetX: number } | null>(null);
+  const plotWidth = baseWidth * zoom;
+  // Read inside the native listener below without re-subscribing it on every
+  // width/zoom change (see effect comment).
+  const plotWidthRef = useRef(plotWidth);
+  plotWidthRef.current = plotWidth;
+
+  // React's synthetic `onWheel` is registered passive by default, so
+  // `e.preventDefault()` inside a JSX handler is silently ignored and the
+  // page scrolls anyway. A native, non-passive listener is required to
+  // actually stop page scroll while the cursor is over the chart.
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !interactive) return;
+
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      if (e.deltaY === 0 || !container) return;
+      const rect = container.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const oldWidth = container.scrollWidth || plotWidthRef.current;
+      wheelAnchorRef.current = { frac: (container.scrollLeft + offsetX) / oldWidth, offsetX };
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      setZoom((z) => Math.min(8, Math.max(1, z * factor)));
+    }
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => container.removeEventListener('wheel', onWheel);
+  }, [scrollRef, interactive]);
+
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    const anchor = wheelAnchorRef.current;
+    if (!container || !anchor) return;
+    container.scrollLeft = anchor.frac * container.scrollWidth - anchor.offsetX;
+    wheelAnchorRef.current = null;
+  }, [zoom, scrollRef]);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={heightRef} style={{ position: 'relative', height: '100%' }}>
       <div
         ref={scrollRef}
-        style={{ overflowX: 'auto', overflowY: 'hidden', paddingRight: CHART_Y_AXIS_WIDTH }}
+        style={{
+          overflowX: interactive ? 'auto' : 'hidden',
+          overflowY: 'hidden',
+          paddingRight: CHART_Y_AXIS_WIDTH,
+        }}
       >
         <ComposedChart
           width={plotWidth}
-          height={CHART_HEIGHT}
+          height={chartHeight}
           data={chartRows}
-          margin={{ top: 16, right: 48, bottom: 26, left: 0 }}
+          margin={{ top: 16, right: 8, bottom: 26, left: 0 }}
         >
           <defs>
             <linearGradient id="rc-hist-fill" x1="0" x2="0" y1="0" y2="1">
@@ -307,6 +388,8 @@ export function ProjectionChart({
             type="number"
             domain={xDomain}
             tickFormatter={formatDateTick}
+            tickCount={Math.max(6, Math.round(plotWidth / 80))}
+            minTickGap={40}
             axisLine={false}
             tickLine={false}
             height={28}
@@ -324,8 +407,6 @@ export function ProjectionChart({
             cursor={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
             offset={12}
           />
-
-          <Legend verticalAlign="top" align="right" content={<ChartLegend />} />
 
           <Area
             dataKey="hist"
@@ -409,30 +490,7 @@ export function ProjectionChart({
         </ComposedChart>
       </div>
 
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: CHART_Y_AXIS_WIDTH,
-          pointerEvents: 'none',
-        }}
-      >
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <ComposedChart data={chartRows} margin={{ top: 16, right: 0, bottom: 26, left: 0 }}>
-            <YAxis
-              orientation="right"
-              domain={chartYDomain}
-              tick={<YTick />}
-              axisLine={false}
-              tickLine={false}
-              tickCount={5}
-              width={CHART_Y_AXIS_WIDTH}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+      <YAxisOverlay yDomain={chartYDomain} height={chartHeight} />
     </div>
   );
 }

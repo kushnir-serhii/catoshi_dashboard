@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
-import SerchIcon from '@/assets/icons/header/search-md.svg';
 import { useDashboard } from '@/components/dashboard/context';
 import { Cat, CatoshiWordmark } from '@/components/ui/CatLogo';
 import { NAV_ITEMS } from '@/consts/nav';

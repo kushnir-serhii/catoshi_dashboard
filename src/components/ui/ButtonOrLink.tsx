@@ -3,6 +3,7 @@
 import { Button } from '@heroui/react';
 import Link from 'next/link';
 import React from 'react';
+
 import { cn } from '@/utils/cn';
 
 type ButtonOrLinkProps = {
@@ -16,7 +17,8 @@ type ButtonOrLinkProps = {
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'> &
   React.AnchorHTMLAttributes<HTMLAnchorElement>;
 
-const iconBtnBase = 'inline-flex items-center justify-center rounded-full size-11.5 transition duration-300';
+const iconBtnBase =
+  'inline-flex items-center justify-center rounded-full size-11.5 transition duration-300';
 
 export const ButtonOrLink = ({
   children,
@@ -34,7 +36,12 @@ export const ButtonOrLink = ({
       <Link
         href={href}
         aria-label={ariaLabel}
-        className={cn(iconBtnBase, 'hover:bg-black-100/5 dark:hover:bg-black-200', activeClass, className)}
+        className={cn(
+          iconBtnBase,
+          'hover:bg-black-100/5 dark:hover:bg-black-200',
+          activeClass,
+          className,
+        )}
         {...(props as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
       >
         {children}
@@ -48,7 +55,7 @@ export const ButtonOrLink = ({
       isIconOnly
       onPress={onClick}
       aria-label={ariaLabel}
-      className={cn('rounded-full size-11.5', activeClass, className)}
+      className={cn('size-11.5 rounded-full', activeClass, className)}
     >
       {children}
     </Button>

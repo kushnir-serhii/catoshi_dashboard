@@ -36,7 +36,7 @@ export const RANGE_DAYS: Record<(typeof RANGE_OPTIONS)[number], number> = {
 export const HISTORY_FETCH_DAYS = 365;
 export const MIN_PX_PER_POINT = 6;
 export const Y_DOMAIN_PADDING = 0.03;
-export const PROJECTION_SCHEMA_VERSION = 2;
+export const PROJECTION_SCHEMA_VERSION = 3;
 
 /** Number of popular coins shown in the "Model predictions" panel. */
 export const AI_PANEL_ROW_COUNT = 5;

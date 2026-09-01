@@ -1,8 +1,10 @@
 import './styles/globals.css';
+
+import { Geist, Geist_Mono, Open_Sans } from 'next/font/google';
 import localFont from 'next/font/local';
-import { ThemeProvider } from '@/context/ThemeContext';
-import { Open_Sans, Geist, Geist_Mono } from 'next/font/google';
+
 import { DashboardProvider } from '@/components/dashboard/context';
+import { ThemeProvider } from '@/context/ThemeContext';
 
 export const openSans = Open_Sans({
   subsets: ['latin'],
@@ -21,7 +23,7 @@ const geistMono = Geist_Mono({
   weight: ['300', '400', '500', '600'],
   variable: '--font-geist-mono',
 });
-//
+
 const fixelDisplay = localFont({
   src: [
     {

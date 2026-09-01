@@ -7,6 +7,7 @@ import {
   PROJECTION_SCHEMA_VERSION,
 } from '@/consts/projections';
 import type { ForecastPoint, ProjectionData, ProjectionsResponse } from '@/data/types';
+import { getLatestSnapshot, persistForecasts } from '@/lib/db/analytics';
 import { generateForecast } from '@/lib/forecastProvider';
 import { fetchMarketData } from '@/lib/marketData';
 
@@ -50,6 +51,7 @@ interface CoinConfig {
   baseDrift: number;
   bearDrift: number;
   reasoning: string[];
+  scenarioProbabilities: { bull: number; base: number; bear: number };
 }
 
 const COIN_CONFIGS: CoinConfig[] = [
@@ -65,6 +67,7 @@ const COIN_CONFIGS: CoinConfig[] = [
       'Fear & Greed neutral at 54',
       'Whale accumulation rising',
     ],
+    scenarioProbabilities: { bull: 30, base: 50, bear: 20 },
   },
   {
     coin: 'ETH',
@@ -78,6 +81,7 @@ const COIN_CONFIGS: CoinConfig[] = [
       'Layer-2 TVL up 12% this month',
       'Developer activity at 6-month peak',
     ],
+    scenarioProbabilities: { bull: 32, base: 46, bear: 22 },
   },
   {
     coin: 'SOL',
@@ -91,6 +95,7 @@ const COIN_CONFIGS: CoinConfig[] = [
       'Network uptime at 99.9% last 30 days',
       'Institutional interest growing via ETF filings',
     ],
+    scenarioProbabilities: { bull: 35, base: 40, bear: 25 },
   },
 ];
 
@@ -107,6 +112,7 @@ function buildProjection(cfg: CoinConfig): ProjectionData {
     currentPrice: cfg.currentPrice,
     generatedAt: new Date().toISOString(),
     confidence: 72,
+    scenarioProbabilities: cfg.scenarioProbabilities,
     reasoning: cfg.reasoning,
     service: 'claude',
     model: 'claude-sonnet-4-6',
@@ -121,13 +127,28 @@ function getCachedForecast(service: string, model: string) {
   return unstable_cache(
     async (): Promise<ProjectionsResponse> => {
       const marketData = await fetchMarketData(DEFAULT_FORECAST_TARGETS);
-      const projections = await generateForecast(
-        service,
-        model,
-        marketData,
-        DEFAULT_FORECAST_TARGETS,
+      const result = await generateForecast(service, model, marketData, DEFAULT_FORECAST_TARGETS);
+
+      // Resolve each target coin's most recent snapshot id (or null) so the
+      // forecast rows can be linked to the conditions they were made under.
+      // Done here (inside the cache callback), not in GET, so a cache hit
+      // never touches the DB — see AC 2.1/2.6.
+      const snapshotIds: Record<string, number | null> = {};
+      await Promise.all(
+        DEFAULT_FORECAST_TARGETS.map(async (target) => {
+          const snapshot = await getLatestSnapshot(target.symbol);
+          snapshotIds[target.symbol] = snapshot?.id ?? null;
+        }),
       );
-      return { projections, generatedAt: new Date().toISOString() };
+
+      // Deliberately not awaited (AC 2.6): an unreachable/slow DB must never
+      // degrade this route's response time or success. Errors are logged,
+      // never thrown into the request path.
+      void persistForecasts(result.projections, snapshotIds, result.usage, result.promptVersion).catch(
+        (e) => console.error('[forecast-persist]', e),
+      );
+
+      return { projections: result.projections, generatedAt: new Date().toISOString() };
     },
     ['projections', service, model],
     { revalidate: 21600, tags: ['projections'] },

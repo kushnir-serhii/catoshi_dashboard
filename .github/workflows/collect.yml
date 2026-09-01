@@ -1,0 +1,31 @@
+name: Hourly market collection
+
+# Primary scheduler for spec 010 (technical-considerations.md §2.2). Runs
+# hourly against the deployed /api/collect endpoint. GitHub disables
+# scheduled workflows after 60 days without repository activity (see
+# README) — a `workflow_dispatch` push resets that clock, and this trigger
+# also gives an on-demand manual run.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   COLLECT_ENDPOINT — the deployed URL of the collect route, e.g.
+#     https://catoshi.example.com/api/collect
+#     This is a GitHub Actions secret ONLY, not a `.env` var — the app
+#     itself never reads it at runtime; it's the caller's address, not
+#     something server code depends on. See .env.example for the note.
+#   CRON_SECRET — same value as the app's CRON_SECRET env var (Vercel).
+#     Compared with crypto.timingSafeEqual in src/app/api/collect/route.ts.
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/collect
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.COLLECT_ENDPOINT }}"

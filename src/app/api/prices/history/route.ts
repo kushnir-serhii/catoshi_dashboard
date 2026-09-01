@@ -1,3 +1,4 @@
+import { COINGECKO_API_KEY_HEADER } from '@/consts/prices';
 import { NextResponse } from 'next/server';
 import type { HistoricalPrice } from '@/data/types';
 
@@ -31,7 +32,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const apiKey = process.env.COINGECKO_API_KEY;
   const headers: Record<string, string> = apiKey
-    ? { 'x-cg-pro-api-key': apiKey }
+    ? { [COINGECKO_API_KEY_HEADER]: apiKey }
     : {};
 
   let response: Response;

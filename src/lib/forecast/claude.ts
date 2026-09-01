@@ -2,8 +2,18 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import type { ForecastTarget } from '@/consts/projections';
 import { FORECAST_GRID_DAYS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
-import type { ForecastPoint, ProjectionData } from '@/data/types';
+import type { ForecastGenerationResult, ForecastPoint, ProjectionData } from '@/data/types';
 import type { MarketData } from '@/lib/marketData';
+
+import { normalizeProbabilities } from './gridSnap';
+
+/**
+ * Bump whenever the prompt text changes — this is what keeps the accuracy
+ * metric in spec 011 meaningful. Starting at 1: no prior forecast prompt was
+ * formally versioned before spec 010, so this is the first tracked version
+ * of the current prompt text (see `buildPrompt` below).
+ */
+export const PROMPT_VERSION = 1;
 
 const TOOL_INPUT_SCHEMA: Anthropic.Tool['input_schema'] = {
   type: 'object',
@@ -18,6 +28,17 @@ const TOOL_INPUT_SCHEMA: Anthropic.Tool['input_schema'] = {
           confidence: {
             type: 'number',
             description: '0-100',
+          },
+          scenarioProbabilities: {
+            type: 'object',
+            properties: {
+              bull: { type: 'number', description: '0-100' },
+              base: { type: 'number', description: '0-100' },
+              bear: { type: 'number', description: '0-100' },
+            },
+            required: ['bull', 'base', 'bear'],
+            description:
+              'Likelihood of each scenario playing out; bull + base + bear must sum to 100',
           },
           reasoning: {
             type: 'array',
@@ -73,7 +94,16 @@ const TOOL_INPUT_SCHEMA: Anthropic.Tool['input_schema'] = {
             description: `Array of {d,p} points, one for each of the ${FORECAST_GRID_DAYS.length} day offsets listed in the prompt`,
           },
         },
-        required: ['coin', 'currentPrice', 'confidence', 'reasoning', 'bull', 'base', 'bear'],
+        required: [
+          'coin',
+          'currentPrice',
+          'confidence',
+          'scenarioProbabilities',
+          'reasoning',
+          'bull',
+          'base',
+          'bear',
+        ],
       },
     },
   },
@@ -85,6 +115,7 @@ interface ProjectionToolInput {
     coin: string;
     currentPrice: number;
     confidence: number;
+    scenarioProbabilities: { bull: number; base: number; bear: number };
     reasoning: string[];
     bull: Array<{ d: number; p: number }>;
     base: Array<{ d: number; p: number }>;
@@ -132,7 +163,8 @@ Call the generate_projections tool with projections for ${coinList}. For each co
 - Base scenario: most likely outlook
 - Bear scenario: pessimistic outlook
 - Provide 2-3 concise reasoning bullets explaining your projections
-- Set confidence 0-100 reflecting certainty level`;
+- Set confidence 0-100 reflecting certainty level
+- Set scenarioProbabilities.bull/base/bear to the likelihood (0-100) of each scenario actually playing out, summing to exactly 100 — this is distinct from confidence`;
 }
 
 function snapScenarioToGrid(
@@ -162,7 +194,7 @@ export async function generateClaudeForecast(
   marketData: MarketData,
   model: string,
   targets: readonly ForecastTarget[],
-): Promise<ProjectionData[]> {
+): Promise<ForecastGenerationResult> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const coinList = targets.map((t) => t.symbol).join(', ');
@@ -202,7 +234,7 @@ export async function generateClaudeForecast(
 
   const generatedAt = new Date().toISOString();
 
-  return parsed.projections
+  const projections = parsed.projections
     .map((p): ProjectionData | null => {
       const bull = snapScenarioToGrid(p.bull);
       const base = snapScenarioToGrid(p.base);
@@ -218,6 +250,7 @@ export async function generateClaudeForecast(
         currentPrice: p.currentPrice,
         generatedAt,
         confidence: p.confidence,
+        scenarioProbabilities: normalizeProbabilities(p.scenarioProbabilities),
         reasoning: p.reasoning,
         service: 'claude' as const,
         model,
@@ -225,4 +258,13 @@ export async function generateClaudeForecast(
       };
     })
     .filter((x): x is ProjectionData => x !== null);
+
+  return {
+    projections,
+    promptVersion: PROMPT_VERSION,
+    usage: {
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    },
+  };
 }

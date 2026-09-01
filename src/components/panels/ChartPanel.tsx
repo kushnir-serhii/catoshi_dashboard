@@ -226,12 +226,18 @@ export function ChartPanel({
             <div className="legend">
               <span>
                 <span className="sw" style={{ background: 'oklch(0.86 0.20 145)' }}></span>Bull case
+                {activeProjData?.scenarioProbabilities &&
+                  ` (${activeProjData.scenarioProbabilities.bull}%)`}
               </span>
               <span>
                 <span className="sw" style={{ background: 'oklch(0.78 0.22 295)' }}></span>Base case
+                {activeProjData?.scenarioProbabilities &&
+                  ` (${activeProjData.scenarioProbabilities.base}%)`}
               </span>
               <span>
                 <span className="sw" style={{ background: 'oklch(0.65 0.18 25)' }}></span>Bear case
+                {activeProjData?.scenarioProbabilities &&
+                  ` (${activeProjData.scenarioProbabilities.bear}%)`}
               </span>
               {scenarioOverride && (
                 <span>
@@ -434,6 +440,8 @@ export function ChartPanel({
           >
             <span className="dot" style={{ background: 'oklch(0.86 0.20 145)' }}></span>
             Bull · {formatBadgeValue(badges.bull, livePrice)}
+            {activeProjData?.scenarioProbabilities &&
+              ` · ${activeProjData.scenarioProbabilities.bull}% likely`}
           </div>
           <div
             className="scenario-tag"
@@ -441,6 +449,8 @@ export function ChartPanel({
           >
             <span className="dot" style={{ background: 'oklch(0.78 0.22 295)' }}></span>
             Base · {formatBadgeValue(badges.base, livePrice)}
+            {activeProjData?.scenarioProbabilities &&
+              ` · ${activeProjData.scenarioProbabilities.base}% likely`}
           </div>
           <div
             className="scenario-tag"
@@ -448,6 +458,8 @@ export function ChartPanel({
           >
             <span className="dot" style={{ background: 'oklch(0.65 0.18 25)' }}></span>
             Bear · {formatBadgeValue(badges.bear, livePrice)}
+            {activeProjData?.scenarioProbabilities &&
+              ` · ${activeProjData.scenarioProbabilities.bear}% likely`}
           </div>
         </div>
         <ForecastContextPanel projData={activeProjData} isStale={isStale} />

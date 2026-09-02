@@ -36,8 +36,8 @@ _Give users the "why" behind the numbers — a durable record of market conditio
 
 _Before adding anything, remove everything the product claims but cannot do. This phase ships no new capability and is the highest priority in the project._
 
-- [ ] **Stop Showing Unmeasured Numbers**
-  - [ ] **Delete the Fabricated Models Data:** Remove the invented model roster and accuracy figures that the Models page renders as if measured. _(spec 011, Slice 1)_
+- [x] **Stop Showing Unmeasured Numbers**
+  - [x] **Delete the Fabricated Models Data:** Remove the invented model roster and accuracy figures that the Models page renders as if measured. _(spec 011, Slice 1)_
   - [x] **Trim to the Forecasting Core:** Remove the Portfolio page, holdings panels and mocked holdings data, and rewrite the landing page so it describes only what the product does — no wallet connection, no pricing tiers, no invented traction statistics. _(spec 016)_
 
 - [ ] **Trustworthy Collection**
@@ -65,9 +65,9 @@ _The product's core promise: forecasts that are measured, not asserted._
   - [ ] **Market History Backfill:** Reconstruct the price-side snapshot history from exchange klines and the sentiment index, clearly labelled as backfilled and excluded from every calibration sample. Ships at daily resolution; whether finer resolution is needed is an open question resolved by evidence, not by argument — `decisions.md` §7.1. _(spec 013)_
 
 - [ ] **Forecast Scoring & Models Explorer**
-  - [ ] **Forecast Resolution:** Once a forecast's horizon elapses, fetch the real price and record which scenario actually happened. _(spec 011)_
-  - [ ] **Calibration Metrics:** Score every resolved forecast with a multi-scenario Brier score and hit rate, grouped by model and prompt version. _(spec 011)_
-  - [ ] **Models Explorer, Rebuilt:** A Models page showing only measured performance, with a regime breakdown that exposes systematic bias — and an explicit empty state below the minimum sample size. _(spec 011)_
+  - [x] **Forecast Resolution:** Once a forecast's horizon elapses, fetch the real price and record which scenario actually happened. _(spec 011)_
+  - [x] **Calibration Metrics:** Score every resolved forecast with a multi-scenario Brier score and hit rate, grouped by model and prompt version. _(spec 011)_
+  - [x] **Models Explorer, Rebuilt:** A Models page showing only measured performance, with a regime breakdown that exposes systematic bias — and an explicit empty state below the minimum sample size. _(spec 011)_
   - [ ] **Signal Thresholds Made Measurable:** Use the scoring loop to replace the conventionally-chosen thresholds in the market-state rules with evidenced ones. Spec 011 ships the instrument, so this is now evidence-work, not design-work — spec 014's thresholds can be re-derived from resolved scores rather than kept by convention. _(spec 011, follow-on)_
 
 ---

@@ -347,8 +347,8 @@ export function ChartPanel({
                       background: 'var(--surface-3)',
                       border: '1px solid var(--surface-3)',
                       borderRadius: 'var(--radius)',
-                      color: 'var(--fg)',
-                      fontSize: 13,
+                      color: 'var(--text)',
+                      fontSize: 16,
                       padding: '6px 10px',
                       outline: 'none',
                     }}

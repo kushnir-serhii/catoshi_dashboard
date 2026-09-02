@@ -93,7 +93,7 @@ function PriceTooltip({
         borderRadius: 8,
         padding: '8px 12px',
         fontSize: 11,
-        fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+        fontFamily: 'var(--font-mono)',
         color: 'var(--text)',
         lineHeight: 1.9,
         pointerEvents: 'none',
@@ -124,7 +124,7 @@ function YTick({
       fill="var(--text-3)"
       style={{
         fontSize: 11,
-        fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+        fontFamily: 'var(--font-mono)',
       }}
     >
       {fmtYAxis(payload.value)}
@@ -152,7 +152,7 @@ function XTick({
       fill="var(--text-3)"
       style={{
         fontSize: 11,
-        fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+        fontFamily: 'var(--font-mono)',
       }}
     >
       {payload.value}
@@ -245,11 +245,11 @@ export function HistoricalPriceChart() {
                 border: '1px solid var(--line)',
                 borderRadius: 8,
                 color: 'var(--text)',
-                fontSize: 11,
+                fontSize: 16,
                 fontFamily: 'inherit',
                 padding: '5px 10px',
                 outline: 'none',
-                width: 100,
+                width: 120,
               }}
             />
             {showDropdown && searchResults.length > 0 && (

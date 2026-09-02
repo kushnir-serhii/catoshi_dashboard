@@ -3,8 +3,9 @@ import { timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 
 import { COLLECT_ASSETS } from '@/consts/collect';
-import type { SourceStatus } from '@/data/types';
+import type { MarketSnapshot, SourceStatus } from '@/data/types';
 import { upsertSnapshot } from '@/lib/db/analytics';
+import { generateSignals } from '@/lib/signals/generate';
 import { buildSnapshot } from '@/lib/snapshotBuilder';
 
 /**
@@ -78,6 +79,7 @@ async function handleCollect(request: Request): Promise<NextResponse> {
   const hourTs = truncateToHour(new Date());
 
   const sourcesBySymbol: Record<string, SourceStatus[]> = {};
+  const committedSnapshots: { symbol: string; snapshot: MarketSnapshot }[] = [];
   let written = 0;
   let anyAssetSucceeded = false;
 
@@ -108,11 +110,33 @@ async function handleCollect(request: Request): Promise<NextResponse> {
       }
       written += 1;
       anyAssetSucceeded = true;
+      committedSnapshots.push({ symbol: asset.symbol, snapshot: data });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       sourcesBySymbol[asset.symbol] = [
         ...(sourcesBySymbol[asset.symbol] ?? []),
         { source: 'snapshotBuilder', ok: false, error: message },
+      ];
+    }
+  }
+
+  // Signal generation (spec 014, Slice 4). Runs only after every snapshot for
+  // this hour has committed, so a signal can never reference an uncommitted
+  // snapshot (technical-considerations §5, ordering). The whole step is
+  // isolated: a failure here is logged and reported, but never fails the
+  // collection run — snapshot data is unrecoverable, signals are regenerable.
+  for (const { symbol, snapshot } of committedSnapshots) {
+    try {
+      const { sources } = await generateSignals(snapshot);
+      if (sources.length > 0) {
+        sourcesBySymbol[symbol] = [...(sourcesBySymbol[symbol] ?? []), ...sources];
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[collect] signal generation failed for ${symbol}:`, error);
+      sourcesBySymbol[symbol] = [
+        ...(sourcesBySymbol[symbol] ?? []),
+        { source: 'signals', ok: false, error: message },
       ];
     }
   }

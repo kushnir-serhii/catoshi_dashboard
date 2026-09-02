@@ -1,53 +1,22 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import React from 'react';
 
 export default function NotFound() {
   return (
-    <div className="relative z-1 flex min-h-screen flex-col items-center justify-center overflow-hidden p-6">
-      <>
-        <div className="absolute top-0 right-0 -z-1 w-full max-w-[250px] xl:max-w-[450px]">
-          <Image width={540} height={254} src="/images/shape/grid-01.svg" alt="grid" />
-        </div>
-        <div className="absolute bottom-0 left-0 -z-1 w-full max-w-[250px] rotate-180 xl:max-w-[450px]">
-          <Image width={540} height={254} src="/images/shape/grid-01.svg" alt="grid" />
-        </div>
-      </>
-      <div className="mx-auto w-full max-w-[242px] text-center sm:max-w-[472px]">
-        <h1 className="text-title-md xl:text-title-2xl mb-8 font-bold text-gray-800 dark:text-white/90">
-          ERROR
-        </h1>
-
-        <Image
-          src="/images/error/404.svg"
-          alt="404"
-          className="dark:hidden"
-          width={472}
-          height={152}
-        />
-        <Image
-          src="/images/error/404-dark.svg"
-          alt="404"
-          className="hidden dark:block"
-          width={472}
-          height={152}
-        />
-
-        <p className="mt-10 mb-6 text-base text-gray-700 sm:text-lg dark:text-gray-400">
-          We can’t seem to find the page you are looking for!
-        </p>
-
-        <Link
-          href="/"
-          className="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/3 dark:hover:text-gray-200"
-        >
-          Back to Home Page
-        </Link>
-      </div>
-      {/* <!-- Footer --> */}
-      <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-sm text-gray-500 dark:text-gray-400">
-        &copy; {new Date().getFullYear()} - TailAdmin
+    <div className="relative z-1 flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-center">
+      <p className="font-mono text-sm tracking-[0.2em] text-text-3 uppercase">Error 404</p>
+      <h1 className="max-w-[20ch] text-3xl font-medium tracking-tight text-text sm:text-4xl">
+        This page isn&rsquo;t on the map.
+      </h1>
+      <p className="max-w-[42ch] text-sm text-text-2">
+        The link may be broken, or the page may have moved. Everything else is still where you left
+        it.
       </p>
+      <Link
+        href="/"
+        className="mt-2 inline-flex items-center justify-center rounded-lg border border-line-2 px-5 py-3 text-sm text-text transition-colors hover:bg-surface-2"
+      >
+        Back to dashboard
+      </Link>
     </div>
   );
 }

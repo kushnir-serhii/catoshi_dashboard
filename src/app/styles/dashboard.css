@@ -26,7 +26,7 @@
   --radius-lg: 14px;
   --radius-xl: 20px;
 
-  font-family: var(--font-geist), "Geist", "Inter", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-feature-settings: "ss01";
   -webkit-font-smoothing: antialiased;
   background: radial-gradient(900px 500px at 12% -5%, oklch(0.55 0.22 295 / 0.10), transparent 60%),
@@ -37,10 +37,18 @@
 }
 
 .prowl .mono {
-  font-family: var(--font-geist-mono), "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-feature-settings: "tnum", "zero";
 }
-.prowl .tnum { font-variant-numeric: tabular-nums; }
+
+/* Form controls render at ≥16px so iOS Safari doesn't auto-zoom the
+ * viewport on focus. Applies regardless of the field's visual density. */
+.prowl input,
+.prowl select,
+.prowl textarea {
+  font-size: 16px;
+}
+.prowl .tnum { font-variant-numeric: tabular-nums slashed-zero; }
 
 /* App shell */
 .prowl .app {
@@ -104,7 +112,7 @@
 }
 .prowl .nav a:hover { color: var(--text); }
 .prowl .nav .pill-new {
-  font-size: 9px;
+  font-size: var(--fs-3xs);
   padding: 2px 6px;
   border-radius: 999px;
   background: var(--green-soft);
@@ -167,11 +175,11 @@
   border: 0;
   outline: 0;
   color: var(--text);
-  font-size: 13px;
+  font-size: 16px;
   font-family: inherit;
 }
 .prowl .search kbd {
-  font-family: "Geist Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
@@ -215,34 +223,6 @@
     "watch   holdings"
     "signals signals";
 }
-.prowl .grid.layout-editor {
-  grid-template-columns: 240px 1fr 280px;
-  grid-template-areas:
-    "watch   chart    ai"
-    "watch   chart    ai"
-    "watch   signals  scen"
-    "holdings signals scen"
-    "kpis    kpis     kpis";
-}
-.prowl .grid.layout-editor .area-kpis .kpis { grid-template-columns: repeat(4, 1fr); }
-.prowl .grid.layout-editor .card { border-radius: 4px; padding: 12px; }
-.prowl .grid.layout-editor .card-title { letter-spacing: 0.22em; font-size: 10px; }
-.prowl .grid.layout-editor .kpi { padding: 12px 16px; }
-.prowl .grid.layout-editor .kpi .val { font-size: 22px; font-family: "Geist Mono", monospace; letter-spacing: -0.01em; }
-.prowl .grid.layout-editor .kpi .lbl { letter-spacing: 0.22em; }
-.prowl .grid.layout-editor .ai-pred { border-radius: 4px; padding: 10px; }
-.prowl .grid.layout-editor .ai-pred .target { font-family: "Geist Mono", monospace; font-size: 18px; }
-.prowl .grid.layout-editor .ai-pred .sym { font-family: "Geist Mono", monospace; letter-spacing: 0.06em; }
-.prowl .grid.layout-editor .scen-result .cell { border-radius: 4px; }
-.prowl .grid.layout-editor .scen-result .cell .val { font-family: "Geist Mono", monospace; font-size: 16px; }
-.prowl .grid.layout-editor .watch-table td,
-.prowl .grid.layout-editor .watch-table th { font-family: "Geist Mono", monospace; }
-.prowl .grid.layout-editor .watch-table .name { font-family: "Geist", sans-serif; }
-.prowl .grid.layout-editor .signal { border-radius: 4px; }
-.prowl .grid.layout-editor .signal h4 { font-family: "Geist Mono", monospace; font-size: 12px; line-height: 1.5; }
-.prowl .grid.layout-editor .holdings-donut .center .val { font-family: "Geist Mono", monospace; }
-.prowl .grid.layout-editor .chart-tabs button { font-family: "Geist Mono", monospace; }
-
 /* Scenario always gets special gradient surface */
 .prowl .area-scen.card {
   background:
@@ -252,13 +232,12 @@
   border-radius: 4px;
   border-color: oklch(0.55 0.20 295 / 0.30);
 }
-.prowl .area-scen .card-title { letter-spacing: 0.22em; font-size: 10px; }
-.prowl .area-scen .scen-row .val { font-family: "Geist Mono", monospace; font-size: 12px; }
-.prowl .area-scen .scen-row .lbl { font-family: "Geist Mono", monospace; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.prowl .area-scen .scen-row .val { font-family: var(--font-mono); font-size: 12px; }
+.prowl .area-scen .scen-row .lbl { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
 .prowl .area-scen .scen-result .cell { border-radius: 4px; background: rgba(10,10,18,0.55); backdrop-filter: blur(4px); }
 .prowl .area-scen .scen-result .cell .lbl { letter-spacing: 0.22em; }
-.prowl .area-scen .scen-result .cell .val { font-family: "Geist Mono", monospace; font-size: 16px; letter-spacing: -0.01em; }
-.prowl .area-scen .btn-ghost { font-family: "Geist Mono", monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.prowl .area-scen .scen-result .cell .val { font-family: var(--font-mono); font-size: 16px; letter-spacing: -0.01em; }
+.prowl .area-scen .btn-ghost { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
 
 .prowl .area-kpis     { grid-area: kpis; }
 .prowl .area-chart    { grid-area: chart; }
@@ -289,8 +268,8 @@
   margin-bottom: 14px;
 }
 .prowl .card-title {
-  font-size: 11px;
-  letter-spacing: 0.18em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-label);
   color: var(--text-3);
   text-transform: uppercase;
   display: flex;
@@ -325,8 +304,8 @@
   position: relative;
 }
 .prowl .kpi:last-child { border-right: 0; }
-.prowl .kpi .lbl { font-size: 10px; letter-spacing: 0.16em; color: var(--text-3); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.prowl .kpi .val { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; font-feature-settings: "tnum"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prowl .kpi .lbl { font-size: var(--fs-2xs); letter-spacing: var(--ls-label); color: var(--text-3); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prowl .kpi .val { font-size: var(--fs-xl); font-weight: 500; letter-spacing: var(--ls-tight); font-feature-settings: "tnum"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prowl .kpi .sub { font-size: 11px; color: var(--text-2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .prowl .kpi .delta-up { color: var(--green); }
 .prowl .kpi .delta-dn { color: var(--red); }
@@ -374,11 +353,11 @@
   background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
 }
 .prowl .chart-grid line { stroke: rgba(255,255,255,0.04); stroke-dasharray: 2 4; }
-.prowl .axis-text { fill: var(--text-3); font-size: 10px; font-family: "Geist Mono", monospace; }
+.prowl .axis-text { fill: var(--text-3); font-size: 10px; font-family: var(--font-mono); }
 
 .prowl .scenario-tag {
   position: absolute;
-  font-family: "Geist Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   padding: 4px 8px;
   border-radius: 6px;
@@ -391,7 +370,7 @@
 .prowl .scenario-tag .dot { width: 6px; height: 6px; border-radius: 999px; }
 
 /* AI panel */
-.prowl .ai-headline { font-size: 13px; color: var(--text-2); line-height: 1.5; margin: 0 0 14px; }
+.prowl .ai-headline { font-size: var(--fs-sm); color: var(--text-2); line-height: var(--lh-normal); margin: 0 0 14px; }
 .prowl .ai-headline strong { color: var(--text); font-weight: 500; }
 .prowl .ai-pred {
   border: 1px solid var(--line);
@@ -419,7 +398,7 @@
 .prowl .ai-pred .meta {
   display: flex; justify-content: space-between;
   margin-top: 8px; font-size: 10px;
-  color: var(--text-3); font-family: "Geist Mono", monospace;
+  color: var(--text-3); font-family: var(--font-mono);
 }
 
 /* Scenario simulator */
@@ -431,7 +410,7 @@
 }
 .prowl .scen-coin-label { display: flex; align-items: baseline; gap: 8px; }
 .prowl .scen-coin-label .sym {
-  font-family: "Geist Mono", monospace; font-size: 13px; font-weight: 500;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
 }
 .prowl .scen-coin-label .name { font-size: 12px; color: var(--text-3); }
 .prowl .scen-spot { margin-left: auto; display: flex; align-items: baseline; gap: 8px; }
@@ -442,13 +421,13 @@
 
 .prowl .scen-note {
   margin-top: 10px;
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
   color: var(--text-3);
 }
 .prowl .scen-result .cell .chg {
   margin-top: 2px; font-size: 11px; color: var(--text-3);
-  font-family: "Geist Mono", monospace;
+  font-family: var(--font-mono);
 }
 
 /* Coin picker — borrows the topbar .search field treatment for its query input */
@@ -466,7 +445,7 @@
 }
 .prowl .coin-select-trigger:hover { border-color: oklch(0.55 0.20 295 / 0.5); }
 .prowl .coin-select-trigger .sym {
-  font-family: "Geist Mono", monospace; font-size: 13px; font-weight: 500;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
 }
 .prowl .coin-select-trigger .name {
   font-size: 12px; color: var(--text-3);
@@ -496,7 +475,7 @@
 }
 .prowl .coin-select-menu .search input {
   flex: 1; background: transparent; border: 0; outline: 0;
-  color: var(--text); font-size: 13px; font-family: inherit;
+  color: var(--text); font-size: 16px; font-family: inherit;
 }
 .prowl .coin-select-list {
   list-style: none; margin: 8px 0 0; padding: 0;
@@ -514,7 +493,7 @@
 .prowl .coin-select-list button.active { background: var(--surface-3); }
 .prowl .coin-select-list button[aria-selected="true"] .sym { color: var(--violet); }
 .prowl .coin-select-list button .sym {
-  font-family: "Geist Mono", monospace; font-size: 12px; min-width: 52px;
+  font-family: var(--font-mono); font-size: 12px; min-width: 52px;
 }
 .prowl .coin-select-list button .name {
   font-size: 12px; color: var(--text-3);
@@ -588,7 +567,7 @@
 .prowl .coin-mark.arb { background: linear-gradient(135deg, #28a0f0, #103752); color: #fff; }
 .prowl .coin-mark.tao { background: linear-gradient(135deg, #d3d3df, #6e6e80); color: #1a1a26; }
 .prowl .watch-table .name { font-size: 11px; color: var(--text-3); }
-.prowl .watch-table .delta { font-family: "Geist Mono", monospace; }
+.prowl .watch-table .delta { font-family: var(--font-mono); }
 .prowl .delta-up { color: var(--green); }
 .prowl .delta-dn { color: var(--red); }
 .prowl .proj-bar { position: relative; height: 6px; background: var(--surface-3); border-radius: 999px; width: 110px; }
@@ -616,8 +595,8 @@
 }
 .prowl .holdings-row:first-of-type { border-top: 0; }
 .prowl .holdings-row .left { display: flex; align-items: center; gap: 10px; }
-.prowl .holdings-row .pct { font-family: "Geist Mono", monospace; color: var(--text-2); }
-.prowl .holdings-row .val { font-family: "Geist Mono", monospace; }
+.prowl .holdings-row .pct { font-family: var(--font-mono); color: var(--text-2); }
+.prowl .holdings-row .val { font-family: var(--font-mono); }
 
 /* Signals */
 .prowl .signals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0; border: 0; }
@@ -636,13 +615,13 @@
 .prowl .signal.bullish::after { box-shadow: inset 0 1px 0 rgba(110, 255, 163, 0.12); }
 .prowl .signal.bearish::after { box-shadow: inset 0 1px 0 rgba(255, 110, 110, 0.12); }
 .prowl .signal .head { display: flex; justify-content: space-between; align-items: center; }
-.prowl .signal .tag { font-size: 9px; letter-spacing: 0.16em; padding: 3px 8px; border-radius: 999px; }
+.prowl .signal .tag { font-size: var(--fs-3xs); letter-spacing: var(--ls-label); padding: 3px 8px; border-radius: 999px; }
 .prowl .signal.bullish .tag { background: var(--green-soft); color: var(--green-2); }
 .prowl .signal.bearish .tag { background: oklch(0.45 0.18 25 / 0.18); color: oklch(0.78 0.18 25); }
 .prowl .signal.neutral .tag { background: var(--surface-3); color: var(--text-2); }
-.prowl .signal .src { font-size: 10px; color: var(--text-3); font-family: "Geist Mono", monospace; }
+.prowl .signal .src { font-size: 10px; color: var(--text-3); font-family: var(--font-mono); }
 .prowl .signal h4 { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.4; }
-.prowl .signal .foot { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-3); font-family: "Geist Mono", monospace; }
+.prowl .signal .foot { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-3); font-family: var(--font-mono); }
 
 /* Buttons */
 .prowl .btn-ghost {
@@ -839,7 +818,7 @@
     backdrop-filter: blur(8px);
   }
   .prowl .mobile-nav a {
-    padding: 10px 12px; font-size: 13px;
+    padding: 11px 12px; font-size: var(--fs-sm);
     color: var(--text-2); text-decoration: none;
     border-radius: 8px; border: 1px solid transparent;
   }
@@ -848,13 +827,12 @@
   }
   .prowl .mobile-nav a:hover { color: var(--text); }
   .prowl .mobile-nav .pill-new {
-    font-size: 8px; padding: 1px 5px; border-radius: 999px;
+    font-size: var(--fs-3xs); padding: 1px 5px; border-radius: 999px;
     background: var(--green-soft); color: var(--green-2);
     letter-spacing: 0.12em; margin-left: 4px;
   }
 
-  .prowl .grid.layout-default,
-  .prowl .grid.layout-editor {
+  .prowl .grid.layout-default {
     grid-template-columns: 1fr;
     grid-template-areas: "kpis" "chart" "ai" "scen" "watch" "holdings" "signals";
   }
@@ -871,7 +849,7 @@
   .prowl .pg-thirds  { grid-template-columns: repeat(2, 1fr); }
   .prowl .card-header { flex-wrap: wrap; gap: 8px; }
   .prowl .legend { flex-wrap: wrap; }
-  .prowl .chart-tabs button { padding: 4px 8px; font-size: 10px; }
+  .prowl .chart-tabs button { padding: 4px 8px; font-size: var(--fs-2xs); }
   .prowl .scen-row { grid-template-columns: 100px 1fr 65px; gap: 10px; }
 
   /* Chart card header: let the coin selector drop to its own line instead
@@ -907,9 +885,9 @@
   .prowl .balance .val { font-size: 11px; white-space: nowrap; }
   .prowl .avatar { width: 26px; height: 26px; font-size: 10px; border-radius: 6px; }
 
-  /* Mobile nav: tighter pills */
+  /* Mobile nav: keep links comfortably tappable (≥44px row) */
   .prowl .mobile-nav { padding: 8px 0 0; }
-  .prowl .mobile-nav a { padding: 6px 10px; font-size: 11px; }
+  .prowl .mobile-nav a { padding: 11px 12px; font-size: var(--fs-sm); }
 
   /* Cards */
   .prowl .card { padding: 12px; }
@@ -921,7 +899,7 @@
 
   /* KPIs: stay 2×2 but smaller */
   .prowl .kpi { padding: 12px 14px; }
-  .prowl .kpi .val { font-size: 20px; }
+  .prowl .kpi .val { font-size: var(--fs-lg); }
   .prowl .kpi .micro { opacity: 0.55; }
 
   /* Chart */
@@ -940,8 +918,8 @@
   /* Scenario: 3 equal narrow columns */
   .prowl .scen-result { grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
   .prowl .scen-result .cell { padding: 10px 8px; }
-  .prowl .scen-result .cell .lbl { font-size: 9px; }
-  .prowl .scen-result .cell .val { font-size: 13px; margin-top: 3px; }
+  .prowl .scen-result .cell .lbl { font-size: var(--fs-3xs); }
+  .prowl .scen-result .cell .val { font-size: var(--fs-sm); margin-top: 3px; }
   .prowl .scen-row { grid-template-columns: 76px 1fr 50px; gap: 8px; font-size: 11px; }
 
   /* Holdings donut */
@@ -970,12 +948,10 @@
   .prowl .balance { display: none; }
 
   /* Font reductions */
-  .prowl .kpi .val { font-size: 17px; }
-  .prowl .kpi .lbl { font-size: 9px; }
-  .prowl .scen-result .cell .val { font-size: 11px; }
-  .prowl .scen-row { grid-template-columns: 68px 1fr 46px; gap: 6px; font-size: 10px; }
+  .prowl .kpi .val { font-size: var(--fs-md); }
+  .prowl .scen-result .cell .val { font-size: var(--fs-2xs); }
+  .prowl .scen-row { grid-template-columns: 64px 1fr 48px; gap: 6px; font-size: var(--fs-2xs); }
   .prowl .card { padding: 10px; }
-  .prowl .mobile-nav a { padding: 5px 9px; font-size: 10px; }
 }
 
 /* ── Hover & focus effects ──────────────────────────────────────── */

@@ -26,6 +26,7 @@ export const mockSignalsResponse: SignalsResponse = {
       body: 'US spot ETFs absorbed 4,820 BTC in a single session, the largest single-day inflow since early April.',
       source: 'coindesk.com',
       publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      since: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
       coins: ['BTC'],
     },
     {
@@ -35,6 +36,7 @@ export const mockSignalsResponse: SignalsResponse = {
       body: 'Over 180,000 ETH deposited to beacon chain validators in the past 48 hours as Pectra upgrade nears.',
       source: 'theblock.co',
       publishedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      since: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
       coins: ['ETH'],
     },
     {
@@ -44,6 +46,7 @@ export const mockSignalsResponse: SignalsResponse = {
       body: 'Solana perp funding dropped to -0.035% per 8h — highest short-side premium in six weeks, signalling crowded bears.',
       source: 'coinglass.com',
       publishedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+      since: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
       coins: ['SOL'],
     },
     {
@@ -53,6 +56,7 @@ export const mockSignalsResponse: SignalsResponse = {
       body: 'Chainlink has traded in a $1.20 range for five sessions; options market implies 22% 30-day realised volatility.',
       source: 'cryptobriefing.com',
       publishedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+      since: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
       coins: ['LINK'],
     },
     {
@@ -62,6 +66,7 @@ export const mockSignalsResponse: SignalsResponse = {
       body: 'Net $56M left Arbitrum via canonical bridge over three consecutive days; TVL down 8% from the monthly peak.',
       source: 'dune.com',
       publishedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+      since: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
       coins: ['ARB'],
     },
     {
@@ -71,6 +76,7 @@ export const mockSignalsResponse: SignalsResponse = {
       body: 'Bittensor delegated stake reached 6.4M TAO following Subnet 9 launch, with active validator count rising 12%.',
       source: 'taostats.io',
       publishedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      since: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
       coins: ['TAO'],
     },
   ],

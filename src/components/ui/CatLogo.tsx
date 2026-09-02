@@ -79,5 +79,12 @@ export function Cat({
 }
 
 export function CatoshiWordmark({ size = 16 }: { size?: number }) {
-  return <span className="text-violet-light mt-auto -ml-3 text-lg leading-6 font-semibold">atoshi</span>;
+  return (
+    <span
+      className="text-violet-light font-semibold"
+      style={{ fontSize: size, lineHeight: 1, letterSpacing: '-0.01em', marginLeft: size * -0.7 }}
+    >
+      atoshi
+    </span>
+  );
 }

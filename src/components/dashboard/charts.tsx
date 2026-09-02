@@ -181,7 +181,7 @@ function YAxisOverlay({ yDomain, height }: { yDomain: [number, number]; height: 
               left: 6,
               transform: 'translateY(-50%)',
               fontSize: 12,
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+              fontFamily: 'var(--font-mono)',
               color: 'var(--text-3)',
               whiteSpace: 'nowrap',
             }}
@@ -215,7 +215,7 @@ function ChartTooltip({
         borderRadius: 8,
         padding: '8px 12px',
         fontSize: 11,
-        fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+        fontFamily: 'var(--font-mono)',
         color: 'var(--text)',
         lineHeight: 1.9,
         pointerEvents: 'none',
@@ -396,7 +396,7 @@ export function ProjectionChart({
             tick={{
               fill: 'var(--text-3)',
               fontSize: 12,
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+              fontFamily: 'var(--font-mono)',
             }}
           />
 
@@ -433,7 +433,7 @@ export function ProjectionChart({
               position: 'insideTopLeft',
               fill: 'oklch(0.78 0.22 295)',
               fontSize: 11,
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", monospace)',
+              fontFamily: 'var(--font-mono)',
             }}
           />
 

@@ -1,8 +1,16 @@
 # Functional Specification: AI / Market Signals Feed
 
 - **Roadmap Item:** Phase 2 — AI / Market Signals Feed: Live Signals from News Sources
-- **Status:** Completed
+- **Status:** Partially delivered — superseded by spec 014
 - **Author:** Serhii Kushnir
+
+> **Correction (spec 014).** This spec was marked *Completed*, but its data layer never
+> existed: no `signals` table was ever migrated and no code ever wrote a signal. Only the
+> UI (cards, skeletons, timestamps, stale banner) was built. The news-sourced, LLM-classified
+> feed described below has **not** been built. Spec 014 ("Signals From Market State")
+> delivers a working feed from deterministic market-state rules instead; news-sourced
+> signals remain unbuilt and are scoped to a later spec. Acceptance criteria that were
+> never actually satisfied are re-marked `[ ]` below.
 
 ---
 
@@ -30,11 +38,11 @@ The Signals page displays exactly **6 signal cards** drawn from the latest crypt
 - **Coin chips** — small badge(s) next to the headline showing relevant asset tickers. Only assets from the tracked list are shown: **BTC, ETH, SOL, LINK, ARB, TAO**. If the signal is not specific to any tracked asset, no chips are shown.
 
 **Acceptance Criteria:**
-- [x] The Signals page always shows exactly 6 signal cards when data is available.
-- [x] Each card displays: sentiment label, headline, body, source domain, publication time, and coin chips (if applicable).
+- [ ] The Signals page always shows exactly 6 signal cards when data is available. _(never worked — no data layer; spec 014 also drops the fixed count of 6)_
+- [ ] Each card displays: sentiment label, headline, body, source domain, publication time, and coin chips (if applicable). _(no real card ever rendered; "source domain" is replaced by rule origin in spec 014)_
 - [x] The sentiment label is visually distinct for each type: Bullish, Bearish, Neutral.
-- [x] Coin chips display only tickers from: BTC, ETH, SOL, LINK, ARB, TAO.
-- [x] A signal not related to any tracked coin shows no coin chips.
+- [ ] Coin chips display only tickers from: BTC, ETH, SOL, LINK, ARB, TAO. _(spec 014 aligns the tracked list to the collected assets: BTC, ETH, SOL)_
+- [ ] A signal not related to any tracked coin shows no coin chips. _(never exercised)_
 
 ---
 
@@ -48,8 +56,8 @@ Visible on the Signals page (above or below the cards), the user sees two timest
 Both timestamps are displayed in the **user's local time and timezone** (based on their browser settings).
 
 **Acceptance Criteria:**
-- [x] A "Last updated" timestamp is visible on the Signals page, reflecting when the current signals were fetched.
-- [x] A "Next update" timestamp is visible, showing exactly 6 hours after "Last updated."
+- [ ] A "Last updated" timestamp is visible on the Signals page, reflecting when the current signals were fetched. _(was `new Date()` on every request — fabricated; fixed in spec 014 §1.5)_
+- [ ] A "Next update" timestamp is visible, showing exactly 6 hours after "Last updated." _(fabricated as now + 6h; spec 014 derives it from the collection interval or drops it)_
 - [x] Both timestamps are shown in the user's local time and timezone.
 
 ---
@@ -59,7 +67,7 @@ Both timestamps are displayed in the **user's local time and timezone** (based o
 The signals feed refreshes automatically every 6 hours in the background. The user does not need to take any action, and there is no manual refresh control on the page.
 
 **Acceptance Criteria:**
-- [x] Signals update approximately every 6 hours without any user action.
+- [ ] Signals update approximately every 6 hours without any user action. _(no signals were ever produced; spec 014 moves generation into the hourly collection run)_
 - [x] No manual refresh button or control is present on the Signals page.
 
 ---
@@ -82,7 +90,7 @@ If the most recent automatic fetch fails for any reason (e.g. the news provider 
 - [x] When a fetch fails, the previously fetched signals remain visible and readable.
 - [x] A visible warning banner appears above the signals, indicating the data may be outdated.
 - [x] The warning banner does not hide, replace, or overlap the signal cards.
-- [x] The "Last updated" timestamp reflects the last *successful* fetch, not the failed attempt.
+- [ ] The "Last updated" timestamp reflects the last *successful* fetch, not the failed attempt. _(see 2.2 — timestamp was fabricated; corrected in spec 014)_
 
 ---
 

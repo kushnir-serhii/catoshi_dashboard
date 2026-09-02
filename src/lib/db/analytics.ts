@@ -392,6 +392,26 @@ export async function getLatestSnapshot(assetId: number | string): Promise<Marke
 }
 
 /**
+ * Returns the snapshot immediately preceding `ts` for an asset, or null if none
+ * exists. Used by signal generation (spec 014, Slice 4) both to feed rules that
+ * compare against the prior hour and to resolve `since_ts` carry-forward.
+ * Reuses `fromSnapshotRow` so the row -> `MarketSnapshot` mapping is not
+ * duplicated.
+ */
+export async function getSnapshotBefore(assetId: number, ts: string): Promise<MarketSnapshot | null> {
+  try {
+    const rows = await query<Record<string, unknown>>(
+      'select * from snapshots where asset_id = $1 and ts < $2 order by ts desc limit 1',
+      [assetId, ts],
+    );
+    return rows.length > 0 ? fromSnapshotRow(rows[0]) : null;
+  } catch (error: unknown) {
+    console.error('[analytics] getSnapshotBefore failed:', error);
+    return null;
+  }
+}
+
+/**
  * Computes best-effort USD cost from token counts using `FORECAST_MODEL_PRICING`
  * (src/consts/forecastPricing.ts). Returns null for an unrecognized model
  * rather than guessing — a null `cost_usd` is preferable to a silently wrong

@@ -121,6 +121,11 @@ export function useProjectionChart({
   // Also doubles as a stable "now" for the non-forecast `todayMs` fallback below,
   // so re-renders that don't reflect a genuinely new price/history value don't
   // shift `todayMs` and force a full rows/badges rebuild.
+  // Freshness audit (spec 017, Slice 2): render-time `now` is correct here. This
+  // is the "present moment" marker on the chart's time axis for the non-forecast
+  // path, not a displayed "last updated" value. It is captured once and only
+  // re-recorded (below) when a genuinely fresh price/history value arrives, so
+  // it stays stable across incidental re-renders.
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   useEffect(() => {
     if (livePrice !== undefined || (history && history.length > 0)) {

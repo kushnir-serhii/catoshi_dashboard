@@ -3,6 +3,12 @@
 import type { ProjectionData } from '@/data/types';
 
 function formatRelativeTime(isoString: string): string {
+  // Freshness audit (spec 017, Slice 2): render-time `now` is correct here. This
+  // is a live age — `now - generatedAt` — where `generatedAt` (the data
+  // timestamp) is the other operand, so the label tells the true age of the
+  // forecast and moves as the forecast ages. It is NOT the shipped defect
+  // (`decisions.md` §3, instance 2), which was a "last updated" label set to the
+  // render moment *instead of* reading a data timestamp.
   const generated = new Date(isoString).getTime();
   const now = Date.now();
   const diffMs = now - generated;

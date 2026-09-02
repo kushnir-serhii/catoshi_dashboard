@@ -41,8 +41,8 @@ _Before adding anything, remove everything the product claims but cannot do. Thi
   - [x] **Trim to the Forecasting Core:** Remove the Portfolio page, holdings panels and mocked holdings data, and rewrite the landing page so it describes only what the product does — no wallet connection, no pricing tiers, no invented traction statistics. _(spec 016)_
 
 - [ ] **Trustworthy Collection**
-  - [ ] **Prove the Pipeline Runs:** Verify hourly collection actually writes, expose true data freshness on every surface that displays it, and make a stalled pipeline visible rather than silent. _(spec 017)_
-  - [ ] **Survive Neglect:** Weekly database dump, documented restore, and a scheduler that degrades to daily rather than to silence. _(spec 017)_
+  - [ ] **Prove the Pipeline Runs:** Verify hourly collection actually writes, expose true data freshness on every surface that displays it, and make a stalled pipeline visible rather than silent. _(spec 017 — observability shipped: `/api/health`, `public.collector_status`, freshness note, runbook; pipeline-run verification pending deployment/secrets)_
+  - [ ] **Survive Neglect:** Weekly database dump, documented restore, and a scheduler that degrades to daily rather than to silence. _(spec 017 — restore procedure documented in `docs/runbook.md`; restore drill pending operator)_
 
 ---
 

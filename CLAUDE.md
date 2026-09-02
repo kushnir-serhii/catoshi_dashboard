@@ -23,7 +23,7 @@ No test runner is configured. Type-check with `npx tsc --noEmit`.
 
 - `src/app/(admin)/` — protected dashboard layout group; `page.tsx` redirects to `/projections`
 - `src/app/landing/` — public marketing page
-- `src/app/api/` — Route Handlers acting as a server-side proxy layer for all external calls (CoinGecko, AI providers, Reddit, news RSS, fear/greed index)
+- `src/app/api/` — Route Handlers acting as a server-side proxy layer for all external calls (CoinGecko, AI providers, Reddit, news RSS, fear/greed index). `GET /api/health` (spec 017) is the exception — read-only, unauthenticated, makes no external call: per-asset newest-snapshot age + 24h count and per-collector last-success from `public.collector_status`, returning HTTP 503 when the newest snapshot is older than `SNAPSHOT_STALE_MINUTES` so one URL can be watched by an external uptime checker.
 
 The admin layout (`(admin)/layout.tsx`) wraps everything in `DashboardShell`. Pages live under `src/app/(admin)/projections/`, `markets/`, `signals/`, `models/`.
 
@@ -40,10 +40,10 @@ All external API calls must go through Route Handlers — never call third-party
 
 ### Key Directories
 
-- **`src/lib/`** — server-side integrations: `coingecko.ts`, `marketData.ts` (aggregates news/fear-greed/Reddit), `forecastProvider.ts` (validates service+model, delegates to `forecast/claude.ts` or `forecast/openai.ts`), `db/client.ts`, `scoring/` (spec 011: pure Brier + realized-scenario functions and the resolver, run from `/api/collect`)
+- **`src/lib/`** — server-side integrations: `coingecko.ts`, `marketData.ts` (aggregates news/fear-greed/Reddit), `forecastProvider.ts` (validates service+model, delegates to `forecast/claude.ts` or `forecast/openai.ts`), `db/client.ts`, `db/collectorStatus.ts` (spec 017: upserts `public.collector_status` after each collect run), `db/health.ts` (spec 017: the two cheap reads behind `/api/health`), `freshness.ts` (spec 017: pure `snapshotAgeMinutes` / `isSnapshotStale` / `newestTimestamp`, shared by `/api/health` and the UI staleness note), `scoring/` (spec 011: pure Brier + realized-scenario functions and the resolver, run from `/api/collect`)
 - **`src/hooks/`** — SWR-based data hooks with polling: `usePrices.ts` (60s), `useSignals.ts`, `useProjections.ts`, `useMarkets.ts`, `useHistoricalPrices.ts`, `useCoinSearch.ts`, `useModels.ts` (calibration reads for the Models page). `useForecastSnapshots.ts` wraps IndexedDB (max 5 snapshots, graceful fallback for private browsing).
 - **`src/data/types.ts`** — canonical TypeScript interfaces: `PriceMap`, `MarketAsset`, `ProjectionData`, `ForecastSnapshot`, `Signal`, `KpiItem`, `SignalItem`
-- **`src/consts/`** — shared constants only (see memory rule). `prices.ts` holds `DEFAULT_ASSET_IDS`, refresh intervals, cache TTLs. `signals.ts` holds `TRACKED_COINS` (aligned with the collected assets: BTC, ETH, SOL), rule thresholds, the freshness window, `SIGNALS_COUNT`, and revalidation/refresh intervals. `scoring.ts` holds the scored horizons, the `0.667` no-skill Brier baseline, `MIN_SCORED_SAMPLE_SIZE` (30) and the probability/price tolerances (spec 011).
+- **`src/consts/`** — shared constants only (see memory rule). `prices.ts` holds `DEFAULT_ASSET_IDS`, refresh intervals, cache TTLs. `signals.ts` holds `TRACKED_COINS` (aligned with the collected assets: BTC, ETH, SOL), rule thresholds, the freshness window, `SIGNALS_COUNT`, and revalidation/refresh intervals. `scoring.ts` holds the scored horizons, the `0.667` no-skill Brier baseline, `MIN_SCORED_SAMPLE_SIZE` (30) and the probability/price tolerances (spec 011). `collect.ts` holds the collector asset/timeframe/indicator constants and `SNAPSHOT_STALE_MINUTES` (90, spec 017 — one threshold shared by `/api/health` and the UI freshness note).
 - **`src/lib/signals/`** — the market-state signal layer (spec 014): `rules/*` are pure `(snapshot, previous) => Signal | null` functions (one per rule, registered in `rules/index.ts`), `generate.ts` runs them over each freshly-committed snapshot inside the `/api/collect` run and upserts `public.signals` (idempotent per hour, with `since_ts` carry-forward). `/api/signals` only reads stored rows — it never computes indicators or calls an external API.
 - **`src/components/dashboard/`** — dashboard UI: `charts.tsx` (Recharts `ProjectionChart`, SVG `Sparkline`), `context.tsx` (glow CSS variable), `DashboardShell.tsx`, `ForecastContextPanel.tsx`, `ForecastSettingsModal.tsx`, `HistoricalPriceChart.tsx`
 
@@ -88,7 +88,7 @@ rule is canonically documented in `context/product/architecture.md` §7.3 and th
 
 - **`DashboardContext`** (`src/components/dashboard/context.tsx`) — single piece of UI state: `glow` (0–100), written to `--glow` CSS custom property
 - **IndexedDB** (`useForecastSnapshots`) — persists up to 5 forecast snapshots client-side
-- **Neon Postgres** — server-side persistence via `src/lib/db/client.ts` (`pg` Pool over the pooled `DATABASE_URL`). Provisioned in spec 010; see `context/spec/010-market-snapshot-store/`
+- **Neon Postgres** — server-side persistence via `src/lib/db/client.ts` (`pg` Pool over the pooled `DATABASE_URL`). Provisioned in spec 010; see `context/spec/010-market-snapshot-store/`. `public.collector_status` (migration `0007`, spec 017) holds one row per collector source with `last_success_at` / `last_attempt_at` / `last_error`, upserted after every `/api/collect` run so a single failing feed is distinguishable from a whole failed run
 
 ### Styling
 

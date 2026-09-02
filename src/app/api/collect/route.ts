@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { COLLECT_ASSETS } from '@/consts/collect';
 import type { MarketSnapshot, SourceStatus } from '@/data/types';
 import { upsertSnapshot } from '@/lib/db/analytics';
+import { persistCollectorStatus, reduceSourceStatuses } from '@/lib/db/collectorStatus';
 import { resolveForecasts } from '@/lib/scoring/resolve';
 import { generateSignals } from '@/lib/signals/generate';
 import { buildSnapshot } from '@/lib/snapshotBuilder';
@@ -159,6 +160,31 @@ async function handleCollect(request: Request): Promise<NextResponse> {
     sourcesBySymbol.scoring = [
       ...(sourcesBySymbol.scoring ?? []),
       { source: 'scoring', ok: false, error: message },
+    ];
+  }
+
+  // Per-source status persistence (spec 017, Slice 3). Same isolation discipline
+  // as the signal/scoring steps above: a failure to write bookkeeping must never
+  // fail a collection run. The last-success-per-source rows let `/api/health`
+  // tell "one feed down for hours" apart from "one run failed".
+  try {
+    const outcomes = reduceSourceStatuses(
+      sourcesBySymbol,
+      COLLECT_ASSETS.map((a) => a.symbol),
+    );
+    const { error } = await persistCollectorStatus(outcomes);
+    if (error) {
+      sourcesBySymbol.collectorStatus = [
+        ...(sourcesBySymbol.collectorStatus ?? []),
+        { source: 'db:collectorStatus', ok: false, error: error.message },
+      ];
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] collector-status persistence failed:', error);
+    sourcesBySymbol.collectorStatus = [
+      ...(sourcesBySymbol.collectorStatus ?? []),
+      { source: 'db:collectorStatus', ok: false, error: message },
     ];
   }
 

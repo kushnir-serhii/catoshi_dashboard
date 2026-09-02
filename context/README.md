@@ -68,7 +68,7 @@ different shape.
 | 014 | Signals From Market State | Shipped — 16 rules, 473 tests |
 | 015 | News Impact Classification | Specced, **not built** |
 | 016 | Forecasting-Core Scope Trim | Shipped |
-| 017 | Collection Reliability & Deployment | Specced, **not built** |
+| 017 | Collection Reliability & Deployment | **In progress** — observability shipped (`/api/health`, `public.collector_status`, `src/lib/freshness.ts`, `docs/runbook.md`); pipeline-run verification, restore drill and deployment audit pending operator |
 
 There is no spec 004-vs-005 ambiguity to resolve and no gap to fill: numbers are never
 reused, and a reserved number that never got a spec does not exist as work.

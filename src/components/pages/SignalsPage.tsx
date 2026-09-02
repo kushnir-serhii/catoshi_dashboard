@@ -1,7 +1,8 @@
 'use client';
 
-import { useSignals } from '@/hooks/useSignals';
 import type { SignalItem } from '@/data/types';
+import { useSignals } from '@/hooks/useSignals';
+import { formatSnapshotAge, isSnapshotStale } from '@/lib/freshness';
 
 function Row({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return <div style={{ display: 'flex', alignItems: 'center', gap: 12, ...style }}>{children}</div>;
@@ -11,14 +12,63 @@ function SignalCardSkeleton() {
   return (
     <div className="signal animate-pulse" style={{ padding: 18 }}>
       <div className="head" style={{ marginBottom: 10 }}>
-        <span style={{ display: 'inline-block', width: 60, height: 14, background: 'var(--surface-3)', borderRadius: 4 }} />
-        <span style={{ display: 'inline-block', width: 80, height: 12, background: 'var(--surface-3)', borderRadius: 4, marginLeft: 8 }} />
+        <span
+          style={{
+            display: 'inline-block',
+            width: 60,
+            height: 14,
+            background: 'var(--surface-3)',
+            borderRadius: 4,
+          }}
+        />
+        <span
+          style={{
+            display: 'inline-block',
+            width: 80,
+            height: 12,
+            background: 'var(--surface-3)',
+            borderRadius: 4,
+            marginLeft: 8,
+          }}
+        />
       </div>
-      <div style={{ height: 15, background: 'var(--surface-3)', borderRadius: 4, marginBottom: 8, width: '80%' }} />
-      <div style={{ height: 12, background: 'var(--surface-3)', borderRadius: 4, marginBottom: 5, width: '95%' }} />
-      <div style={{ height: 12, background: 'var(--surface-3)', borderRadius: 4, marginBottom: 12, width: '70%' }} />
+      <div
+        style={{
+          height: 15,
+          background: 'var(--surface-3)',
+          borderRadius: 4,
+          marginBottom: 8,
+          width: '80%',
+        }}
+      />
+      <div
+        style={{
+          height: 12,
+          background: 'var(--surface-3)',
+          borderRadius: 4,
+          marginBottom: 5,
+          width: '95%',
+        }}
+      />
+      <div
+        style={{
+          height: 12,
+          background: 'var(--surface-3)',
+          borderRadius: 4,
+          marginBottom: 12,
+          width: '70%',
+        }}
+      />
       <div className="foot">
-        <span style={{ display: 'inline-block', width: 100, height: 11, background: 'var(--surface-3)', borderRadius: 4 }} />
+        <span
+          style={{
+            display: 'inline-block',
+            width: 100,
+            height: 11,
+            background: 'var(--surface-3)',
+            borderRadius: 4,
+          }}
+        />
       </div>
     </div>
   );
@@ -29,6 +79,10 @@ function SignalCardSkeleton() {
  * (spec 014 slice 5) — "for 6h", "for 3d". Sub-hour conditions read "just now".
  */
 function formatDuration(since: string): string {
+  // Freshness audit (spec 017, Slice 2): render-time `now` is correct here. This
+  // is a live age — `now - since` — where `since` (a data timestamp) is the
+  // other operand, so it reports how long the condition has genuinely held. Not
+  // the shipped defect (`decisions.md` §3, instance 2).
   const ms = Date.now() - new Date(since).getTime();
   if (Number.isNaN(ms) || ms < 60 * 60 * 1000) return 'just now';
   const hours = Math.round(ms / (60 * 60 * 1000));
@@ -38,7 +92,10 @@ function formatDuration(since: string): string {
 
 function SignalCard({ s }: { s: SignalItem }) {
   const tagClass = s.tag === 'BULLISH' ? 'bullish' : s.tag === 'BEARISH' ? 'bearish' : 'neutral';
-  const sinceTime = new Date(s.since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const sinceTime = new Date(s.since).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
     <div className={`signal ${tagClass}`} style={{ padding: 18 }}>
@@ -47,7 +104,11 @@ function SignalCard({ s }: { s: SignalItem }) {
         <span className="src">{s.source}</span>
       </div>
       <h4 style={{ fontSize: 15 }}>{s.title}</h4>
-      {s.body && <p className="small muted" style={{ margin: '4px 0 8px', lineHeight: 1.6 }}>{s.body}</p>}
+      {s.body && (
+        <p className="small muted" style={{ margin: '4px 0 8px', lineHeight: 1.6 }}>
+          {s.body}
+        </p>
+      )}
       {s.coins.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
           {s.coins.map((coin) => (
@@ -68,7 +129,9 @@ function SignalCard({ s }: { s: SignalItem }) {
       )}
       <div className="foot" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <span className="small">
-          {formatDuration(s.since) === 'just now' ? 'flagged just now' : `holding ${formatDuration(s.since)} · since ${sinceTime}`}
+          {formatDuration(s.since) === 'just now'
+            ? 'flagged just now'
+            : `holding ${formatDuration(s.since)} · since ${sinceTime}`}
         </span>
         <span className="small muted">{new Date(s.publishedAt).toLocaleString()}</span>
       </div>
@@ -94,9 +157,7 @@ function FeedNotice({
         borderRadius: 12,
         background: 'var(--surface-2)',
         border:
-          tone === 'error'
-            ? '1px solid oklch(0.6 0.18 20 / 0.45)'
-            : '1px solid var(--surface-3)',
+          tone === 'error' ? '1px solid oklch(0.6 0.18 20 / 0.45)' : '1px solid var(--surface-3)',
       }}
     >
       <h4
@@ -115,10 +176,38 @@ function FeedNotice({
   );
 }
 
+/**
+ * Muted note shown when the newest snapshot behind the feed is older than
+ * `SNAPSHOT_STALE_MINUTES` (spec 017, Slice 2). Deliberately NOT an error state:
+ * the data on the page may still be the best available, it is just old, and the
+ * honest thing is to say how old and that collection may have stalled — the
+ * regression guard against a page that silently presents stale data as current
+ * (`decisions.md` §3, instance 2).
+ */
+function StaleCollectionNotice({ lastUpdated }: { lastUpdated: string }) {
+  const age = formatSnapshotAge(lastUpdated);
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        padding: '8px 14px',
+        borderRadius: 8,
+        background: 'var(--surface-2)',
+        border: '1px solid var(--surface-3)',
+        color: 'var(--text-2)',
+      }}
+      className="small"
+    >
+      Data last updated {age ?? 'a while ago'} — collection may be stalled.
+    </div>
+  );
+}
+
 export function SignalsPage() {
   const { signals, lastUpdated, nextUpdate, isLoading, isStale, fetchError, collectionHealthy } =
     useSignals();
 
+  const showStaleCollection = !!lastUpdated && isSnapshotStale(lastUpdated);
   const hasSignals = (signals?.length ?? 0) > 0;
   const showError = !isLoading && (fetchError || (!hasSignals && !collectionHealthy));
   const showEmpty = !isLoading && !showError && !hasSignals;
@@ -126,10 +215,22 @@ export function SignalsPage() {
   return (
     <div className="page-content">
       {isStale && (
-        <div style={{ marginBottom: 12, padding: '8px 14px', borderRadius: 8, background: 'var(--surface-3)', border: '1px solid oklch(0.65 0.15 55 / 0.4)', color: 'oklch(0.75 0.12 55)' }} className="small">
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '8px 14px',
+            borderRadius: 8,
+            background: 'var(--surface-3)',
+            border: '1px solid oklch(0.65 0.15 55 / 0.4)',
+            color: 'oklch(0.75 0.12 55)',
+          }}
+          className="small"
+        >
           Data may be outdated
         </div>
       )}
+
+      {showStaleCollection && lastUpdated && <StaleCollectionNotice lastUpdated={lastUpdated} />}
 
       <div className="pg-signals-2" style={{ gap: 14 }}>
         {isLoading ? (
@@ -153,9 +254,13 @@ export function SignalsPage() {
 
       {lastUpdated && (
         <Row style={{ gap: 16, padding: '12px 4px 0', flexWrap: 'wrap' }}>
-          <span className="small muted">Last updated: {new Date(lastUpdated).toLocaleString()}</span>
+          <span className="small muted">
+            Last updated: {new Date(lastUpdated).toLocaleString()}
+          </span>
           {nextUpdate && (
-            <span className="small muted">Next update: {new Date(nextUpdate).toLocaleString()}</span>
+            <span className="small muted">
+              Next update: {new Date(nextUpdate).toLocaleString()}
+            </span>
           )}
         </Row>
       )}

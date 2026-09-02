@@ -95,6 +95,21 @@ either workflow reporting a failure:
     the same project is the realistic way to exhaust it and stall writes for
     the rest of the month.
 
+## Data Freshness & Health
+
+`GET /api/health` reports, per tracked asset, the newest snapshot timestamp,
+its age in minutes, and the number of snapshots in the last 24 hours, plus
+each collector's last success/error from `public.collector_status`. It is
+read-only, needs no secret, exposes no connection string or raw row, and makes
+no external call. It returns HTTP **503** when the newest snapshot across all
+assets is older than `SNAPSHOT_STALE_MINUTES` (`src/consts/collect.ts`,
+currently 90 min) and **200** when fresh, so a free external uptime checker can
+watch the single URL and be the whole alerting layer. The same threshold
+drives the muted "collection may be stalled" note on the Signals page.
+
+Operational procedures — reading `/api/health`, re-running a missed hour,
+restoring the database — live in [`docs/runbook.md`](docs/runbook.md).
+
 ## License
 
 This project is free to use and modify.

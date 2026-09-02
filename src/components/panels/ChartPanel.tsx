@@ -63,6 +63,14 @@ function formatBadgeValue(value: number | undefined, livePrice: number | undefin
 
 /** Plain-words age of a timestamp, e.g. "just now", "3 minutes ago", "2 hours ago". */
 function formatAge(timestampMs: number): string {
+  // Freshness audit (spec 017, Slice 2): render-time `now` is correct here. This
+  // is a live age — `now - timestampMs` — where `timestampMs` is the moment a
+  // genuinely new live price/history value last arrived (set in an effect only
+  // when the value actually changes, see `useProjectionChart`). Live CoinGecko
+  // prices carry no upstream timestamp, so "when we last received a fresh value"
+  // is the honest freshness signal, and the age recomputes as it should on
+  // re-render. Not the shipped defect: the label never claims freshness the data
+  // does not have.
   const diffMs = Date.now() - timestampMs;
   const diffMinutes = Math.floor(diffMs / 60_000);
   if (diffMinutes < 1) return 'just now';

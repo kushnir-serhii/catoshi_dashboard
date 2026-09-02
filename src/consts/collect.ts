@@ -30,3 +30,17 @@ export const ATR_PERIOD = 14;
 
 /** Trailing window used to z-score the latest volume reading. */
 export const VOLUME_Z_LOOKBACK = 20;
+
+/**
+ * Age, in minutes, past which the newest market snapshot is treated as stale
+ * (spec 017, Slice 2). One threshold, shared by the dashboard's data-freshness
+ * note (`src/lib/freshness.ts`) and the `/api/health` endpoint — two separate
+ * numbers would drift apart.
+ *
+ * 90 minutes tolerates exactly one missed hourly collection run before the
+ * product says so, and is deliberately aligned with
+ * `FORECAST_SNAPSHOT_MAX_AGE_MINUTES` in `src/consts/scoring.ts` (the age limit
+ * on binding a forecast to a snapshot) so "too old to forecast against" and
+ * "too old to present as current" mean the same thing.
+ */
+export const SNAPSHOT_STALE_MINUTES = 90;

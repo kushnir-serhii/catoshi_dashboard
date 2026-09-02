@@ -98,6 +98,11 @@ function generateProjection(): { hist: number[]; bull: number[]; base: number[];
 const PROJ = generateProjection();
 
 function buildFallbackRows(): ChartRow[] {
+  // Freshness audit (spec 017, Slice 2): render-time `now` is correct here.
+  // These rows are the fully synthetic mock projection used only when no real
+  // data is present — there is no data timestamp to anchor to, and the x-axis
+  // just needs "history ending around now, forecast running forward". Nothing
+  // in this path presents a "last updated" claim.
   const todayTs = Date.now();
   const rows: ChartRow[] = [];
 
@@ -289,6 +294,11 @@ export function ProjectionChart({
   glow: _glow = 1,
   rows,
   yDomain,
+  // Freshness audit (spec 017, Slice 2): this is a default for a "where is the
+  // present moment on the time axis" marker, not a displayed timestamp. Real
+  // callers (`useProjectionChart`) pass a value derived from the forecast /
+  // price data; the `Date.now()` default only applies to decorative usage with
+  // no data at all (e.g. the landing page).
   todayMs = Date.now(),
   interactive = true,
 }: {

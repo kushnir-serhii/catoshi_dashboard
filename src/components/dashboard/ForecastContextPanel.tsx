@@ -124,7 +124,7 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
             borderRadius: 'var(--radius-sm)',
             background: 'var(--surface-3)',
             color: 'var(--text-2)',
-            fontFamily: 'var(--font-geist-mono), "Geist Mono", ui-monospace, monospace',
+            fontFamily: 'var(--font-mono)',
             whiteSpace: 'nowrap',
           }}
         >

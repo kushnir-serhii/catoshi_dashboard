@@ -84,7 +84,7 @@ export function ForecastSettingsModal({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className="card-title" style={{ fontSize: 15, fontWeight: 600 }}>
                 <span className="marker" />
-                AI Forecast Settings
+                AI forecast settings
               </span>
               <Modal.CloseTrigger
                 className="btn-ghost"
@@ -96,7 +96,7 @@ export function ForecastSettingsModal({
             {/* Section 1: AI Provider */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <span className="muted small" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}>
-                AI Provider
+                AI provider
               </span>
               <div style={{ display: 'flex', gap: 10 }}>
                 {(['claude', 'openai'] as const).map((s) => (
@@ -113,7 +113,7 @@ export function ForecastSettingsModal({
                       background: localService === s
                         ? 'oklch(0.78 0.22 295 / 0.12)'
                         : 'var(--surface-2)',
-                      color: localService === s ? 'oklch(0.78 0.22 295)' : 'var(--fg-muted)',
+                      color: localService === s ? 'oklch(0.78 0.22 295)' : 'var(--text-2)',
                       fontWeight: localService === s ? 600 : 400,
                       fontSize: 14,
                       cursor: 'pointer',
@@ -145,7 +145,7 @@ export function ForecastSettingsModal({
                       background: localModel === m.id
                         ? 'oklch(0.78 0.22 295 / 0.12)'
                         : 'var(--surface-2)',
-                      color: localModel === m.id ? 'oklch(0.78 0.22 295)' : 'var(--fg-muted)',
+                      color: localModel === m.id ? 'oklch(0.78 0.22 295)' : 'var(--text-2)',
                       fontWeight: localModel === m.id ? 600 : 400,
                       fontSize: 13,
                       cursor: 'pointer',
@@ -177,13 +177,13 @@ export function ForecastSettingsModal({
                 transition: 'opacity 0.15s',
               }}
             >
-              {isApplying ? 'Applying…' : 'Apply & Refresh'}
+              {isApplying ? 'Applying…' : 'Apply & refresh'}
             </button>
 
             {/* Section 3: Saved Forecasts */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <span className="muted small" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}>
-                Saved Forecasts
+                Saved forecasts
               </span>
               {snapshots.length === 0 ? (
                 <span className="muted small" style={{ fontSize: 12 }}>No saved forecasts yet</span>
@@ -225,9 +225,9 @@ export function ForecastSettingsModal({
                               background: 'var(--surface-3)',
                               border: '1px solid oklch(0.78 0.22 295)',
                               borderRadius: 4,
-                              color: 'var(--fg)',
-                              fontSize: 13,
-                              padding: '3px 6px',
+                              color: 'var(--text)',
+                              fontSize: 16,
+                              padding: '4px 6px',
                               outline: 'none',
                             }}
                           />
@@ -259,7 +259,7 @@ export function ForecastSettingsModal({
                           padding: '2px 8px',
                           borderRadius: 100,
                           background: 'var(--surface-3)',
-                          color: 'var(--fg-muted)',
+                          color: 'var(--text-2)',
                           flexShrink: 0,
                         }}
                       >
@@ -276,7 +276,7 @@ export function ForecastSettingsModal({
                         className="btn-ghost"
                         onClick={() => void onRemoveSnapshot(snap.id)}
                         aria-label={`Delete snapshot ${snap.name}`}
-                        style={{ fontSize: 14, padding: '2px 8px', flexShrink: 0, color: 'var(--fg-muted)' }}
+                        style={{ fontSize: 14, padding: '2px 8px', flexShrink: 0, color: 'var(--text-2)' }}
                       >
                         ×
                       </button>

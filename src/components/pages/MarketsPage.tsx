@@ -47,7 +47,7 @@ function formatPrice(usd: number): string {
 
 function formatDelta(change: number): string {
   const abs = Math.abs(change).toFixed(2);
-  return change >= 0 ? `+${abs}%` : `-${abs}%`;
+  return change >= 0 ? `+${abs}%` : `−${abs}%`;
 }
 
 function formatCompactUSD(value: number): string {
@@ -229,8 +229,8 @@ function MarketsTableContent({ assets, liveAssets, prices, isLoading, isStale }:
           textAlign: align,
           cursor: 'pointer',
           userSelect: 'none',
-          color: isActive ? 'var(--text-1)' : undefined,
-          borderBottom: isActive ? '1px solid var(--text-1)' : undefined,
+          color: isActive ? 'var(--text)' : undefined,
+          borderBottom: isActive ? '1px solid var(--text)' : undefined,
         }}
         onClick={() => handleSortClick(sortKey)}
       >

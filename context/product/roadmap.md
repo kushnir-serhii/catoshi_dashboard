@@ -20,7 +20,8 @@ _Replace the mocked UI with real, auto-refreshing market data. The app becomes g
 _Give users the "why" behind the numbers — news-driven signals and a live price ticker._
 
 - [x] **AI / Market Signals Feed**
-  - [x] **Live Signals from News Sources:** Replace mocked signal cards with real bullish/bearish/neutral signals derived from crypto news, updating every 2 minutes.
+  - [x] **Live Signals from Market State (spec 014):** Real bullish/bearish/neutral signals derived deterministically from the hourly market-state snapshot store (RSI, funding, OI, ETF flows, volume, MA compression, Fear & Greed), generated inside the collection run and persisted.
+  - [ ] **Live Signals from News Sources:** _Not built._ Spec 002 assumed news-headline signals classified by an LLM; that data layer never existed. News-sourced signals answer "why it moved" (which market state cannot) and are scoped to a later spec.
 
 - [ ] **Live Price Ticker**
   - [ ] **Real-Time Chart Ticker:** Stream live price updates for BTC, ETH, and SOL directly on the main chart, reconnecting automatically on disconnect.

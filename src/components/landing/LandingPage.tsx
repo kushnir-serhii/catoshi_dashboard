@@ -96,7 +96,7 @@ function Showcase({ glow }: { glow: number }) {
                     </div>
                     <div
                       style={{
-                        fontFamily: 'var(--font-geist-mono), "Geist Mono", monospace',
+                        fontFamily: 'var(--font-mono)',
                         fontSize: 12,
                       }}
                     >
@@ -231,7 +231,7 @@ function StepPreview({ kind, glow = 1 }: { kind: 'connect' | 'project' | 'act'; 
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              fontFamily: 'var(--font-geist-mono), monospace',
+              fontFamily: 'var(--font-mono)',
               fontSize: 11,
               color: 'var(--text-2)',
               padding: '4px 0',
@@ -268,7 +268,7 @@ function StepPreview({ kind, glow = 1 }: { kind: 'connect' | 'project' | 'act'; 
             alignItems: 'center',
             gap: 8,
             fontSize: 11,
-            fontFamily: 'var(--font-geist-mono), monospace',
+            fontFamily: 'var(--font-mono)',
           }}
         >
           <span

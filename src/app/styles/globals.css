@@ -3,7 +3,6 @@
 
 @import './theme.css';
 @import './utilities.css';
-@import './components.css';
 @import './dashboard.css';
 @import './landing.css';
 
@@ -24,7 +23,7 @@
 
   html,
   body {
-    @apply bg-white relative z-1 min-h-screen font-[openSans] dark:bg-bg;
+    @apply bg-white relative z-1 min-h-screen font-sans dark:bg-bg;
   }
 
   /* Dark-theme page-level scrollbar (html element) — matches .prowl palette */

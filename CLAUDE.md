@@ -43,7 +43,8 @@ All external API calls must go through Route Handlers — never call third-party
 - **`src/lib/`** — server-side integrations: `coingecko.ts`, `marketData.ts` (aggregates news/fear-greed/Reddit), `forecastProvider.ts` (validates service+model, delegates to `forecast/claude.ts` or `forecast/openai.ts`), `db/client.ts`
 - **`src/hooks/`** — SWR-based data hooks with polling: `usePrices.ts` (60s), `useSignals.ts`, `useProjections.ts`, `useMarkets.ts`, `useHistoricalPrices.ts`, `useCoinSearch.ts`. `useForecastSnapshots.ts` wraps IndexedDB (max 5 snapshots, graceful fallback for private browsing).
 - **`src/data/types.ts`** — canonical TypeScript interfaces: `PriceMap`, `MarketAsset`, `ProjectionData`, `ForecastSnapshot`, `Signal`, `KpiItem`, `SignalItem`
-- **`src/consts/`** — shared constants only (see memory rule). `prices.ts` holds `DEFAULT_ASSET_IDS`, refresh intervals, cache TTLs. `signals.ts` holds `TRACKED_COINS`, model names, revalidation seconds.
+- **`src/consts/`** — shared constants only (see memory rule). `prices.ts` holds `DEFAULT_ASSET_IDS`, refresh intervals, cache TTLs. `signals.ts` holds `TRACKED_COINS` (aligned with the collected assets: BTC, ETH, SOL), rule thresholds, the freshness window, `SIGNALS_COUNT`, and revalidation/refresh intervals.
+- **`src/lib/signals/`** — the market-state signal layer (spec 014): `rules/*` are pure `(snapshot, previous) => Signal | null` functions (one per rule, registered in `rules/index.ts`), `generate.ts` runs them over each freshly-committed snapshot inside the `/api/collect` run and upserts `public.signals` (idempotent per hour, with `since_ts` carry-forward). `/api/signals` only reads stored rows — it never computes indicators or calls an external API.
 - **`src/components/dashboard/`** — dashboard UI: `charts.tsx` (Recharts `ProjectionChart`, SVG `Sparkline`, `HoldingsDonut`), `context.tsx` (glow CSS variable), `DashboardShell.tsx`, `ForecastContextPanel.tsx`, `ForecastSettingsModal.tsx`, `HistoricalPriceChart.tsx`
 
 ### AI Forecast Layer
@@ -52,7 +53,10 @@ All external API calls must go through Route Handlers — never call third-party
 - Claude models (via `@anthropic-ai/sdk`): `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-8`
 - OpenAI models: `gpt-4o-mini`, `gpt-4o`
 
-The `CLAUDE_SIGNALS_MODEL` constant in `src/consts/signals.ts` is `'claude-sonnet-4-6'`.
+Signals are **not** LLM-generated. They come from the deterministic rule layer in
+`src/lib/signals/` over the market-state snapshot store (spec 014). News-sourced,
+LLM-classified signals (the original spec 002 design) remain unbuilt and are scoped to a
+later spec.
 
 ### Mock Data Toggle
 

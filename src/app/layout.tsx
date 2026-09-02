@@ -1,41 +1,20 @@
 import './styles/globals.css';
 
-import { Geist, Geist_Mono, Open_Sans } from 'next/font/google';
-import localFont from 'next/font/local';
+import { Geist, Geist_Mono } from 'next/font/google';
 
 import { DashboardProvider } from '@/components/dashboard/context';
 import { ThemeProvider } from '@/context/ThemeContext';
 
-export const openSans = Open_Sans({
-  subsets: ['latin'],
-  weight: ['300', '400', '600', '700'],
-  variable: '--font-family',
-});
-
 const geist = Geist({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
+  weight: ['400', '500', '600'],
   variable: '--font-geist',
 });
 
 const geistMono = Geist_Mono({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
+  weight: ['400', '500'],
   variable: '--font-geist-mono',
-});
-
-const fixelDisplay = localFont({
-  src: [
-    {
-      path: '../../public/fonts/fixelDisplay-semiBold.woff2',
-      weight: '600',
-    },
-    {
-      path: '../../public/fonts/fixelDisplay-medium.woff2',
-      weight: '500',
-    },
-  ],
-  variable: '--font-secondary',
 });
 
 export default function RootLayout({
@@ -46,10 +25,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${openSans.variable} ${fixelDisplay.variable} ${geist.variable} ${geistMono.variable} dark`}
+      className={`${geist.variable} ${geistMono.variable} dark`}
       data-theme="dark"
     >
-      <body className={`${openSans.className} font-sans antialiased dark:bg-gray-900`}>
+      <body className={`${geist.className} antialiased`}>
         <ThemeProvider>
           <DashboardProvider>{children}</DashboardProvider>
         </ThemeProvider>

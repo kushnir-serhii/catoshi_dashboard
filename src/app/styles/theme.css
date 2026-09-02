@@ -2,8 +2,12 @@
 
 @theme {
     --font-*: initial;
-    --font-family: var(--font-openSans), sans-serif;
-    --font-secondary: var(--font-fixelDisplay), sans-serif;
+    /* The two families the app actually renders with. Backed by next/font
+     * CSS vars set on <html> in app/layout.tsx. */
+    --font-sans: var(--font-geist), "Geist", "Inter", system-ui, sans-serif;
+    --font-mono: var(--font-geist-mono), "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+    /* Tailwind's `font-sans` utility resolves to --font-sans above. */
+    --font-family: var(--font-sans);
 
     --breakpoint-*: initial;
     --breakpoint-2xs: 375px;
@@ -46,4 +50,28 @@
     --index: calc(1vw + 1vh);
     --index-ratio: 25;
     /*16:9*/
+
+    /* ── Type scale ──────────────────────────────────────────────────
+     * The only font sizes the app should use. Every call site maps to
+     * one of these; no raw px. Role notes are the intended usage. */
+    --fs-3xs: 0.625rem;   /* 10px — pills / status tags (documented floor) */
+    --fs-2xs: 0.6875rem;  /* 11px — all-caps micro-labels, table meta */
+    --fs-xs: 0.75rem;     /* 12px — secondary / caption text */
+    --fs-sm: 0.8125rem;   /* 13px — dense UI: table cells, compact controls, meta */
+    --fs-base: 1rem;      /* 16px — default body / reading copy (mobile-safe) */
+    --fs-md: 1.125rem;    /* 18px — lede, card sub-headings, feature titles */
+    --fs-lg: 1.375rem;    /* 22px — primary numerals, small headings */
+    --fs-xl: 1.75rem;     /* 28px — KPI values */
+    --fs-2xl: 2.25rem;    /* 36px — stat band, plan price */
+    --fs-display: clamp(2.25rem, 5vw, 4.75rem); /* hero / final-CTA headings */
+
+    /* ── Line height ─────────────────────────────────────────────── */
+    --lh-tight: 1.1;   /* display headings */
+    --lh-snug: 1.35;   /* section headings, short labels */
+    --lh-normal: 1.6;  /* body copy */
+
+    /* ── Letter spacing ─────────────────────────────────────────── */
+    --ls-tight: -0.02em; /* numerals + display headings */
+    --ls-normal: 0;
+    --ls-label: 0.14em;  /* all-caps micro-labels */
 }

@@ -111,13 +111,28 @@ export interface SignalItem {
   body: string;
   source: string;
   publishedAt: string;
+  /**
+   * ISO timestamp the underlying condition was first observed (mapped from
+   * `public.signals.since_ts`). `publishedAt` is the snapshot the row was
+   * derived from; `since` is how long the condition has held — the card renders
+   * a duration from it (spec 014 slice 5).
+   */
+  since: string;
   coins: Array<'BTC' | 'ETH' | 'SOL' | 'LINK' | 'ARB' | 'TAO'>;
 }
 
 export interface SignalsResponse {
-  lastUpdated: string;
-  nextUpdate: string;
+  /** ISO `ts` of the newest snapshot backing this feed, or null when none exists. */
+  lastUpdated: string | null;
+  /** ISO time collection is next expected to run (newest snapshot `ts` + interval), or null. */
+  nextUpdate?: string | null;
+  /** True when the feed could not be read (dead DB, or the `signals`/`snapshots` table is absent). */
   fetchError?: boolean;
+  /**
+   * True when the snapshot store was read successfully. An empty `signals` array with
+   * `collectionHealthy: true` means "healthy, nothing to report" — distinct from `fetchError`.
+   */
+  collectionHealthy?: boolean;
   signals: SignalItem[];
 }
 

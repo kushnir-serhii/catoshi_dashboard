@@ -60,6 +60,8 @@ A `snapshots` row is roughly 1.0–1.3 KB: about 35 numeric columns, plus the `r
 
 Hourly backfill is rejected on this table alone: it would consume more than half the free plan's storage before live collection has written its first year.
 
+> **Note added 02.09.2026.** This section was briefly overruled in favour of hourly, on the strength of the analog falsification study's power curve (power appears between n = 3,000 and n = 8,000; daily gives ~3,100 per asset). That reversal has been withdrawn, because the paragraph below is the better argument: the power curve is denominated in near-independent samples, and intraday near-duplicates do not add effective sample size. **Daily ships.** If the spec 012 power analysis later shows the test is blind even to an injected signal, the next step is **4-hourly**, not hourly. Procedure: `context/product/decisions.md` §7.1.
+
 Daily is not merely the cheap option, it is the correct one. Spec 012 searches analogs on 7- and 30-day horizons and applies a neighbour-exclusion guard of roughly 14 days. Six snapshots within a single day are near-duplicates of one another and would be excluded by that guard anyway — they would inflate the row count without adding a single distinct historical setup.
 
 ### 2.3 Neon compute

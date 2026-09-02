@@ -9,8 +9,7 @@ import { formatPrice, interpolateAt } from '@/lib/projectionSeries';
 interface AIPanelProps {
   glow?: number;
   /** Live top-market-cap coins (from `useMarkets`) — the "most popular
-   * tokens" list shown here until the Portfolio page exists and this can
-   * switch to the user's actual holdings instead. */
+   * tokens" list shown here as forecast candidates. */
   popularAssets: MarketListItem[] | null;
   /** Whichever of `popularAssets` already have a real AI forecast are shown
    * with target/confidence; the rest show live price only. */

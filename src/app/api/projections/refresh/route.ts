@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 
 import type { ForecastTarget } from '@/consts/projections';
 import {
+  ALLOWED_FORECAST_MODELS,
+  DEFAULT_FORECAST_MODEL,
+  DEFAULT_FORECAST_SERVICE,
   DEFAULT_FORECAST_TARGETS,
   FORECAST_GRID_DAYS,
   PROJECTION_SCHEMA_VERSION,
@@ -156,18 +159,10 @@ function buildMockProjectionForCoin(target: ForecastTarget): ProjectionData {
   });
 }
 
-const ALLOWED: Record<string, string[]> = {
-  claude: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-8'],
-  openai: ['gpt-4o-mini', 'gpt-4o'],
-};
-
-const DEFAULT_SERVICE = 'claude';
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
-
 function validateParams(service: string, model: string): { service: string; model: string } {
-  const allowedModels = ALLOWED[service];
+  const allowedModels = ALLOWED_FORECAST_MODELS[service];
   if (!allowedModels || !allowedModels.includes(model)) {
-    return { service: DEFAULT_SERVICE, model: DEFAULT_MODEL };
+    return { service: DEFAULT_FORECAST_SERVICE, model: DEFAULT_FORECAST_MODEL };
   }
   return { service, model };
 }
@@ -203,8 +198,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const { service, model } = validateParams(
-    body.service ?? DEFAULT_SERVICE,
-    body.model ?? DEFAULT_MODEL,
+    body.service ?? DEFAULT_FORECAST_SERVICE,
+    body.model ?? DEFAULT_FORECAST_MODEL,
   );
 
   const singleTarget: ForecastTarget | null = isValidTarget(body.coin)

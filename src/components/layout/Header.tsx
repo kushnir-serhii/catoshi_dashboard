@@ -76,17 +76,6 @@ export const Header: React.FC = () => {
           <span />
           <span />
         </button>
-        {false && (
-          <div className="balance">
-            <div>
-              <div className="lbl">BALANCE</div>
-              <div className="val tnum">
-                $248,392.41 <span className="delta">+5.26%</span>
-              </div>
-            </div>
-            <div className="avatar">CT</div>
-          </div>
-        )}
       </header>
 
       {/* Mobile nav dropdown (hidden on desktop) */}

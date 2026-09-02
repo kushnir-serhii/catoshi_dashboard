@@ -1,9 +1,26 @@
 # Plan: Forecast Persistence, Market Context & Calibration
 
-- **Type:** Cross-spec plan (proposes specs 010, 011, 012)
-- **Roadmap Items:** Phase 3 → Projections & Models → **Models Explorer**; new item **Historical Analogs**
-- **Status:** Draft for review
+- **Type:** Cross-spec plan (proposed specs 010, 011, 012)
+- **Roadmap Items:** Phase 5 → Keeping Score; Phase 6 → Historical Analogs (gated)
+- **Status:** **Partly executed.** Revised 02.09.2026
 - **Author:** Serhii Kushnir
+
+> **How to read this document.** It is the reasoning behind specs 010, 011 and 012 —
+> why they exist, in what order, and which trade-offs were taken. It is **not** a status
+> report. Current status lives in `context/README.md` §3 and `EXECUTION-PLAN.md`.
+>
+> Changes since this was written:
+> - **Spec 010 has shipped.** §2's audit table describes the repository *before* it did.
+> - **Spec 011 and 012 are specced but unbuilt.** Their spec folders supersede §§ below
+>   wherever they disagree.
+> - **The Brier baseline correction in `decisions.md` §6 is now applied inline in §"Spec 011"
+>   below.** The coin-flip line for a three-scenario forecast is **0.667**, not 0.25.
+> - **Spec 012 is gated on a falsification test** that has been written but never run —
+>   see `spec/012-historical-analogs/functional-spec.md` §Gate.
+> - **Spec 015 (news impact classification) did not exist when this was written** and is
+>   now the fourth spec in this family. §4's cost table already anticipated its Haiku tier.
+> - **Portfolio, wallet and personal-data features are out of scope** as of 02.09.2026.
+> - §5 "Documentation Corrections Required" is **done** — `architecture.md` was corrected.
 
 ---
 
@@ -144,7 +161,7 @@ Score stored forecasts against what actually happened, and rebuild the Models pa
 **In-scope**
 
 - Resolution job: for each forecast whose horizon has elapsed, fetch the real price and compute the outcome
-- **Brier score** as the headline metric — multi-scenario: `Σ(pᵢ − oᵢ)²`, where `oᵢ = 1` for the scenario whose range contains the actual price
+- **Brier score** as the headline metric — multi-category: `BS = Σ(pᵢ − oᵢ)²` over the three mutually exclusive scenarios, where `oᵢ = 1` for the scenario whose range contains the actual price and `0` for the other two. **Range is 0 (best) … 2 (worst), and the no-skill baseline is 0.667, not the binary 0.25.** A know-nothing forecaster answering `1/3, 1/3, 1/3` scores `(1/3 − 1)² + (1/3)² + (1/3)² = 0.667`; the 0.25 figure is the baseline for the *binary, single-event* Brier form (`(p − o)²`, one probability) and does not apply here — judged against 0.25, a genuinely skilled forecaster is marked as failing. The baseline follows each forecast's own scenario count. Display the skill score against that baseline, never the raw number alone (`decisions.md` §6)
 - Hit rate: did the highest-probability scenario contain the actual price
 - `/api/models` Route Handler serving real aggregates, replacing mock data
 - Models Explorer rebuilt: one row per **provider + model + prompt version**, not per fictional model
@@ -231,22 +248,176 @@ Anthropic is cheaper than OpenAI at every equivalent tier on **output** tokens, 
 
 ---
 
-## 5. Documentation Corrections Required
+## 5. Documentation Corrections Required — **done**
 
-Independent of the specs above, `context/product/architecture.md` is out of date:
-
-- §3 lists **CryptoPanic** as the news source; it moved to paid-only and RSS feeds are used instead
-- §7 describes browser-side persistence only; once spec 010 ships, a **Data Persistence** section covering Neon must be added
-- No server-side database is mentioned anywhere in the architecture document
+`context/product/architecture.md` has been corrected: CryptoPanic removed as the news
+source, the Neon **Data Persistence** section added (§7), and the signal, news and scoring
+layers documented (§§7.1–7.3). Nothing outstanding here.
 
 ---
 
-## 6. Open Questions
+## 6. Open Questions — all resolved
 
-1. **Collector frequency** — hourly gives better analog resolution; every six hours is cheaper and matches the existing 6-hour projection cache. Hourly is assumed above.
-2. **Asset coverage** — snapshots for BTC/ETH/SOL (matching `DEFAULT_FORECAST_TARGETS`), or ETH only to start?
-3. **Retention** — keep snapshots indefinitely, or roll up to daily after a year? At current volume, indefinite is affordable for a decade.
-4. ~~**Cron mechanism** — Vercel Cron is assumed.~~ **Resolved in spec 010:** Vercel Cron cannot do this. **Hobby accounts are limited to cron jobs that run once per day** — an hourly expression fails at deploy time, and Hobby scheduling precision is ±59 minutes regardless. The collector is scheduled from **GitHub Actions** instead (free, hourly, versioned in the repo), with a daily Vercel cron kept as a fallback. A Claude Code Routine remains a reasonable option for the weekly calibration review in spec 011, but not for the primary collector while it is in research preview.
+1. ~~**Collector frequency.**~~ **Hourly.** Shipped in spec 010.
+2. ~~**Asset coverage.**~~ **BTC, ETH, SOL** — matches `DEFAULT_FORECAST_TARGETS` and the
+   seeded `assets` table.
+3. ~~**Retention.**~~ **Indefinite.** ~60 MB/year against 0.5 GB; affordable for a decade.
+   Revisit only if storage crosses 60%.
+4. ~~**Cron mechanism.**~~ **GitHub Actions hourly**, daily `vercel.json` cron as fallback.
+   Vercel Hobby cron cannot run hourly — an hourly expression fails at deploy time, and Hobby
+   precision is ±59 minutes regardless. A Claude Code Routine is acceptable for the weekly
+   calibration review in spec 011, but not for the primary collector while it is in research
+   preview. Full reasoning: `decisions.md` §4.
+5. **Backfill resolution** — **still open**, and the only genuinely unresolved question in this
+   family. The falsification work points at hourly (power appears between n = 3,000 and
+   n = 8,000; daily gives ~3,100 per asset). Spec 013 argues for daily on storage (hourly is
+   54% of the free plan) and, more importantly, on **effective** sample size: intraday
+   snapshots are near-duplicates that the neighbour-exclusion guard discards anyway. Resolve
+   it by evidence, not argument — the procedure is in `decisions.md` §7.1. Ship daily first.
+
+---
+
+# Appendices — reference material
+
+_Added 02.09.2026, translated from the project's Ukrainian working notes so that `context/`
+is genuinely self-sufficient. Nothing below lives anywhere else._
+
+## Appendix A — Data sources
+
+All free. "Key" means authentication is required.
+
+| Checklist # | Data | Source | Key |
+|---|---|---|---|
+| 1 | OHLC 15m / 1h / 4h / 1d | Binance `GET /fapi/v1/klines` | ❌ |
+| 2 | Funding rate (current) | Binance `GET /fapi/v1/premiumIndex` | ❌ |
+| 2 | Funding rate (history) | Binance `GET /fapi/v1/fundingRate` | ❌ |
+| 2 | Open interest | Binance `GET /fapi/v1/openInterest` | ❌ |
+| 2 | OI history | Binance `GET /futures/data/openInterestHist` | ❌ |
+| 2 | Long/short ratio (accounts) | Binance `GET /futures/data/globalLongShortAccountRatio` | ❌ |
+| 2 | Top-trader long/short | Binance `GET /futures/data/topLongShortPositionRatio` | ❌ |
+| 3 | Liquidations | Binance WS `!forceOrder@arr` — aggregate yourself | ❌ |
+| 4 | ETF flows | `farside.co.uk/eth/`, `/btc/` — HTML table parse | ❌ |
+| 5 | Macro calendar | manual config + RSS | — |
+| 6 | Regulatory / news | RSS: CoinDesk, Decrypt, Cointelegraph | ❌ |
+| 8 | Fear & Greed | `api.alternative.me/fng/?limit=30` | ❌ |
+| — | Price, market cap, dominance | CoinGecko `/api/v3` | demo |
+
+**The key finding:** checklist items 2–3 do not need a paid Coinglass subscription. The public
+Binance Futures API returns funding, open interest and long/short without a key.
+
+**What backfills and what does not.** Binance retains `openInterestHist` and long/short for
+about 30 days, and liquidations exist only in real time — that history is lost permanently, so
+collection had to start as early as possible. But `klines` returns OHLCV from 2017, and
+`alternative.me/fng/?limit=0` returns the whole index history, so the **price side of a snapshot
+backfills for years**. Backfilled rows are labelled `raw->>'backfill' = true` and never mixed
+with complete rows during calibration.
+
+## Appendix B — Indicator set
+
+Computed locally as pure functions in `src/lib/indicators.ts`, no library, never by the model:
+
+- RSI(14) on each of the four timeframes
+- MA7 / MA25 / MA99 on each timeframe
+- Distance from each MA, as a percentage
+- ATR(14) — for stops and expected range
+- Volume z-score (current vs 20-candle mean)
+- Structure: sequence of higher/lower highs and lows over N candles
+- OI change % over 24 h; funding change over 24 h
+- ETF: consecutive days of inflow/outflow, and the 7-day sum
+
+Saving: ~80,000 tokens of raw candles → ~8,000 for a computed snapshot.
+
+## Appendix C — Model tiering and prices (as of 08.2026)
+
+| Model | Input /MTok | Output /MTok | 1 analysis* | 120 runs/month |
+|---|---|---|---|---|
+| Claude Haiku 4.5 | $1 | $5 | $0.025 | $3.0 |
+| **Claude Sonnet 5** | **$2** | **$10** | **$0.05** | **$6.0** |
+| Claude Opus 5 | $5 | $25 | $0.125 | $15.0 |
+| GPT-5.4 mini | $0.75 | $4.50 | $0.021 | $2.5 |
+| GPT-5.6 Luna | $1 | $6 | $0.028 | $3.4 |
+| GPT-5.6 Terra | $2.50 | $15 | $0.07 | $8.4 |
+| GPT-5.6 Sol | $5 | $30 | $0.14 | $16.8 |
+| GPT-5.5 Pro | $30 | $180 | $0.84 | $100.8 |
+
+\* at 10k input / 3k output.
+
+**Decision — a two-tier scheme, ~$4/month:**
+
+- **Haiku** — the cheap tier: news classification (spec 015) and anomaly detection.
+- **Sonnet** — full checklist analysis, twice daily.
+- **Opus** — weekly deep review and calibration review (~$0.5/month).
+
+Anthropic is cheaper on output at every equivalent tier, and analytical work is
+output-dominated. The bottleneck for this task is not raw model intelligence; it is adherence
+to the checklist structure and probability calibration.
+
+Enable both discounts: **prompt caching** (the checklist system prompt is cached, reads at
+0.1× price) and the **Batch API** (50% off when the analysis is not needed in real time).
+
+These prices belong in a `MODEL_PRICING` constant beside `PROMPT_VERSION` — see
+`src/consts/forecastPricing.ts`. Without them `forecasts.cost_usd` has nothing to compute from.
+
+## Appendix D — Forecast contract
+
+**System prompt — fixed, and containing:**
+
+1. The 10-point pre-forecast checklist (Appendix E).
+2. The rule from Miss #1: never draw a directional conclusion from technical analysis alone
+   when volatility is compressed, positioning is one-sided, and a macro trigger sits inside the
+   horizon.
+3. A requirement to always give probabilities, never "it will not".
+4. The non-financial-advice framing.
+
+**Forced JSON output schema** (tool use / structured output):
+
+```json
+{
+  "as_of": "2026-08-25T09:30:00Z",
+  "horizon": "1d | 7d | 30d",
+  "scenarios": [
+    { "label": "range", "low": 2440, "high": 2545, "probability": 0.55 }
+  ],
+  "levels": { "resistance": [2546, 2600], "support": [2464, 2400] },
+  "invalidation": 2400,
+  "key_risks": ["..."],
+  "confidence": "low | medium | high",
+  "reasoning_summary": "..."
+}
+```
+
+`probability` must sum to 1, checked twice: by a validator in code, and by a trigger on the
+`forecasts` table (±0.02).
+
+**The prompt version is written into every `forecasts.prompt_version` row** and bumped on every
+prompt change. Without it, a prompt edit silently corrupts the historical record and the
+accuracy metric stops meaning anything.
+
+## Appendix E — The pre-forecast checklist
+
+The manual process this pipeline automates. Ten points, in order:
+
+| # | Factor | Where to look |
+|---|---|---|
+| 1 | TA: structure, levels, MAs, RSI across 4 timeframes | chart |
+| 2 | Positioning: long/short ratio, OI, funding | Binance futures API |
+| 3 | 24 h liquidations, and which side | Binance WS |
+| 4 | Spot ETF flows — the streak, not one day | Farside / SoSoValue |
+| 5 | Macro calendar: FOMC, CPI, Treasury, Jackson Hole | economic calendar |
+| 6 | Regulation and politics: bills, SEC, ETF filings | news |
+| 7 | On-chain: exchange balances, staking, whale transactions | — |
+| 8 | Sentiment: Fear & Greed, social activity | alternative.me |
+| 9 | Asset specifics: upgrades, foundation activity, L2s | — |
+| 10 | **Geopolitics: active conflicts, oil, shipping lanes** | news (added 02.09.2026) |
+
+Point 10 was added after a forecast was directionally right for entirely the wrong reason — the
+actual trigger was a military strike that was not in the model at all. Being right for the wrong
+reason is not skill and must not be recorded as a success.
+
+**The exogenous-shock rule that came with it:** assess separately the probability of an event
+outside the chart and outside the calendar — roughly 5% in a normal week, 20–30% per week during
+an active conflict. It does not spread evenly across scenarios; it almost always thickens the
+bearish side, because crypto in a shock correlates with risk assets rather than with gold.
 
 ---
 

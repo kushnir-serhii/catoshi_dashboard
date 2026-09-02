@@ -2,10 +2,13 @@ import { unstable_cache } from 'next/cache';
 import { NextResponse } from 'next/server';
 
 import {
+  DEFAULT_FORECAST_MODEL,
+  DEFAULT_FORECAST_SERVICE,
   DEFAULT_FORECAST_TARGETS,
   FORECAST_GRID_DAYS,
   PROJECTION_SCHEMA_VERSION,
 } from '@/consts/projections';
+import { FORECAST_SNAPSHOT_MAX_AGE_MINUTES } from '@/consts/scoring';
 import type { ForecastPoint, ProjectionData, ProjectionsResponse } from '@/data/types';
 import { getLatestSnapshot, persistForecasts } from '@/lib/db/analytics';
 import { generateForecast } from '@/lib/forecastProvider';
@@ -120,9 +123,6 @@ function buildProjection(cfg: CoinConfig): ProjectionData {
   };
 }
 
-const DEFAULT_SERVICE = 'claude';
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
-
 function getCachedForecast(service: string, model: string) {
   return unstable_cache(
     async (): Promise<ProjectionsResponse> => {
@@ -133,20 +133,33 @@ function getCachedForecast(service: string, model: string) {
       // forecast rows can be linked to the conditions they were made under.
       // Done here (inside the cache callback), not in GET, so a cache hit
       // never touches the DB — see AC 2.1/2.6.
+      //
+      // Snapshot age limit (spec 011, functional-spec 2.6): link a forecast to
+      // a snapshot only when that snapshot is within
+      // FORECAST_SNAPSHOT_MAX_AGE_MINUTES of now. An older snapshot is not
+      // "conditions that were actually current", so the forecast is recorded
+      // with snapshot_id = null instead — calibration reads (Slice 5) exclude
+      // those rows rather than trust a stale link.
+      const maxSnapshotAgeMs = FORECAST_SNAPSHOT_MAX_AGE_MINUTES * 60_000;
       const snapshotIds: Record<string, number | null> = {};
       await Promise.all(
         DEFAULT_FORECAST_TARGETS.map(async (target) => {
           const snapshot = await getLatestSnapshot(target.symbol);
-          snapshotIds[target.symbol] = snapshot?.id ?? null;
+          const withinAgeLimit =
+            snapshot != null && Date.now() - new Date(snapshot.ts).getTime() <= maxSnapshotAgeMs;
+          snapshotIds[target.symbol] = withinAgeLimit ? (snapshot.id ?? null) : null;
         }),
       );
 
       // Deliberately not awaited (AC 2.6): an unreachable/slow DB must never
       // degrade this route's response time or success. Errors are logged,
       // never thrown into the request path.
-      void persistForecasts(result.projections, snapshotIds, result.usage, result.promptVersion).catch(
-        (e) => console.error('[forecast-persist]', e),
-      );
+      void persistForecasts(
+        result.projections,
+        snapshotIds,
+        result.usage,
+        result.promptVersion,
+      ).catch((e) => console.error('[forecast-persist]', e));
 
       return { projections: result.projections, generatedAt: new Date().toISOString() };
     },
@@ -157,8 +170,8 @@ function getCachedForecast(service: string, model: string) {
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
-  const service = searchParams.get('service') ?? DEFAULT_SERVICE;
-  const model = searchParams.get('model') ?? DEFAULT_MODEL;
+  const service = searchParams.get('service') ?? DEFAULT_FORECAST_SERVICE;
+  const model = searchParams.get('model') ?? DEFAULT_FORECAST_MODEL;
 
   // When mock data is enabled, return seeded mock data immediately
   if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') {

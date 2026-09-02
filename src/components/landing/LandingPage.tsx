@@ -9,19 +9,19 @@ import { Cat, CatoshiWordmark } from '@/components/ui/CatLogo';
 
 import { FaqSection } from './FaqSection';
 
-const APP_HREF = '/';
+const APP_HREF = '/projections';
 
 function Showcase({ glow }: { glow: number }) {
   const kpis = [
-    { lbl: 'Portfolio', val: '$248,392', sub: '+5.26%', c: 'green' as const },
-    { lbl: '90d projection', val: '$291,400', sub: '+17.3%', c: 'violet' as const },
-    { lbl: 'AI confidence', val: '74%', sub: 'v3.2', c: 'green' as const },
-    { lbl: 'Risk', val: '6.2/10', sub: 'moderate', c: 'violet' as const },
+    { lbl: 'Base case · 60d', val: '+8.4%', c: 'violet' as const },
+    { lbl: 'Bull case', val: '+21.6%', c: 'green' as const },
+    { lbl: 'Bear case', val: '−12.1%', c: 'red' as const },
+    { lbl: 'Model confidence', val: '72%', c: 'violet' as const },
   ];
   const preds = [
-    { sym: 'BTC', target: '$78,420', delta: '+12.4%', conf: 81 },
-    { sym: 'ETH', target: '$4,890', delta: '+18.1%', conf: 74 },
-    { sym: 'TAO', target: '$612', delta: '+34.2%', conf: 52 },
+    { sym: 'BTC', target: '$105,200', delta: '+8.4%', conf: 72 },
+    { sym: 'ETH', target: '$3,240', delta: '+11.0%', conf: 66 },
+    { sym: 'SOL', target: '$168', delta: '+6.2%', conf: 58 },
   ];
   return (
     <div className="hero-showcase">
@@ -29,7 +29,7 @@ function Showcase({ glow }: { glow: number }) {
         <div className="dot" style={{ background: '#ff6058' }}></div>
         <div className="dot" style={{ background: '#ffbe2f' }}></div>
         <div className="dot" style={{ background: '#28cd41' }}></div>
-        <div className="url">app.catoshi.ai/projections</div>
+        <div className="url">catoshi · projections (sample)</div>
       </div>
       <div className="showcase-body">
         <div style={{ marginBottom: 14 }}>
@@ -47,7 +47,7 @@ function Showcase({ glow }: { glow: number }) {
                 <div className="lbl">{k.lbl}</div>
                 <div className="val tnum">{k.val}</div>
                 <div className="sub">
-                  <span className={k.c === 'green' ? 'delta-up mono' : 'muted'}>{k.sub}</span>
+                  <span className={k.c === 'green' ? 'delta-up mono' : 'muted'}>sample</span>
                 </div>
                 <div className="micro">
                   <Sparkline width={70} height={28} seed={i * 9 + 4} color={k.c} />
@@ -60,7 +60,7 @@ function Showcase({ glow }: { glow: number }) {
           <div className="card glow-violet" style={{ padding: 16 }}>
             <div className="card-header" style={{ marginBottom: 8 }}>
               <div className="card-title">
-                <span className="marker"></span>Portfolio projection · 60d
+                <span className="marker"></span>BTC · base case · 60d
               </div>
               <div className="legend">
                 <span>
@@ -81,7 +81,7 @@ function Showcase({ glow }: { glow: number }) {
           <div className="card" style={{ padding: 16 }}>
             <div className="card-header" style={{ marginBottom: 10 }}>
               <div className="card-title">
-                <span className="marker green"></span>AI predictions
+                <span className="marker green"></span>Model predictions
               </div>
             </div>
             {preds.map((p, i) => (
@@ -220,11 +220,22 @@ function MiniProjection({ glow = 1 }: { glow?: number }) {
   );
 }
 
-function StepPreview({ kind, glow = 1 }: { kind: 'connect' | 'project' | 'act'; glow?: number }) {
-  if (kind === 'connect') {
+function StepPreview({
+  kind,
+  glow = 1,
+}: {
+  kind: 'collect' | 'forecast' | 'score';
+  glow?: number;
+}) {
+  if (kind === 'collect') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', padding: 16 }}>
-        {['Coinbase', 'Binance', 'Ledger', 'MetaMask'].map((w, i) => (
+        {[
+          ['RSI · 15m / 1h / 4h / 1d', 'ok'],
+          ['Funding · open interest', 'ok'],
+          ['ETF net flow · streak', 'ok'],
+          ['Fear & Greed index', 'ok'],
+        ].map(([label], i) => (
           <div
             key={i}
             style={{
@@ -237,53 +248,36 @@ function StepPreview({ kind, glow = 1 }: { kind: 'connect' | 'project' | 'act'; 
               padding: '4px 0',
             }}
           >
-            <span>{w}</span>
-            <span style={{ color: i < 2 ? 'var(--green)' : 'var(--text-3)' }}>
-              {i < 2 ? '● connected' : '○ link'}
-            </span>
+            <span>{label}</span>
+            <span style={{ color: 'var(--green)' }}>● snapshotted</span>
           </div>
         ))}
       </div>
     );
   }
-  if (kind === 'project') {
+  if (kind === 'forecast') {
     return <MiniProjection glow={glow} />;
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', padding: 16 }}>
       {[
-        { t: 'BULLISH', c: 'var(--green-2)', bg: 'var(--green-soft)', l: 'BTC accumulation' },
-        { t: 'NEUTRAL', c: 'var(--text-2)', bg: 'var(--surface-3)', l: 'ETH at resistance' },
-        {
-          t: 'BEARISH',
-          c: 'oklch(0.78 0.18 25)',
-          bg: 'oklch(0.45 0.18 25 / 0.18)',
-          l: 'SOL funding cool',
-        },
+        { l: 'Horizon elapsed', v: '60d' },
+        { l: 'Realized scenario', v: 'base' },
+        { l: 'Brier (multi-class)', v: '0.41' },
+        { l: 'No-skill baseline', v: '0.67' },
       ].map((s, i) => (
         <div
           key={i}
           style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: 8,
+            justifyContent: 'space-between',
             fontSize: 11,
             fontFamily: 'var(--font-mono)',
+            color: 'var(--text-2)',
           }}
         >
-          <span
-            style={{
-              fontSize: 9,
-              padding: '2px 6px',
-              borderRadius: 999,
-              background: s.bg,
-              color: s.c,
-              letterSpacing: '0.16em',
-            }}
-          >
-            {s.t}
-          </span>
-          <span style={{ color: 'var(--text-2)' }}>{s.l}</span>
+          <span>{s.l}</span>
+          <span style={{ color: 'var(--text)' }}>{s.v}</span>
         </div>
       ))}
     </div>
@@ -291,6 +285,8 @@ function StepPreview({ kind, glow = 1 }: { kind: 'connect' | 'project' | 'act'; 
 }
 
 const LOGO_VARIANT: LogoVariant = 'ears';
+
+const ADVICE_NOTE = 'Projections are scenarios, not predictions. Nothing here is financial advice.';
 
 export function LandingPage() {
   const [glow] = useState(1);
@@ -302,38 +298,38 @@ export function LandingPage() {
   const features = [
     {
       num: '01',
-      title: 'Portfolio projection',
-      body: '60-day forecasts with bull, base and bear bands, computed from your live holdings — refreshed every 4 hours.',
+      title: 'Scenario projections',
+      body: 'Bull, base and bear price curves for BTC, ETH and SOL, each carrying a probability and the model’s written rationale. Scenarios, not predictions.',
       green: false,
       wide: false,
     },
     {
       num: '02',
-      title: 'AI predictions',
-      body: 'Ensemble of 5 models (Tabnet, LSTM, XGB, BERT, TFT) producing per-asset price targets with calibrated confidence.',
+      title: 'One model, one call',
+      body: 'Each forecast is a single call to a language model through a provider abstraction — Claude or GPT, selectable per run. No ensemble and no undisclosed weighting.',
       green: true,
       wide: false,
     },
     {
       num: '03',
       title: 'Scenario simulator',
-      body: 'Drag sliders for horizon, volatility and drift to see how your wealth re-prices in real time.',
+      body: 'Adjust horizon, volatility and drift and watch the bear / base / bull outcome re-price against the selected coin’s spot. Volatility and drift are seeded from that coin’s own realized history.',
       green: false,
       wide: false,
     },
     {
       num: '04',
-      title: 'Live signals',
-      body: 'Bullish / bearish / neutral signals fused from on-chain flows, macro data and social sentiment — auto-tagged with confidence scores so you can filter the noise.',
+      title: 'Market-state signals',
+      body: 'Bullish, bearish and neutral signals from deterministic rules over each hourly snapshot — RSI, funding, open interest, ETF streaks, volume, moving-average compression and Fear & Greed. No language model, no social scraping; ordered by severity.',
       green: false,
-      wide: true,
+      wide: false,
     },
     {
       num: '05',
-      title: 'Holdings analytics',
-      body: 'Cost basis, P&L per lot, allocation drift and tax-lot tracking. The summary you wish your exchange gave you.',
+      title: 'Measured, not asserted',
+      body: 'The Models page reports only resolved-forecast accuracy: a multi-category Brier score against the no-skill baseline, grouped by model and prompt version, with an explicit empty state below the minimum sample size.',
       green: false,
-      wide: false,
+      wide: true,
     },
   ];
 
@@ -341,80 +337,25 @@ export function LandingPage() {
     num: string;
     title: string;
     body: string;
-    kind: 'connect' | 'project' | 'act';
+    kind: 'collect' | 'forecast' | 'score';
   }> = [
     {
       num: '01 ↗',
-      title: 'Connect',
-      body: 'Link exchanges via read-only API or paste wallet addresses. Keys never leave the secure enclave.',
-      kind: 'connect',
+      title: 'Collect',
+      body: 'Every hour a scheduled job snapshots the market state for BTC, ETH and SOL — indicators across four timeframes, derivatives positioning, ETF flows and Fear & Greed — and writes one row per asset to Postgres.',
+      kind: 'collect',
     },
     {
       num: '02 ↗',
-      title: 'Project',
-      body: 'Our ensemble re-fits hourly on 18 months of features — your forecasts update silently in the background.',
-      kind: 'project',
+      title: 'Forecast',
+      body: 'One language-model call turns the latest snapshot into bull, base and bear curves with scenario probabilities and a rationale. The model and prompt version are stored with every forecast.',
+      kind: 'forecast',
     },
     {
       num: '03 ↗',
-      title: 'Act',
-      body: 'Set rebalance thresholds and signal alerts. Catoshi pings you when a scenario crosses your line.',
-      kind: 'act',
-    },
-  ];
-
-  const stats = [
-    { lbl: 'Models in ensemble', val: '5', sub: '+1 paused, calibrating' },
-    { lbl: 'Predictions / day', val: '1,248', sub: 'avg latency 84ms' },
-    { lbl: 'Hit rate · 90d', val: '74.0%', sub: '+3.1pt vs prior cycle' },
-    { lbl: 'AUM under projection', val: '$2.4B', sub: 'across 14k portfolios' },
-  ];
-
-  const plans = [
-    {
-      name: 'Hobby',
-      price: '$0',
-      period: '/ forever',
-      featured: false,
-      desc: 'For tracking a single wallet and exploring the projections.',
-      items: [
-        { text: '1 wallet, 5 assets', on: true },
-        { text: 'Daily projections (24h refresh)', on: true },
-        { text: 'Base case forecasts', on: true },
-        { text: 'Bull / bear scenarios', on: false },
-        { text: 'Live signals', on: false },
-      ],
-      cta: 'Start free',
-    },
-    {
-      name: 'Pro',
-      price: '$29',
-      period: '/ month',
-      featured: true,
-      desc: 'For active investors who plan, hedge and rebalance with intent.',
-      items: [
-        { text: 'Unlimited wallets & assets', on: true },
-        { text: '4-hour ensemble refresh', on: true },
-        { text: 'Bull / base / bear scenarios', on: true },
-        { text: 'Live signals + email alerts', on: true },
-        { text: 'Tax-lot tracking & CSV export', on: true },
-      ],
-      cta: 'Start 14-day trial',
-    },
-    {
-      name: 'Desk',
-      price: '$199',
-      period: '/ month',
-      featured: false,
-      desc: 'For funds and prop desks running multi-portfolio mandates.',
-      items: [
-        { text: 'Everything in Pro', on: true },
-        { text: 'Unlimited team seats', on: true },
-        { text: 'Custom model weights', on: true },
-        { text: 'API + webhook access', on: true },
-        { text: 'Dedicated success engineer', on: true },
-      ],
-      cta: 'Talk to sales',
+      title: 'Score',
+      body: 'When a forecast’s horizon elapses, the real price is fetched, the scenario that actually happened is recorded, and a multi-category Brier score is written — grouped by model and prompt version.',
+      kind: 'score',
     },
   ];
 
@@ -429,19 +370,11 @@ export function LandingPage() {
         <div className="land-nav-links">
           <a href="#features">Features</a>
           <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
         </div>
         <div className="land-nav-cta">
-          <Link
-            href={APP_HREF}
-            className="btn-cta-ghost"
-            style={{ padding: '8px 14px', fontSize: 13 }}
-          >
-            Sign in
-          </Link>
           <Link href={APP_HREF} className="btn-cta" style={{ padding: '10px 16px', fontSize: 13 }}>
-            Open app →
+            Open dashboard →
           </Link>
         </div>
       </nav>
@@ -450,7 +383,7 @@ export function LandingPage() {
       <section className="hero">
         <div className="eyebrow">
           <span className="dot"></span>
-          v3.2 ensemble · 74% accuracy this cycle
+          Forecasting and signals for BTC · ETH · SOL
         </div>
         <h1>
           Crypto projections,
@@ -459,12 +392,16 @@ export function LandingPage() {
           <span className="neon-green">most.</span>
         </h1>
         <p className="lede">
-          Catoshi runs an ensemble of 5 ML models on on-chain, macro, and sentiment data — turning
-          your portfolio into bull / base / bear scenarios you can actually plan around.
+          Catoshi snapshots the market every hour, turns each snapshot into bull / base / bear
+          scenarios with a single language-model call, and scores every forecast against the price
+          that actually printed.
+        </p>
+        <p className="lede" style={{ fontSize: 'var(--fs-sm)', marginTop: -18 }}>
+          <em>{ADVICE_NOTE}</em>
         </p>
         <div className="hero-cta">
           <Link href={APP_HREF} className="btn-cta">
-            Start free →
+            Open the dashboard →
           </Link>
           <a href="#how" className="btn-cta-ghost">
             See how it works
@@ -472,40 +409,24 @@ export function LandingPage() {
         </div>
         <div className="hero-meta">
           <span>
-            <span className="ok">●</span> No credit card
+            <span className="ok">●</span> No sign-up
           </span>
           <span>
-            <span className="ok">●</span> Read-only wallet access
+            <span className="ok">●</span> Nothing to connect
           </span>
           <span>
-            <span className="ok">●</span> SOC 2 Type II
+            <span className="ok">●</span> BTC · ETH · SOL
           </span>
         </div>
         <Showcase glow={glow} />
       </section>
 
-      {/* Logo strip */}
-      <div className="logos-strip">
-        <div className="lbl">Trusted by data-driven crypto teams</div>
-        <div className="logos-row">
-          <span>◆ Hyperion Capital</span>
-          <span>◇ Foundry Labs</span>
-          <span>▲ Northstar DAO</span>
-          <span>● Mosaic Research</span>
-          <span>◈ Bitwise Pro</span>
-          <span>◐ Lattice Trading</span>
-        </div>
-      </div>
-
       {/* Features */}
       <section className="section" id="features">
         <div className="section-head">
           <div className="kicker">PRODUCT</div>
-          <h2>Every projection, modeled six ways.</h2>
-          <p>
-            From scenario sliders to whale-flow signals, Catoshi makes the assumptions behind every
-            number visible — so you can disagree with the model, not the math.
-          </p>
+          <h2>What the product actually does.</h2>
+          <p>Every capability below is produced by code in this repository. {ADVICE_NOTE}</p>
         </div>
         <div className="features">
           {features.map((f, i) => (
@@ -527,8 +448,11 @@ export function LandingPage() {
       <section className="section" id="how">
         <div className="section-head">
           <div className="kicker">HOW IT WORKS</div>
-          <h2>Three steps from wallet to forecast.</h2>
-          <p>No spreadsheets. No SQL. Connect once and we keep your projections fresh forever.</p>
+          <h2>Collect, forecast, score.</h2>
+          <p>
+            An hourly job, one model call, and a scoring pass that grades each forecast against the
+            real price. {ADVICE_NOTE}
+          </p>
         </div>
         <div className="steps">
           {steps.map((s, i) => (
@@ -544,66 +468,20 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="section">
-        <div className="stats">
-          {stats.map((s, i) => (
-            <div key={i} className="cell">
-              <div className="lbl">{s.lbl}</div>
-              <div className="val tnum">{s.val}</div>
-              <div className="sub">{s.sub}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section className="section" id="pricing">
-        <div className="section-head">
-          <div className="kicker">PRICING</div>
-          <h2>Start free. Upgrade when the alpha pays for itself.</h2>
-          <p>One flat rate, no per-trade fees, no surprises. Cancel any time.</p>
-        </div>
-        <div className="pricing">
-          {plans.map((plan, i) => (
-            <div
-              key={i}
-              className={['plan', plan.featured && 'featured'].filter(Boolean).join(' ')}
-            >
-              <div className="name">{plan.name}</div>
-              <div className="price">
-                {plan.price} <small>{plan.period}</small>
-              </div>
-              <p className="desc">{plan.desc}</p>
-              <ul>
-                {plan.items.map((item, j) => (
-                  <li key={j} className={item.on ? '' : 'muted'}>
-                    {item.text}
-                  </li>
-                ))}
-              </ul>
-              <button className="btn-plan">{plan.cta}</button>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* FAQ */}
       <FaqSection />
 
       {/* Final CTA */}
       <section className="section">
         <div className="final-cta">
-          <h2>Stop guessing. Start projecting.</h2>
-          <p>
-            Connect your first wallet in 60 seconds. Your future self will thank you (with numbers).
-          </p>
+          <h2>See the current projections.</h2>
+          <p>Open the dashboard — no sign-up, nothing to connect. {ADVICE_NOTE}</p>
           <div className="hero-cta">
             <Link href={APP_HREF} className="btn-cta">
-              Open the app →
+              Open the dashboard →
             </Link>
-            <a href="#pricing" className="btn-cta-ghost">
-              See pricing
+            <a href="#faq" className="btn-cta-ghost">
+              Read the FAQ
             </a>
           </div>
         </div>
@@ -617,59 +495,19 @@ export function LandingPage() {
             <CatoshiWordmark size={16} />
           </div>
           <p className="small muted" style={{ lineHeight: 1.6, margin: 0 }}>
-            Crypto projections that show their work. Made for the data-curious.
+            Forecasting and signals that show their work.
           </p>
         </div>
-        {[
-          {
-            title: 'Product',
-            links: [
-              { t: 'Features', h: '#features' },
-              { t: 'Pricing', h: '#pricing' },
-              { t: 'App', h: APP_HREF },
-              { t: 'Changelog', h: '#' },
-            ],
-          },
-          {
-            title: 'Company',
-            links: [
-              { t: 'About', h: '#' },
-              { t: 'Careers', h: '#' },
-              { t: 'Blog', h: '#' },
-              { t: 'Press', h: '#' },
-            ],
-          },
-          {
-            title: 'Resources',
-            links: [
-              { t: 'Docs', h: '#' },
-              { t: 'API', h: '#' },
-              { t: 'Models', h: '/models' },
-              { t: 'Status', h: '#' },
-            ],
-          },
-          {
-            title: 'Legal',
-            links: [
-              { t: 'Privacy', h: '#' },
-              { t: 'Terms', h: '#' },
-              { t: 'Security', h: '#' },
-              { t: 'Disclaimer', h: '#' },
-            ],
-          },
-        ].map((col, i) => (
-          <div key={i} className="col">
-            <h5>{col.title}</h5>
-            {col.links.map((l, j) => (
-              <a key={j} href={l.h}>
-                {l.t}
-              </a>
-            ))}
-          </div>
-        ))}
+        <div className="col">
+          <h5>Dashboard</h5>
+          <Link href="/projections">Projections</Link>
+          <Link href="/signals">Signals</Link>
+          <Link href="/models">Models</Link>
+          <a href="#faq">FAQ</a>
+        </div>
         <div className="copy">
-          © 2026 Catoshi Labs · Crypto involves risk. Projections are statistical, not guaranteed.
-          Not investment advice.
+          © 2026 Catoshi · Crypto involves risk. Projections are statistical, not guaranteed. Not
+          financial advice.
         </div>
       </footer>
     </div>

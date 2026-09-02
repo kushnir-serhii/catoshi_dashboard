@@ -13,25 +13,6 @@ export interface KpiItem {
   sparkColor?: 'green' | 'violet' | 'red';
 }
 
-export interface Position {
-  sym: string;
-  name: string;
-  qty: number;
-  avg: number;
-  mark: number;
-  alloc: number;
-  target: number;
-}
-
-export interface Transaction {
-  d: string;
-  t: 'Buy' | 'Sell' | 'Stake' | 'Reward';
-  sym: string;
-  qty: string;
-  px: string;
-  val: string;
-}
-
 export interface Sector {
   name: string;
   count: number;
@@ -62,24 +43,6 @@ export interface Signal {
   conf?: number;
 }
 
-export interface Model {
-  name: string;
-  kind: string;
-  acc: number;
-  hits: string;
-  weight: number;
-  status: 'ACTIVE' | 'PAUSED';
-}
-
-export interface Prediction {
-  sym: string;
-  dir: 'long' | 'short';
-  hz: string;
-  target: string;
-  model?: string;
-  conf: number;
-}
-
 export interface WatchlistRow {
   sym: string;
   name: string;
@@ -89,12 +52,6 @@ export interface WatchlistRow {
   proj: string;
   side: 'bull' | 'bear';
   spark: number;
-}
-
-export interface HoldingSegment {
-  name: string;
-  value: number;
-  color: string;
 }
 
 export interface KPIsProps {
@@ -306,6 +263,22 @@ export interface MarketSnapshot {
 }
 
 /**
+ * Stored shape of `public.forecasts.scenarios` (jsonb). Carries the three
+ * per-scenario price curves alongside the scenario probabilities, so a resolver
+ * (spec 011) can look up the predicted price at any horizon and score the
+ * probabilities against the realized scenario without re-calling the model.
+ *
+ * `probabilities` is read by the `forecasts_scenarios_probability_sum` trigger
+ * (db/migrations/0001) — the key name matches its `-> 'probabilities'` lookup.
+ */
+export interface StoredForecastScenarios {
+  bull: ForecastPoint[];
+  base: ForecastPoint[];
+  bear: ForecastPoint[];
+  probabilities: ScenarioProbabilities;
+}
+
+/**
  * Mirrors a row of `public.forecasts` (db/migrations/0001_analytics.sql).
  * One row per generation (never upserted) — see AC 2.1.
  *
@@ -319,7 +292,7 @@ export interface StoredForecast {
   asOf: string;
   createdAt?: string;
 
-  scenarios: ScenarioProbabilities;
+  scenarios: StoredForecastScenarios;
   confidence: number | null;
   reasoning: string[] | null;
   anchorPrice: number | null;
@@ -344,4 +317,53 @@ export interface SourceStatus {
   source: string;
   ok: boolean;
   error?: string;
+}
+
+/**
+ * Spec 011 Slice 5 — the calibration read model for the Models page.
+ *
+ * Every figure here is read straight from the `public.calibration_*` views
+ * (db/migrations/0006). The exclusions are defined once, in SQL; these types
+ * only carry the numbers to the UI. Nothing is computed in the route or the
+ * hook — the page compares `meanBrier` to `NO_SKILL_BRIER_BASELINE` and
+ * `scoredCount` to `MIN_SCORED_SAMPLE_SIZE` for rendering only.
+ */
+export interface ModelTrendPoint {
+  /** First day of the calendar month, ISO. */
+  month: string;
+  meanBrier: number;
+  scoredCount: number;
+}
+
+export interface ModelCalibrationGroup {
+  model: string;
+  promptVersion: string;
+  /** Scoreable outcomes behind `meanBrier` (back-filled / unlinked / unscoreable already removed). */
+  scoredCount: number;
+  /** Mean multi-class Brier over `scoredCount` rows, or null when nothing is scoreable yet. */
+  meanBrier: number | null;
+  /** Resolved outcomes for this group set aside, by reason. */
+  excludedCount: number;
+  excludedBackfilled: number;
+  excludedUnlinked: number;
+  excludedUnscoreable: number;
+  /** Total resolved outcomes for this group (scored + excluded). */
+  totalOutcomes: number;
+  trend: ModelTrendPoint[];
+}
+
+export interface ModelsExclusionSummary {
+  totalOutcomes: number;
+  scoredCount: number;
+  excludedCount: number;
+  excludedBackfilled: number;
+  excludedUnlinked: number;
+  excludedUnscoreable: number;
+}
+
+export interface ModelsResponse {
+  groups: ModelCalibrationGroup[];
+  exclusions: ModelsExclusionSummary;
+  /** True when the calibration views could not be read (dead DB, missing view). */
+  fetchError?: boolean;
 }

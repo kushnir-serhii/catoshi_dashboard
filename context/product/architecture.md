@@ -34,11 +34,11 @@ labelled so nobody reads them as a description of shipped code._
 
 - **Market Prices & Metadata:** CoinGecko public API (`https://api.coingecko.com/api/v3`) — no API key required. Provides prices, 24h change, volume, market cap, coin metadata, historical price data (`/coins/{id}/market_chart`), and the full searchable coin list (`/coins/list`).
 - **Live Price Ticker:** Binance WebSocket (`wss://stream.binance.com:9443/ws`) — no API key required. Used for BTC, ETH, SOL live tickers on the main chart only.
-- **Signals:** The Signals feed is generated in-house from the market-state snapshot store — no external API. Deterministic rules in `src/lib/signals/rules/` run over each hourly snapshot inside the `/api/collect` run and persist to `public.signals`; `/api/signals` only reads stored rows (spec 014). News-sourced, LLM-classified signals (the original spec 002 design) were never built and are scoped to a later spec.
+- **Signals:** The Signals feed is generated in-house from the market-state snapshot store — no external API. Deterministic rules in `src/lib/signals/rules/` run over each hourly snapshot inside the `/api/collect` run and persist to `public.signals`; `/api/signals` only reads stored rows (spec 014). News signals (spec 015) now also persist to `public.signals` with `kind = 'news'` — LLM-classified from RSS headlines, see §7.2. The original spec 002 design (no persistence, no scope, no falsifiable claim) is fully superseded.
 - **News (forecast context only):** No CryptoPanic integration ships in code — `CRYPTOPANIC_API_KEY` still exists in `.env.example` but no path in `src/lib/` calls the CryptoPanic API (verified against `src/lib/marketData.ts`; corrected here, spec 010 Slice 7). The actual news input is the RSS-to-JSON bridge below, combined with Reddit sentiment, and it feeds the forecast prompt — not the Signals feed.
 - **Fear & Greed Index:** Alternative.me public API (`https://api.alternative.me/fng/`) — no API key required. Returns the current Crypto Fear & Greed score (0–100) and classification, used as a sentiment input for forecast context.
 - **Reddit Sentiment:** Reddit public JSON API (e.g. `https://www.reddit.com/r/CryptoCurrency.json`) — no API key required for read-only public posts. Provides post titles and scores as an additional unstructured sentiment signal fed into the AI forecast prompt.
-- **RSS-to-JSON Bridge:** `rss2json.com` API — converts public crypto RSS/Atom feeds to JSON, with no server-side RSS parsing dependency. This is the actual news source fed into the forecast prompt via `src/lib/marketData.ts`. **Planned (spec 015):** the same bridge becomes the input to the news impact classifier, which persists classified items as signals rather than only injecting headlines into a prompt.
+- **RSS-to-JSON Bridge:** `rss2json.com` API — converts public crypto RSS/Atom feeds to JSON, with no server-side RSS parsing dependency. This is the actual news source fed into the forecast prompt via `src/lib/marketData.ts`. **Spec 015 (shipped):** the same bridge is the input to the news impact classifier, which persists classified items to `public.signals` (`kind = 'news'`) rather than only injecting headlines into a prompt — see §7.2. The feed list moved to `src/consts/news.ts`, read by both consumers.
 
 ### 3.1 Route Handlers
 
@@ -46,8 +46,8 @@ labelled so nobody reads them as a description of shipped code._
 |---|---|---|
 | `/api/prices`, `/api/prices/history`, `/api/coins/list`, `/api/markets` | CoinGecko proxies | none |
 | `/api/projections`, `/api/projections/refresh` | Forecast generation, 6 h `unstable_cache`, tag `projections` | none |
-| `/api/signals` | Reads stored signal rows only — never computes, never calls an external API | none |
-| `/api/collect` | Hourly collection: snapshot build + upsert, then signal generation, then forecast resolution + scoring (spec 011) | `Authorization: Bearer CRON_SECRET` |
+| `/api/signals` | Reads stored signal rows only — never computes, never calls an external API. Optional `?scope=market\|BTC\|ETH\|SOL` filters both kinds; live news is `kind = 'news' AND expires_at > now()` (spec 015) | none |
+| `/api/collect` | Hourly collection: snapshot build + upsert, then market-state signal generation, then forecast resolution + scoring (spec 011), then news ingest → classify → publish (spec 015) — every stage isolated and non-fatal | `Authorization: Bearer CRON_SECRET` |
 | `/api/models` | Serves measured calibration aggregates, read straight from the `calibration_*` views — no computation (spec 011) | none |
 
 ---
@@ -102,17 +102,63 @@ All AI forecast generation runs server-side inside Route Handlers — no AI SDK 
 - **Read path is dumb by design.** `/api/signals` selects stored rows. It computes nothing,
   calls nothing, and has no mock fallback. If collection is dead, the feed shows its true age.
 
-## 7.2 News Impact Classification (spec 015, planned)
+## 7.2 News Impact Classification (spec 015, shipped)
 
-- Headlines arrive from the existing RSS-to-JSON bridge, are de-duplicated by URL hash, and
-  are classified in batches by a cheap model tier (Claude Haiku) using structured tool-use
-  output — never free text.
-- Each classified item is stored in `news_items` and emitted into the same `public.signals`
-  table with `kind = 'news'`, carrying: **scope** (`market` or a specific tracked asset),
-  direction, magnitude, horizon, confidence, `prompt_version`, and the source URL.
-- Because each item stores an asserted direction and horizon, news signals are resolvable
-  by the same scoring machinery as forecasts (spec 011). A news signal that cannot be scored
-  is an opinion, and this product does not ship unfalsifiable opinions as data.
+Three isolated stages inside the hourly `/api/collect` run, after market-state signal
+generation and forecast scoring. Each is non-fatal — a news failure is logged, surfaced
+through `SourceStatus`, and never touches the market-state feed.
+
+- **Ingest** — `src/lib/collectors/newsFeed.ts`. Fetches the three RSS feeds (`RSS_FEEDS`
+  in `src/consts/news.ts`, moved there from `marketData.ts`) through the rss2json bridge,
+  canonicalises the URL (strips `utm_*`/trackers, lowercases host, drops the fragment) and
+  sha256-hashes it, discards anything older than `NEWS_INGEST_WINDOW_HOURS`, and inserts
+  `public.news_items` `ON CONFLICT (url_hash) DO NOTHING`. `classified_at IS NULL` is the
+  work queue. A failing feed contributes nothing — no placeholder string, ever — and is
+  recorded as `news:<feed>` in `SourceStatus`; one feed's failure never affects the others.
+- **Classify** — `src/lib/news/classify.ts`. Gated to run at most every
+  `NEWS_CLASSIFY_INTERVAL_HOURS`; batches ≤ `NEWS_CLASSIFY_BATCH_SIZE` unclassified items,
+  ≤ `NEWS_CLASSIFY_MAX_PER_RUN` per run, the remainder deferred to the next run. One forced
+  structured tool-use call per batch on Claude Haiku (`@anthropic-ai/sdk` directly — no
+  second provider layer), with the versioned system prompt `NEWS_CLASSIFY_SYSTEM_PROMPT` /
+  `NEWS_PROMPT_VERSION`. Scope / direction / magnitude / horizon / confidence are validated
+  before persistence; a malformed result is a dropped row, never a coerced one. Writes
+  `public.news_classifications` — one row per `(news_item_id, prompt_version)`, with the
+  measured `model`, tokens and `cost_usd` — and stamps `news_items.classified_at` in one
+  transaction per batch. On any failure it writes nothing and records `news:classify`.
+- **Publish** — `src/lib/news/publish.ts`. One `public.signals` row per classification at
+  the current `NEWS_PROMPT_VERSION`: `kind = 'news'`, `tag = direction`, `severity` from the
+  magnitude→severity map, `source_url`, and `expires_at = published_at + horizon_hours` —
+  computed from the article's own publication time in SQL, never `classified_at`, never
+  `now()`. Idempotent on the partial unique index `signals_news_item_uniq`.
+
+**Storage split.** `news_items` is the raw article, one row per canonical URL ever.
+`news_classifications` is one row per classification that produced a result — a bumped
+`prompt_version` inserts a fresh row rather than overwriting the prior assertion.
+`signals` (`kind = 'news'`) is the published, expiring feed row. `signals.asset_id` was
+made nullable (migration `0009`) for market-scope news; the "market_state rows always name
+an asset" guarantee moved into `signals_kind_shape_check`.
+
+**Read and surface.** `GET /api/signals` gained `?scope=market|BTC|ETH|SOL`; live news is
+`kind = 'news' AND expires_at > now()` — expired rows stay in the table for scoring but
+never appear live. Still stored-rows-only: no computation, no external call, no mock
+fallback. Ageing hangs off `published_at`, so a week-old article classified today shows as
+a week old. `SignalsPage.tsx` renders distinct news cards with a client-side
+all / market-wide / per-asset filter and a "no live news signals" empty state; market-state
+signals are unchanged.
+
+**Cost controls.** Batch (one call per `NEWS_CLASSIFY_BATCH_SIZE` items) + hard per-run cap
++ interval gate keep most collection runs a no-op here, and every call's `cost_usd` is
+persisted so the steady-state figure is measured, not estimated. The twenty-item prompt
+calibration read and the real-run cost check against the ~$1/month allowance (spec 015
+Slice 7) are pending the first run against a deployed collector.
+
+**Scoring.** Each `news_classifications` row stores the asserted `direction`,
+`horizon_hours`, `scope` / `asset_id`, `prompt_version` and `model` — the columns a
+resolution job needs to grade a news call against realised price exactly as forecasts are
+graded (§7.3). A news signal that cannot be scored is an opinion, and this product does not
+ship unfalsifiable opinions as data. Building that resolver is spec 011 follow-on, not
+built. Spec 002's superseded design — no persistence, no scope, no falsifiable claim — is
+now fully replaced.
 
 ## 7.3 Scoring & Calibration (spec 011, shipped)
 

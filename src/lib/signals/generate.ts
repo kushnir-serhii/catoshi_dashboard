@@ -93,7 +93,7 @@ export async function generateSignals(snapshot: MarketSnapshot): Promise<SignalG
       let sinceTs = snapshot.ts;
       if (previous) {
         const prior = await query<{ since_ts: string }>(
-          'select since_ts from public.signals where asset_id = $1 and rule_id = $2 and snapshot_ts = $3',
+          "select since_ts from public.signals where kind = 'market_state' and asset_id = $1 and rule_id = $2 and snapshot_ts = $3",
           [snapshot.assetId, signal.ruleId, previous.ts],
         );
         if (prior.length > 0) {

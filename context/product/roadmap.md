@@ -50,10 +50,10 @@ _Before adding anything, remove everything the product claims but cannot do. Thi
 
 _Market state says what moved. News says why. This is the feature that makes the signals feed worth opening daily._
 
-- [ ] **News Impact Signals**
-  - [ ] **Classified News Impact:** Pull crypto news headlines and have an LLM classify each one for impact — direction, magnitude, horizon, and confidence — persisted into the same signals feed with its source link. _(spec 015)_
-  - [ ] **Market-Wide vs Coin-Specific Scope:** Every classified item is tagged as affecting the whole crypto market or one specific tracked asset, so the feed can be filtered to the coin the user is looking at. _(spec 015)_
-  - [ ] **Scoreable News Claims:** Each news signal stores an asserted direction and horizon, so it can be resolved against what actually happened rather than remaining an unfalsifiable opinion. _(spec 015)_
+- [ ] **News Impact Signals** _(pipeline shipped — ingest/classify/publish live in `/api/collect`; prompt calibration + cost verification pending first real run, spec 015 Slice 7)_
+  - [ ] **Classified News Impact:** Pull crypto news headlines and have an LLM classify each one for impact — direction, magnitude, horizon, and confidence — persisted into the same signals feed with its source link. _(spec 015 — pipeline shipped; calibration pending first real run)_
+  - [ ] **Market-Wide vs Coin-Specific Scope:** Every classified item is tagged as affecting the whole crypto market or one specific tracked asset, so the feed can be filtered to the coin the user is looking at. _(spec 015 — pipeline shipped; calibration pending first real run)_
+  - [ ] **Scoreable News Claims:** Each news signal stores an asserted direction and horizon, so it can be resolved against what actually happened rather than remaining an unfalsifiable opinion. _(spec 015 — pipeline shipped; calibration pending first real run)_
 
 ---
 
@@ -69,6 +69,7 @@ _The product's core promise: forecasts that are measured, not asserted._
   - [x] **Calibration Metrics:** Score every resolved forecast with a multi-scenario Brier score and hit rate, grouped by model and prompt version. _(spec 011)_
   - [x] **Models Explorer, Rebuilt:** A Models page showing only measured performance, with a regime breakdown that exposes systematic bias — and an explicit empty state below the minimum sample size. _(spec 011)_
   - [ ] **Signal Thresholds Made Measurable:** Use the scoring loop to replace the conventionally-chosen thresholds in the market-state rules with evidenced ones. Spec 011 ships the instrument, so this is now evidence-work, not design-work — spec 014's thresholds can be re-derived from resolved scores rather than kept by convention. _(spec 011, follow-on)_
+  - [ ] **Score the News Classifier:** News signals (spec 015) store an asserted `direction`, `horizon_hours`, `scope`/`asset_id`, `prompt_version` and `model` per `news_classifications` row — the same shape a forecast carries — so the resolution loop can grade them against realised price. _(spec 011, follow-on — not built)_
 
 ---
 

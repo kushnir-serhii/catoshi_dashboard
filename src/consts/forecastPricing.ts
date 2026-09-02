@@ -28,3 +28,26 @@ export const FORECAST_MODEL_PRICING: Record<string, ModelPricing> = {
   'gpt-4o-mini': { inputPerMillion: 0.15, outputPerMillion: 0.6 },
   'gpt-4o': { inputPerMillion: 2.5, outputPerMillion: 10 },
 };
+
+/**
+ * Best-effort USD cost from token counts, using `FORECAST_MODEL_PRICING`.
+ * Returns `null` for an unrecognised model rather than guessing — a null
+ * `cost_usd` is preferable to a silently wrong one. Rounded to 6 decimals to
+ * match the `numeric(12, 6)` cost columns.
+ *
+ * Used by the forecast persist path (spec 010/011) and the news classification
+ * persist path (spec 015, Slice 4) — both write a measured `cost_usd`, and the
+ * news classification model (`NEWS_CLASSIFY_MODEL`) is already priced above.
+ */
+export function computeModelCostUsd(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+): number | null {
+  const pricing = FORECAST_MODEL_PRICING[model];
+  if (!pricing) return null;
+  const cost =
+    (inputTokens / 1_000_000) * pricing.inputPerMillion +
+    (outputTokens / 1_000_000) * pricing.outputPerMillion;
+  return Math.round(cost * 1e6) / 1e6;
+}

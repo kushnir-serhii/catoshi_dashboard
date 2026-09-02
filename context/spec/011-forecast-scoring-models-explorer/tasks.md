@@ -87,4 +87,5 @@ hide longest.
 - Re-calibrating spec 014's rule thresholds.
 - Back-filling outcomes for forecasts made before this ships.
 - Scoring spec 014's signals — they state present facts, not predictions.
+- **Scoring spec 015's news signals** — these *are* predictions. Each `news_classifications` row already carries the asserted `direction`, `horizon_hours`, `scope`/`asset_id`, `prompt_version` and `model` — exactly the columns a resolution job needs to grade a news call against realised price, the same way `resolve.ts` grades a forecast. Spec 015 deliberately stores everything scoring needs and stops there; building the news resolver is spec 011 follow-on, not built.
 - A model leaderboard or automatic model selection.

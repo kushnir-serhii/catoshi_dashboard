@@ -1,3 +1,4 @@
+import { RSS_FEEDS } from '@/consts/news';
 import type { ForecastTarget } from '@/consts/projections';
 import { DEFAULT_FORECAST_TARGETS } from '@/consts/projections';
 
@@ -11,12 +12,6 @@ export interface MarketData {
 }
 
 const COINGECKO_BASE_URL = process.env.COINGECKO_BASE_URL ?? 'https://api.coingecko.com/api/v3';
-
-const RSS_FEEDS = [
-  'https://www.coindesk.com/arc/outboundfeeds/rss/',
-  'https://cointelegraph.com/rss',
-  'https://decrypt.co/feed',
-];
 
 async function fetchNewsHeadlines(): Promise<string> {
   try {

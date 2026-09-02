@@ -241,7 +241,7 @@ At an hourly collector and four analyses per day, using computed snapshots rathe
 | Vercel Cron | $0 (included) |
 | Binance / Farside / alternative.me | $0 (no keys required) |
 | Claude Sonnet, 2 full analyses/day | ~$3.00 |
-| Claude Haiku, 4 news classifications/day | ~$1.00 |
+| Claude Haiku, news classification (spec 015) | ~$1.00 target; real steady-state figure pending the first classified run (`cost_usd` is persisted per call, so it will be measured not estimated) |
 | **Total** | **~$4** |
 
 Anthropic is cheaper than OpenAI at every equivalent tier on **output** tokens, which dominate analytical work. The existing provider abstraction means this stays a configuration choice rather than an architectural one.

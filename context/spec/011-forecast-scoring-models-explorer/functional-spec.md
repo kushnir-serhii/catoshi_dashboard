@@ -1,7 +1,7 @@
 # Functional Specification: Forecast Scoring and the Models Explorer
 
 - **Roadmap Item:** Projections & Models → **Models Explorer**, on real accuracy
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** Serhii Kushnir
 
 ---
@@ -55,11 +55,11 @@ independently — a forecast is a curve, not a single call, so day 1, day 7 and 
 three separate results about the same forecast.
 
 **Acceptance Criteria:**
-- [ ] Every forecast whose horizon has elapsed acquires an outcome for that horizon.
-- [ ] One forecast can hold several outcomes, one per horizon, without conflict.
-- [ ] Resolving the same forecast and horizon twice does not create a second record or change the first.
-- [ ] A forecast whose horizon has not yet elapsed is never resolved early.
-- [ ] The recorded entry price is the market price at the time the forecast was made, not the model's own stated anchor.
+- [x] Every forecast whose horizon has elapsed acquires an outcome for that horizon.
+- [x] One forecast can hold several outcomes, one per horizon, without conflict.
+- [x] Resolving the same forecast and horizon twice does not create a second record or change the first.
+- [x] A forecast whose horizon has not yet elapsed is never resolved early.
+- [x] The recorded entry price is the market price at the time the forecast was made, not the model's own stated anchor.
 
 ---
 
@@ -74,10 +74,10 @@ counts as bear, everything between counts as base. A price landing exactly on a 
 counts as base — the middle scenario, so a tie never inflates a directional call.
 
 **Acceptance Criteria:**
-- [ ] The realized scenario is derived by a single documented rule, applied to every forecast identically.
-- [ ] A boundary-exact outcome resolves to the middle scenario.
-- [ ] When the three scenario prices are not distinct enough to partition the axis, the outcome is recorded as unscoreable rather than assigned a scenario by guess.
-- [ ] The rule is stated in the spec and reproducible by hand from stored data.
+- [x] The realized scenario is derived by a single documented rule, applied to every forecast identically.
+- [x] A boundary-exact outcome resolves to the middle scenario.
+- [x] When the three scenario prices are not distinct enough to partition the axis, the outcome is recorded as unscoreable rather than assigned a scenario by guess.
+- [x] The rule is stated in the spec and reproducible by hand from stored data.
 
 ---
 
@@ -92,10 +92,10 @@ probabilities were to what happened, where a confident correct forecast beats a 
 one and a confident wrong forecast is punished hardest.
 
 **Acceptance Criteria:**
-- [ ] Every scoreable outcome carries a numeric score derived from the forecast's stated probabilities and the realized scenario.
-- [ ] A forecast that put more probability on the scenario that happened scores better than one that put less.
-- [ ] The score is stored, not recomputed differently in different places.
-- [ ] Outcomes that are unscoreable (2.2) carry no score rather than a zero.
+- [x] Every scoreable outcome carries a numeric score derived from the forecast's stated probabilities and the realized scenario.
+- [x] A forecast that put more probability on the scenario that happened scores better than one that put less.
+- [x] The score is stored, not recomputed differently in different places.
+- [x] Outcomes that are unscoreable (2.2) carry no score rather than a zero.
 
 ---
 
@@ -106,9 +106,9 @@ Averaging their scores together produces a number about nothing. Every reported 
 therefore grouped by model and prompt version, and the grouping is visible to the reader.
 
 **Acceptance Criteria:**
-- [ ] Every aggregate score states which model and prompt version it covers.
-- [ ] Scores from different models or prompt versions are never averaged into one figure presented as a single system's skill.
-- [ ] Changing the prompt starts a new series rather than continuing the old one.
+- [x] Every aggregate score states which model and prompt version it covers.
+- [x] Scores from different models or prompt versions are never averaged into one figure presented as a single system's skill.
+- [x] Changing the prompt starts a new series rather than continuing the old one.
 
 ---
 
@@ -120,8 +120,8 @@ would be judged under conditions that were never observed, and the system would 
 from its own invention.
 
 **Acceptance Criteria:**
-- [ ] Forecasts linked to a back-filled snapshot are excluded from every calibration figure.
-- [ ] The exclusion is visible: a reader can tell how many forecasts were set aside and why.
+- [x] Forecasts linked to a back-filled snapshot are excluded from every calibration figure.
+- [x] The exclusion is visible: a reader can tell how many forecasts were set aside and why.
 
 ---
 
@@ -133,9 +133,9 @@ that had already passed. Beyond a stated age limit, the forecast records no snap
 at all rather than a misleading one.
 
 **Acceptance Criteria:**
-- [ ] A forecast links to a snapshot only when that snapshot is within the stated age limit.
-- [ ] Beyond the limit the forecast is still recorded, with no snapshot linked.
-- [ ] Forecasts with no linked snapshot are excluded from any figure that claims to describe performance under given market conditions.
+- [x] A forecast links to a snapshot only when that snapshot is within the stated age limit.
+- [x] Beyond the limit the forecast is still recorded, with no snapshot linked.
+- [x] Forecasts with no linked snapshot are excluded from any figure that claims to describe performance under given market conditions.
 
 ---
 
@@ -147,11 +147,11 @@ so plainly — an honest "12 forecasts resolved, too few to report accuracy" is 
 than a fabricated 74%.
 
 **Acceptance Criteria:**
-- [ ] `src/data/models.ts` no longer exists and nothing imports it.
-- [ ] Every number on the Models page traces to resolved outcomes in the database.
-- [ ] With too little resolved history, the page shows an explicit insufficient-data state rather than a placeholder number, a zero, or an empty chart.
-- [ ] The page states how many forecasts each figure is based on.
-- [ ] No model, metric or entity is displayed that does not exist in the system.
+- [x] `src/data/models.ts` no longer exists and nothing imports it.
+- [x] Every number on the Models page traces to resolved outcomes in the database.
+- [x] With too little resolved history, the page shows an explicit insufficient-data state rather than a placeholder number, a zero, or an empty chart.
+- [x] The page states how many forecasts each figure is based on.
+- [x] No model, metric or entity is displayed that does not exist in the system.
 
 ---
 
@@ -162,9 +162,9 @@ reported score is shown next to the score a system that knows nothing would achi
 "better than guessing" is visible rather than inferred.
 
 **Acceptance Criteria:**
-- [ ] Every reported score is displayed alongside the no-skill baseline for the same scoring method.
-- [ ] The comparison makes clear whether the system is beating the baseline.
-- [ ] The trend over time is visible, since the goal is a score that falls month over month.
+- [x] Every reported score is displayed alongside the no-skill baseline for the same scoring method.
+- [x] The comparison makes clear whether the system is beating the baseline.
+- [x] The trend over time is visible, since the goal is a score that falls month over month.
 
 ---
 
@@ -175,9 +175,9 @@ is lost (spec 010 §1); scores are always recomputable from stored forecasts and
 failure in scoring must therefore never cost a snapshot, and never take down a page.
 
 **Acceptance Criteria:**
-- [ ] A failure while resolving or scoring leaves snapshot collection unaffected.
-- [ ] A failure is logged and surfaced, not swallowed.
-- [ ] The Models page degrades to its insufficient-data or error state rather than showing stale or invented numbers.
+- [x] A failure while resolving or scoring leaves snapshot collection unaffected.
+- [x] A failure is logged and surfaced, not swallowed.
+- [x] The Models page degrades to its insufficient-data or error state rather than showing stale or invented numbers.
 
 ---
 

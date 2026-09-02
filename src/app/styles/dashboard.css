@@ -1016,6 +1016,86 @@
   font-family: var(--font-mono);
 }
 
+/* News signals (spec 015) — visually distinct from market-state rule cards. */
+.prowl .signal.news {
+  border-color: oklch(0.6 0.13 265 / 0.5);
+  background: linear-gradient(180deg, oklch(0.6 0.13 265 / 0.06), var(--surface) 60%);
+}
+.prowl .signal.news .news-pill {
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--ls-label);
+  font-family: var(--font-mono);
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: oklch(0.6 0.13 265 / 0.18);
+  color: oklch(0.8 0.1 265);
+}
+.prowl .signal.news .head {
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.prowl .signal.news .head .src {
+  margin-left: auto;
+}
+.prowl .news-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.prowl .news-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.prowl .news-badge.mag-HIGH {
+  background: oklch(0.55 0.16 25 / 0.18);
+  color: oklch(0.8 0.14 40);
+}
+.prowl .news-badge.mag-MEDIUM {
+  background: oklch(0.6 0.12 85 / 0.16);
+  color: oklch(0.82 0.12 90);
+}
+.prowl .news-link {
+  color: oklch(0.78 0.1 265);
+  text-decoration: none;
+}
+.prowl .news-link:hover {
+  text-decoration: underline;
+}
+.prowl .news-section-head {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin: 8px 4px 12px;
+}
+.prowl .news-filter {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.prowl .news-filter button {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.prowl .news-filter button[aria-pressed='true'] {
+  background: oklch(0.6 0.13 265 / 0.18);
+  border-color: oklch(0.6 0.13 265 / 0.5);
+  color: oklch(0.85 0.08 265);
+}
+
 /* Buttons */
 .prowl .btn-ghost {
   font-family: inherit;

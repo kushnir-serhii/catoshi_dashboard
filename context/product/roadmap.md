@@ -36,13 +36,13 @@ _Give users the "why" behind the numbers — a durable record of market conditio
 
 _Before adding anything, remove everything the product claims but cannot do. This phase ships no new capability and is the highest priority in the project._
 
-- [ ] **Stop Showing Unmeasured Numbers**
-  - [ ] **Delete the Fabricated Models Data:** Remove the invented model roster and accuracy figures that the Models page renders as if measured. _(spec 011, Slice 1)_
+- [x] **Stop Showing Unmeasured Numbers**
+  - [x] **Delete the Fabricated Models Data:** Remove the invented model roster and accuracy figures that the Models page renders as if measured. _(spec 011, Slice 1)_
   - [x] **Trim to the Forecasting Core:** Remove the Portfolio page, holdings panels and mocked holdings data, and rewrite the landing page so it describes only what the product does — no wallet connection, no pricing tiers, no invented traction statistics. _(spec 016)_
 
 - [ ] **Trustworthy Collection**
-  - [ ] **Prove the Pipeline Runs:** Verify hourly collection actually writes, expose true data freshness on every surface that displays it, and make a stalled pipeline visible rather than silent. _(spec 017)_
-  - [ ] **Survive Neglect:** Weekly database dump, documented restore, and a scheduler that degrades to daily rather than to silence. _(spec 017)_
+  - [ ] **Prove the Pipeline Runs:** Verify hourly collection actually writes, expose true data freshness on every surface that displays it, and make a stalled pipeline visible rather than silent. _(spec 017 — observability shipped: `/api/health`, `public.collector_status`, freshness note, runbook; pipeline-run verification pending deployment/secrets)_
+  - [ ] **Survive Neglect:** Weekly database dump, documented restore, and a scheduler that degrades to daily rather than to silence. _(spec 017 — restore procedure documented in `docs/runbook.md`; restore drill pending operator)_
 
 ---
 
@@ -50,10 +50,10 @@ _Before adding anything, remove everything the product claims but cannot do. Thi
 
 _Market state says what moved. News says why. This is the feature that makes the signals feed worth opening daily._
 
-- [ ] **News Impact Signals**
-  - [ ] **Classified News Impact:** Pull crypto news headlines and have an LLM classify each one for impact — direction, magnitude, horizon, and confidence — persisted into the same signals feed with its source link. _(spec 015)_
-  - [ ] **Market-Wide vs Coin-Specific Scope:** Every classified item is tagged as affecting the whole crypto market or one specific tracked asset, so the feed can be filtered to the coin the user is looking at. _(spec 015)_
-  - [ ] **Scoreable News Claims:** Each news signal stores an asserted direction and horizon, so it can be resolved against what actually happened rather than remaining an unfalsifiable opinion. _(spec 015)_
+- [ ] **News Impact Signals** _(pipeline shipped — ingest/classify/publish live in `/api/collect`; prompt calibration + cost verification pending first real run, spec 015 Slice 7)_
+  - [ ] **Classified News Impact:** Pull crypto news headlines and have an LLM classify each one for impact — direction, magnitude, horizon, and confidence — persisted into the same signals feed with its source link. _(spec 015 — pipeline shipped; calibration pending first real run)_
+  - [ ] **Market-Wide vs Coin-Specific Scope:** Every classified item is tagged as affecting the whole crypto market or one specific tracked asset, so the feed can be filtered to the coin the user is looking at. _(spec 015 — pipeline shipped; calibration pending first real run)_
+  - [ ] **Scoreable News Claims:** Each news signal stores an asserted direction and horizon, so it can be resolved against what actually happened rather than remaining an unfalsifiable opinion. _(spec 015 — pipeline shipped; calibration pending first real run)_
 
 ---
 
@@ -65,10 +65,11 @@ _The product's core promise: forecasts that are measured, not asserted._
   - [ ] **Market History Backfill:** Reconstruct the price-side snapshot history from exchange klines and the sentiment index, clearly labelled as backfilled and excluded from every calibration sample. Ships at daily resolution; whether finer resolution is needed is an open question resolved by evidence, not by argument — `decisions.md` §7.1. _(spec 013)_
 
 - [ ] **Forecast Scoring & Models Explorer**
-  - [ ] **Forecast Resolution:** Once a forecast's horizon elapses, fetch the real price and record which scenario actually happened. _(spec 011)_
-  - [ ] **Calibration Metrics:** Score every resolved forecast with a multi-scenario Brier score and hit rate, grouped by model and prompt version. _(spec 011)_
-  - [ ] **Models Explorer, Rebuilt:** A Models page showing only measured performance, with a regime breakdown that exposes systematic bias — and an explicit empty state below the minimum sample size. _(spec 011)_
+  - [x] **Forecast Resolution:** Once a forecast's horizon elapses, fetch the real price and record which scenario actually happened. _(spec 011)_
+  - [x] **Calibration Metrics:** Score every resolved forecast with a multi-scenario Brier score and hit rate, grouped by model and prompt version. _(spec 011)_
+  - [x] **Models Explorer, Rebuilt:** A Models page showing only measured performance, with a regime breakdown that exposes systematic bias — and an explicit empty state below the minimum sample size. _(spec 011)_
   - [ ] **Signal Thresholds Made Measurable:** Use the scoring loop to replace the conventionally-chosen thresholds in the market-state rules with evidenced ones. Spec 011 ships the instrument, so this is now evidence-work, not design-work — spec 014's thresholds can be re-derived from resolved scores rather than kept by convention. _(spec 011, follow-on)_
+  - [ ] **Score the News Classifier:** News signals (spec 015) store an asserted `direction`, `horizon_hours`, `scope`/`asset_id`, `prompt_version` and `model` per `news_classifications` row — the same shape a forecast carries — so the resolution loop can grade them against realised price. _(spec 011, follow-on — not built)_
 
 ---
 

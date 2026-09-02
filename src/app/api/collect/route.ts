@@ -3,7 +3,12 @@ import { NextResponse } from 'next/server';
 
 import { COLLECT_ASSETS } from '@/consts/collect';
 import type { MarketSnapshot, SourceStatus } from '@/data/types';
+import { collectNewsFeeds } from '@/lib/collectors/newsFeed';
 import { upsertSnapshot } from '@/lib/db/analytics';
+import { persistCollectorStatus, reduceSourceStatuses } from '@/lib/db/collectorStatus';
+import { persistNewsItems } from '@/lib/db/news';
+import { classifyNews } from '@/lib/news/classify';
+import { publishNews } from '@/lib/news/publish';
 import { resolveForecasts } from '@/lib/scoring/resolve';
 import { generateSignals } from '@/lib/signals/generate';
 import { buildSnapshot } from '@/lib/snapshotBuilder';
@@ -159,6 +164,98 @@ async function handleCollect(request: Request): Promise<NextResponse> {
     sourcesBySymbol.scoring = [
       ...(sourcesBySymbol.scoring ?? []),
       { source: 'scoring', ok: false, error: message },
+    ];
+  }
+
+  // News ingest (spec 015, Slice 3). Runs last among the data steps — after
+  // snapshots commit, after market-state signal generation, after forecast
+  // scoring — so a news failure can never delay or degrade anything already
+  // shipping. Purely additive and fully isolated, mirroring the scoring block
+  // above: a throw here is logged, surfaced through SourceStatus, and never
+  // fails the collection run. No model is called; classification is a later
+  // slice. A failing feed contributes nothing (no placeholder), one feed's
+  // failure does not affect the others, and re-ingesting is idempotent
+  // (ON CONFLICT (url_hash) DO NOTHING).
+  try {
+    const { items, sources: newsSources } = await collectNewsFeeds();
+    if (newsSources.length > 0) {
+      sourcesBySymbol.news = [...(sourcesBySymbol.news ?? []), ...newsSources];
+    }
+    if (items.length > 0) {
+      await persistNewsItems(items);
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] news ingest failed:', error);
+    sourcesBySymbol.news = [
+      ...(sourcesBySymbol.news ?? []),
+      { source: 'news', ok: false, error: message },
+    ];
+  }
+
+  // News classification (spec 015, Slice 4). Runs after ingest, same isolation
+  // discipline: non-fatal, additive, results merged into `sourcesBySymbol.news`.
+  // Internally gated to at most once every `NEWS_CLASSIFY_INTERVAL_HOURS` and
+  // capped at `NEWS_CLASSIFY_MAX_PER_RUN` items per run — most collection runs
+  // are a cheap no-op here. On any failure it writes nothing (no neutral row,
+  // no placeholder) and surfaces `{ source: 'news:classify', ok: false }`. In
+  // mock mode it never calls the model.
+  try {
+    const { sources: classifySources } = await classifyNews();
+    if (classifySources.length > 0) {
+      sourcesBySymbol.news = [...(sourcesBySymbol.news ?? []), ...classifySources];
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] news classification failed:', error);
+    sourcesBySymbol.news = [
+      ...(sourcesBySymbol.news ?? []),
+      { source: 'news:classify', ok: false, error: message },
+    ];
+  }
+
+  // News publication (spec 015, Slice 5). Runs after classification, same
+  // isolation discipline: non-fatal, additive, results merged into
+  // `sourcesBySymbol.news`. Copies each classified headline into `public.signals`
+  // as a `kind = 'news'` row (idempotent — ON CONFLICT DO NOTHING on the news
+  // partial unique index). No model call, no external service. Ageing/expiry are
+  // computed from the article's `published_at` in SQL, never `now()`.
+  try {
+    const { sources: publishSources } = await publishNews();
+    if (publishSources.length > 0) {
+      sourcesBySymbol.news = [...(sourcesBySymbol.news ?? []), ...publishSources];
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] news publication failed:', error);
+    sourcesBySymbol.news = [
+      ...(sourcesBySymbol.news ?? []),
+      { source: 'news:publish', ok: false, error: message },
+    ];
+  }
+
+  // Per-source status persistence (spec 017, Slice 3). Same isolation discipline
+  // as the signal/scoring steps above: a failure to write bookkeeping must never
+  // fail a collection run. The last-success-per-source rows let `/api/health`
+  // tell "one feed down for hours" apart from "one run failed".
+  try {
+    const outcomes = reduceSourceStatuses(
+      sourcesBySymbol,
+      COLLECT_ASSETS.map((a) => a.symbol),
+    );
+    const { error } = await persistCollectorStatus(outcomes);
+    if (error) {
+      sourcesBySymbol.collectorStatus = [
+        ...(sourcesBySymbol.collectorStatus ?? []),
+        { source: 'db:collectorStatus', ok: false, error: error.message },
+      ];
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] collector-status persistence failed:', error);
+    sourcesBySymbol.collectorStatus = [
+      ...(sourcesBySymbol.collectorStatus ?? []),
+      { source: 'db:collectorStatus', ok: false, error: message },
     ];
   }
 

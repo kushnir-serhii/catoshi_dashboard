@@ -66,9 +66,9 @@ different shape.
 | 012 | Historical Analogs (pgvector) | Specced, **gated** — see its Gate section |
 | 013 | Market History Backfill | Specced, **not built** |
 | 014 | Signals From Market State | Shipped — 16 rules, 473 tests |
-| 015 | News Impact Classification | Specced, **not built** |
+| 015 | News Impact Classification | **In progress** — pipeline shipped (ingest/classify/publish in `/api/collect`, `kind='news'` signals, `?scope=` filter, Signals-page news cards); twenty-item prompt calibration read + real-run cost verification (Slice 7) pending first run against a deployed collector |
 | 016 | Forecasting-Core Scope Trim | Shipped |
-| 017 | Collection Reliability & Deployment | Specced, **not built** |
+| 017 | Collection Reliability & Deployment | **In progress** — observability shipped (`/api/health`, `public.collector_status`, `src/lib/freshness.ts`, `docs/runbook.md`); pipeline-run verification, restore drill and deployment audit pending operator |
 
 There is no spec 004-vs-005 ambiguity to resolve and no gap to fill: numbers are never
 reused, and a reserved number that never got a spec does not exist as work.

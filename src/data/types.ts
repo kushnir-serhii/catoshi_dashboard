@@ -78,6 +78,40 @@ export interface SignalItem {
   coins: Array<'BTC' | 'ETH' | 'SOL' | 'LINK' | 'ARB' | 'TAO'>;
 }
 
+/** Scope of a news signal: the whole market, or one tracked asset. */
+export type NewsScope = 'market' | 'BTC' | 'ETH' | 'SOL';
+
+/**
+ * A classified news headline published into the feed (spec 015, kind = 'news').
+ * Kept as its own shape rather than folded into `SignalItem` so the market-state
+ * row contract is untouched (functional-spec 2.3: market-state signals are
+ * unaffected by this spec). The Signals page renders these in a distinct
+ * section.
+ */
+export interface NewsSignalItem {
+  id: string;
+  kind: 'news';
+  tag: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  title: string;
+  /** One-sentence classifier rationale (`news_classifications.rationale`). */
+  body: string;
+  /** Source name (`news_items.source`), e.g. "coindesk". */
+  source: string;
+  /** Outbound link to the original article (`news_items.url`). */
+  sourceUrl: string;
+  /** The article's own publication time — drives the displayed age. Never classification/render time. */
+  publishedAt: string;
+  /** `published_at + horizon_hours`. Past this the row is excluded from live results. */
+  expiresAt: string;
+  scope: NewsScope;
+  magnitude: 'LOW' | 'MEDIUM' | 'HIGH';
+  /** Fixed severity point derived from `magnitude` — shared ordering axis with market-state rows. */
+  severity: number;
+  horizonHours: number;
+  /** Classifier's own certainty, held separately from magnitude. */
+  confidence: number;
+}
+
 export interface SignalsResponse {
   /** ISO `ts` of the newest snapshot backing this feed, or null when none exists. */
   lastUpdated: string | null;
@@ -91,6 +125,12 @@ export interface SignalsResponse {
    */
   collectionHealthy?: boolean;
   signals: SignalItem[];
+  /**
+   * Live classified-news signals (spec 015). Additive: absent/empty means no
+   * news item is currently live. Ordered by severity then recency, already
+   * filtered to `expires_at > now()` and to any `?scope=` requested.
+   */
+  newsSignals?: NewsSignalItem[];
 }
 
 export interface ForecastPoint {

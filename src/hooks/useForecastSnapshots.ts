@@ -100,6 +100,10 @@ export function useForecastSnapshots(): {
       if (snapshots.length >= MAX_SNAPSHOTS) {
         return 'Delete a saved forecast to save a new one';
       }
+      // Freshness audit (spec 017, Slice 2): render-time `now` is legitimately
+      // "now" here — this is the moment the user saves a snapshot, so both the
+      // fallback id seed and `savedAt` record a real event time, not a claim
+      // about how fresh some upstream data is.
       const id =
         typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
           ? crypto.randomUUID()
@@ -123,9 +127,7 @@ export function useForecastSnapshots(): {
         // IDB write failed — still update local state
       }
 
-      setSnapshots((prev) =>
-        [record, ...prev].sort((a, b) => b.savedAt.localeCompare(a.savedAt)),
-      );
+      setSnapshots((prev) => [record, ...prev].sort((a, b) => b.savedAt.localeCompare(a.savedAt)));
       return null;
     },
     [snapshots.length],

@@ -23,6 +23,18 @@ export interface ForecastTarget {
   name: string;
 }
 
+/** Model routing whitelist — the allowed model ids per AI provider. Single
+ * source of truth shared by the provider layer, both projection Route
+ * Handlers, and the forecast-settings UI. */
+export const ALLOWED_FORECAST_MODELS: Record<string, string[]> = {
+  claude: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-8'],
+  openai: ['gpt-4o-mini', 'gpt-4o'],
+};
+
+/** Provider + model used when a caller specifies neither, or an invalid pair. */
+export const DEFAULT_FORECAST_SERVICE = 'openai';
+export const DEFAULT_FORECAST_MODEL = 'gpt-4o-mini';
+
 export const RANGE_OPTIONS = ['1W', '1M', '3M', '6M', '1Y'] as const;
 
 export const RANGE_DAYS: Record<(typeof RANGE_OPTIONS)[number], number> = {

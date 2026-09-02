@@ -4,28 +4,28 @@ import { useState } from 'react';
 
 const faqs = [
   {
-    q: 'How are projections actually generated?',
-    a: 'Five models — Tabnet-Pro, OnChain-LSTM, Macro-XGB, Sentiment-BERT and TFT-Ensemble — each produce a forward distribution. The ensemble averages them weighted by 90-day calibration. The 5th / 50th / 95th percentile slices become bear / base / bull.',
+    q: 'How is a projection generated?',
+    a: 'One call to a language model — Claude or GPT, chosen per run — is given the latest hourly market-state snapshot and returns three price curves (bear, base, bull), a probability for each, and a short rationale. The model name and prompt version are stored with the forecast. Nothing here is financial advice.',
   },
   {
-    q: 'Do you trade for me?',
-    a: 'No. Catoshi is a projection and analytics layer. You execute trades on your own exchange or wallet — we just make the call clearer.',
+    q: 'Does Catoshi trade for me or tell me what to buy?',
+    a: 'No. It shows projections and signals. There is no trading, no brokerage or exchange connection and no buy/sell recommendation anywhere in the app.',
   },
   {
-    q: 'What about my keys?',
-    a: 'We only request read-only API keys, validated at link time. Wallet addresses are watch-only. Nothing custodial, nothing signing.',
+    q: 'Do I need an account or a wallet?',
+    a: 'No. Catoshi never asks who you are or what you own. There is no sign-up, no login and no wallet connection anywhere in the app.',
   },
   {
-    q: 'Can I trust a 74% accuracy claim?',
-    a: 'The Models page shows live calibration: predicted vs realized, Brier score, and per-model hit rates over 30 / 90 / 365 days. We publish the numbers — including when they slip.',
+    q: 'Can I trust an accuracy number?',
+    a: 'Only once there is one. The Models page reports the multi-category Brier score of resolved forecasts against a no-skill baseline, grouped by model and prompt version, and shows an explicit empty state until the minimum sample size is reached.',
   },
   {
-    q: 'Which assets and chains are supported?',
-    a: 'BTC, ETH, SOL and the top 40 assets by liquidity out of the box, across Ethereum, Solana, Base and Arbitrum. Custom watchlists can add any asset with a CoinGecko listing.',
+    q: 'Which assets are covered?',
+    a: 'BTC, ETH and SOL — the assets the hourly collector snapshots. Both the forecasts and the signals are limited to those three.',
   },
   {
-    q: 'What happens if I cancel?',
-    a: 'You keep access until the end of the billing period, then drop to the free tier automatically. No retention calls, no data deletion — your snapshots and watchlists stay put.',
+    q: 'Where do the signals come from?',
+    a: 'Deterministic rules run over each hourly snapshot — RSI, funding, open interest, ETF flow streaks, volume, moving-average compression and Fear & Greed. No language model and no social-media scraping are involved; cards are ordered by severity.',
   },
 ];
 

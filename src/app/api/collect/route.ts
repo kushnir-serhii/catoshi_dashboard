@@ -1,10 +1,10 @@
 import { timingSafeEqual } from 'crypto';
-
 import { NextResponse } from 'next/server';
 
 import { COLLECT_ASSETS } from '@/consts/collect';
 import type { MarketSnapshot, SourceStatus } from '@/data/types';
 import { upsertSnapshot } from '@/lib/db/analytics';
+import { resolveForecasts } from '@/lib/scoring/resolve';
 import { generateSignals } from '@/lib/signals/generate';
 import { buildSnapshot } from '@/lib/snapshotBuilder';
 
@@ -139,6 +139,27 @@ async function handleCollect(request: Request): Promise<NextResponse> {
         { source: 'signals', ok: false, error: message },
       ];
     }
+  }
+
+  // Forecast resolution and scoring (spec 011, Slice 4). Same placement and
+  // reasoning as signal generation above: it runs only after this hour's
+  // snapshots have committed (the resolver reads snapshot prices to establish
+  // entry and horizon prices), and it is fully isolated — a scoring failure is
+  // logged and surfaced through SourceStatus but never fails the collection
+  // run. The asymmetry is the point (technical-considerations §5): a lost
+  // snapshot hour is gone forever, a lost scoring pass is recomputed next hour.
+  try {
+    const { sources: scoringSources } = await resolveForecasts();
+    if (scoringSources.length > 0) {
+      sourcesBySymbol.scoring = [...(sourcesBySymbol.scoring ?? []), ...scoringSources];
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] forecast resolution failed:', error);
+    sourcesBySymbol.scoring = [
+      ...(sourcesBySymbol.scoring ?? []),
+      { source: 'scoring', ok: false, error: message },
+    ];
   }
 
   // Field-level/per-source failure is allowed (AC 2.2) and still reports

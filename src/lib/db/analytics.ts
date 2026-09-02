@@ -1,6 +1,6 @@
 import { FORECAST_MODEL_PRICING } from '@/consts/forecastPricing';
-import { query } from '@/lib/db/client';
 import type { ForecastUsage, MarketSnapshot, ProjectionData, StoredForecast } from '@/data/types';
+import { query } from '@/lib/db/client';
 
 /**
  * Data-access module for the analytics tables (spec 010): `snapshots` and
@@ -203,7 +203,8 @@ function fromSnapshotRow(row: Record<string, unknown>): MarketSnapshot {
     openInterestChange24hPct: row.open_interest_change_24h_pct as number | null,
     longShortRatio: row.long_short_ratio as number | null,
     liquidations24hUsd: toNumber(row.liquidations_24h_usd),
-    liquidationsDominantSide: row.liquidations_dominant_side as MarketSnapshot['liquidationsDominantSide'],
+    liquidationsDominantSide:
+      row.liquidations_dominant_side as MarketSnapshot['liquidationsDominantSide'],
 
     etfNetFlowUsd: toNumber(row.etf_net_flow_usd),
     etfStreakDays: row.etf_streak_days as number | null,
@@ -368,7 +369,9 @@ export async function getLatestSnapshot(assetId: number | string): Promise<Marke
     resolvedAssetId = assetId;
   } else {
     try {
-      const assets = await query<{ id: number }>('select id from assets where symbol = $1', [assetId]);
+      const assets = await query<{ id: number }>('select id from assets where symbol = $1', [
+        assetId,
+      ]);
       if (assets.length === 0) {
         return null;
       }
@@ -398,7 +401,10 @@ export async function getLatestSnapshot(assetId: number | string): Promise<Marke
  * Reuses `fromSnapshotRow` so the row -> `MarketSnapshot` mapping is not
  * duplicated.
  */
-export async function getSnapshotBefore(assetId: number, ts: string): Promise<MarketSnapshot | null> {
+export async function getSnapshotBefore(
+  assetId: number,
+  ts: string,
+): Promise<MarketSnapshot | null> {
   try {
     const rows = await query<Record<string, unknown>>(
       'select * from snapshots where asset_id = $1 and ts < $2 order by ts desc limit 1',
@@ -483,7 +489,9 @@ export async function persistForecasts(
       // Not every forecasted coin necessarily has an `assets` row (e.g. an
       // arbitrary on-demand reforecast target) — skip rather than fail the
       // whole batch, since the other coins' rows are still worth persisting.
-      console.warn(`[analytics] persistForecasts: no assets row for symbol "${projection.coin}", skipping`);
+      console.warn(
+        `[analytics] persistForecasts: no assets row for symbol "${projection.coin}", skipping`,
+      );
       continue;
     }
 
@@ -492,7 +500,16 @@ export async function persistForecasts(
       snapshotId: snapshotIds[projection.coin] ?? null,
       asOf: projection.generatedAt,
 
-      scenarios: projection.scenarioProbabilities,
+      // Store the full per-scenario price curves plus the probabilities, not
+      // just the probabilities: spec 011's resolver looks up the predicted
+      // price at each scored horizon from these arrays. `probabilities` is the
+      // key the 0001 probability-sum trigger reads.
+      scenarios: {
+        bull: projection.bull,
+        base: projection.base,
+        bear: projection.bear,
+        probabilities: projection.scenarioProbabilities,
+      },
       confidence: projection.confidence,
       reasoning: projection.reasoning,
       anchorPrice: projection.currentPrice,

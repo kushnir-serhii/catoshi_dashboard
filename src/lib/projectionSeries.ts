@@ -16,7 +16,7 @@ export interface ChartRow {
   bear?: number;
   /** Scenario Simulator's own median (drift-only) projection, overlaid
    * alongside the AI bull/base/bear series so the user can directly compare
-   * their manual assumptions against the AI ensemble on the same chart. */
+   * their manual assumptions against the AI forecast on the same chart. */
   scenario?: number;
 }
 

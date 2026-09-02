@@ -1,8 +1,29 @@
 # Functional Specification: Market History Backfill
 
-- **Roadmap Item:** Projections & Models → **Historical Analogs** (enabler)
-- **Status:** Draft
+- **Roadmap Item:** Phase 5 → Deeper History → **Market History Backfill** (enabler for spec 012)
+- **Status:** Approved — **ship as written, at daily resolution**
 - **Author:** Serhii Kushnir
+
+> **Amendment, 02.09.2026 — the resolution question.** A separate line of work (the analog
+> falsification study) concluded that statistical power for spec 012 appears somewhere between
+> n = 3,000 and n = 8,000, and that daily backfill yields only ~3,100 rows per asset. Read
+> alone, that is an argument for hourly, and it was briefly recorded as a settled decision.
+> **It has been withdrawn.**
+>
+> This spec's counter-argument in technical-considerations §2.2 is the stronger one: hourly
+> costs 54% of the free plan's storage, and — more importantly — twenty-four snapshots inside
+> one day are near-duplicates that the neighbour-exclusion guard discards anyway, so hourly
+> does **not** buy 24× the *effective* sample size, which is the quantity the power curve is
+> actually denominated in.
+>
+> **Neither side has measured the effective sample size after exclusion.** So: ship this spec
+> unchanged, at daily. Then run the falsification test with its power analysis. If the test
+> could have detected an injected signal, resolution was never the constraint. Only if it is
+> blind does finer resolution become worth buying — and then **4-hourly before hourly**
+> (~43,000 rows, 14% of quota). Full procedure: `context/product/decisions.md` §7.1.
+>
+> **Add one deliverable to this spec:** report the **effective** sample size after neighbour
+> exclusion alongside the raw per-asset row counts. Every argument here turns on that number.
 
 ---
 
@@ -90,12 +111,12 @@ This specification is infrastructure and is run by the developer, not the user. 
 - Full-history retrieval of the Fear & Greed index
 - The `backfill` marker and its documented predicate
 - A short section in this spec's technical document stating how specs 011 and 012 must filter on that marker
-- Reporting per-asset row counts and null-field coverage after a run
+- Reporting per-asset row counts and null-field coverage after a run, **plus the effective sample size after neighbour exclusion** (amendment, 02.09.2026)
 
 ### Out-of-Scope
 
 - Any attempt to reconstruct funding, open interest, long/short ratio, liquidations or ETF flows for past dates — the data does not exist
-- Sub-daily backfill granularity (see the technical document for why daily is sufficient, and what it would cost to change)
+- Sub-daily backfill granularity — **out of scope for this spec deliberately, not permanently.** See the technical document §2.2 for the storage and effective-sample-size argument, and `context/product/decisions.md` §7.1 for the procedure that would reopen it. Finer resolution is bought only on evidence from the spec 012 power analysis, and 4-hourly comes before hourly
 - Back-filling `forecasts` or `outcomes` — no forecast was made on those dates, and inventing one would corrupt every calibration figure in spec 011
 - Changing the live collector, the schema, or any spec 010 behaviour
 - Assets beyond BTC, ETH and SOL

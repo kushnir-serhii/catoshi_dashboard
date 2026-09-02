@@ -25,7 +25,7 @@ No test runner is configured. Type-check with `npx tsc --noEmit`.
 - `src/app/landing/` — public marketing page
 - `src/app/api/` — Route Handlers acting as a server-side proxy layer for all external calls (CoinGecko, AI providers, Reddit, news RSS, fear/greed index)
 
-The admin layout (`(admin)/layout.tsx`) wraps everything in `DashboardShell`. Pages live under `src/app/(admin)/projections/`, `markets/`, `portfolio/`, `signals/`, `models/`.
+The admin layout (`(admin)/layout.tsx`) wraps everything in `DashboardShell`. Pages live under `src/app/(admin)/projections/`, `markets/`, `signals/`, `models/`.
 
 ### Data Flow
 
@@ -40,12 +40,12 @@ All external API calls must go through Route Handlers — never call third-party
 
 ### Key Directories
 
-- **`src/lib/`** — server-side integrations: `coingecko.ts`, `marketData.ts` (aggregates news/fear-greed/Reddit), `forecastProvider.ts` (validates service+model, delegates to `forecast/claude.ts` or `forecast/openai.ts`), `db/client.ts`
-- **`src/hooks/`** — SWR-based data hooks with polling: `usePrices.ts` (60s), `useSignals.ts`, `useProjections.ts`, `useMarkets.ts`, `useHistoricalPrices.ts`, `useCoinSearch.ts`. `useForecastSnapshots.ts` wraps IndexedDB (max 5 snapshots, graceful fallback for private browsing).
+- **`src/lib/`** — server-side integrations: `coingecko.ts`, `marketData.ts` (aggregates news/fear-greed/Reddit), `forecastProvider.ts` (validates service+model, delegates to `forecast/claude.ts` or `forecast/openai.ts`), `db/client.ts`, `scoring/` (spec 011: pure Brier + realized-scenario functions and the resolver, run from `/api/collect`)
+- **`src/hooks/`** — SWR-based data hooks with polling: `usePrices.ts` (60s), `useSignals.ts`, `useProjections.ts`, `useMarkets.ts`, `useHistoricalPrices.ts`, `useCoinSearch.ts`, `useModels.ts` (calibration reads for the Models page). `useForecastSnapshots.ts` wraps IndexedDB (max 5 snapshots, graceful fallback for private browsing).
 - **`src/data/types.ts`** — canonical TypeScript interfaces: `PriceMap`, `MarketAsset`, `ProjectionData`, `ForecastSnapshot`, `Signal`, `KpiItem`, `SignalItem`
-- **`src/consts/`** — shared constants only (see memory rule). `prices.ts` holds `DEFAULT_ASSET_IDS`, refresh intervals, cache TTLs. `signals.ts` holds `TRACKED_COINS` (aligned with the collected assets: BTC, ETH, SOL), rule thresholds, the freshness window, `SIGNALS_COUNT`, and revalidation/refresh intervals.
+- **`src/consts/`** — shared constants only (see memory rule). `prices.ts` holds `DEFAULT_ASSET_IDS`, refresh intervals, cache TTLs. `signals.ts` holds `TRACKED_COINS` (aligned with the collected assets: BTC, ETH, SOL), rule thresholds, the freshness window, `SIGNALS_COUNT`, and revalidation/refresh intervals. `scoring.ts` holds the scored horizons, the `0.667` no-skill Brier baseline, `MIN_SCORED_SAMPLE_SIZE` (30) and the probability/price tolerances (spec 011).
 - **`src/lib/signals/`** — the market-state signal layer (spec 014): `rules/*` are pure `(snapshot, previous) => Signal | null` functions (one per rule, registered in `rules/index.ts`), `generate.ts` runs them over each freshly-committed snapshot inside the `/api/collect` run and upserts `public.signals` (idempotent per hour, with `since_ts` carry-forward). `/api/signals` only reads stored rows — it never computes indicators or calls an external API.
-- **`src/components/dashboard/`** — dashboard UI: `charts.tsx` (Recharts `ProjectionChart`, SVG `Sparkline`, `HoldingsDonut`), `context.tsx` (glow CSS variable), `DashboardShell.tsx`, `ForecastContextPanel.tsx`, `ForecastSettingsModal.tsx`, `HistoricalPriceChart.tsx`
+- **`src/components/dashboard/`** — dashboard UI: `charts.tsx` (Recharts `ProjectionChart`, SVG `Sparkline`), `context.tsx` (glow CSS variable), `DashboardShell.tsx`, `ForecastContextPanel.tsx`, `ForecastSettingsModal.tsx`, `HistoricalPriceChart.tsx`
 
 ### AI Forecast Layer
 
@@ -57,6 +57,28 @@ Signals are **not** LLM-generated. They come from the deterministic rule layer i
 `src/lib/signals/` over the market-state snapshot store (spec 014). News-sourced,
 LLM-classified signals (the original spec 002 design) remain unbuilt and are scoped to a
 later spec.
+
+### Forecast Scoring (spec 011)
+
+Forecasts persist their three scenario price curves and probabilities in
+`forecasts.scenarios`. `src/lib/scoring/` holds pure, tested functions — `brier.ts`
+(multi-category Brier, `BS = Σ(pᵢ − oᵢ)²`, range 0..2), `realizedScenario.ts` (the
+midpoint-partition rule: sort the three predicted prices, cut at the midpoints between
+neighbours, a price exactly on a boundary → `base`, two equal predictions → unscoreable),
+and `resolve.ts` (the resolver). Tests: `src/scripts/scoring.test.ts` (`npx tsx`).
+
+Resolution runs inside the hourly `/api/collect` pass after snapshots commit — non-fatal,
+surfaced via `SourceStatus`. It scores every forecast whose `as_of + horizon_days` has
+elapsed against the real market price at the horizon, writing `public.outcomes.brier_score`
+(NULL when unscoreable, never 0). Calibration reads go through the `public.calibration_*`
+SQL views (migration `0006`), which centralise the exclusions (back-filled snapshots,
+`snapshot_id is null`, unscoreable). `/api/models` reads those views with no computation;
+`ModelsPage.tsx` shows mean Brier per model + prompt version beside the 0.667 no-skill
+baseline (three mutually exclusive scenarios, **not** the binary 0.25), with an
+insufficient-data state below `MIN_SCORED_SAMPLE_SIZE` (30). New migrations:
+`db/migrations/0005_outcome_scores.sql`, `0006_calibration_view.sql`. The realized-scenario
+rule is canonically documented in `context/product/architecture.md` §7.3 and the
+`realizedScenario.ts` header — changing it invalidates every stored score.
 
 ### Mock Data Toggle
 

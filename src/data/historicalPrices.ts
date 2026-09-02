@@ -14,7 +14,7 @@ const MS_PER_DAY = 86_400_000;
 // Generates a deterministic pseudo-random walk of `DAYS` daily prices, then
 // rescales the whole series so the most recent point lands exactly on
 // `latestPrice` — keeping the walk's shape/volatility while staying in the
-// same ballpark as the mock live prices used elsewhere (see src/data/portfolio.ts).
+// same ballpark as the mock live prices used elsewhere.
 function generatePrices(seed: number, latestPrice: number): HistoricalPrice[] {
   const rnd = seededRand(seed);
   const startTs = Date.now() - DAYS * MS_PER_DAY;

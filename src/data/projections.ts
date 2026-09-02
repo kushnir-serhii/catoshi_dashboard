@@ -1,43 +1,4 @@
-import type { HoldingSegment, KpiItem, Signal, WatchlistRow } from './types';
-
-export const projectionKpis: KpiItem[] = [
-  {
-    lbl: 'Portfolio value',
-    val: '$248,392.41',
-    sparkSeed: 4,
-    sparkColor: 'green',
-    deltaText: '+ $12,409',
-    deltaClass: 'delta-up mono',
-    subText: 'last 30d',
-  },
-  {
-    lbl: '90-day projection',
-    val: '$291,400',
-    sparkSeed: 11,
-    sparkColor: 'violet',
-    deltaText: '+ 17.3%',
-    deltaClass: 'delta-up mono',
-    subText: 'base case',
-  },
-  {
-    lbl: 'Risk score',
-    val: '6.2 / 10',
-    sparkSeed: 19,
-    sparkColor: 'violet',
-    deltaText: 'moderate',
-    deltaClass: 'muted',
-    subText: 'σ 0.34',
-  },
-  {
-    lbl: 'AI confidence',
-    val: '74%',
-    sparkSeed: 27,
-    sparkColor: 'green',
-    deltaText: '+ 3.1pt',
-    deltaClass: 'delta-up mono',
-    subText: 'last cycle',
-  },
-];
+import type { Signal, WatchlistRow } from './types';
 
 export const watchlistRows: WatchlistRow[] = [
   {
@@ -100,14 +61,6 @@ export const watchlistRows: WatchlistRow[] = [
     side: 'bull',
     spark: 21,
   },
-];
-
-export const holdingSegments: HoldingSegment[] = [
-  { name: 'BTC', value: 42, color: 'oklch(0.78 0.22 295)' },
-  { name: 'ETH', value: 28, color: 'oklch(0.86 0.20 145)' },
-  { name: 'SOL', value: 14, color: 'oklch(0.62 0.22 295)' },
-  { name: 'TAO', value: 9, color: 'oklch(0.55 0.20 145)' },
-  { name: 'Cash', value: 7, color: 'oklch(0.40 0.04 280)' },
 ];
 
 export const panelSignals: Signal[] = [

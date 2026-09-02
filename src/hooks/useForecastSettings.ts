@@ -2,14 +2,16 @@
 
 import { useState } from 'react';
 
+import { DEFAULT_FORECAST_MODEL, DEFAULT_FORECAST_SERVICE } from '@/consts/projections';
+
 export interface ForecastSettings {
   service: 'claude' | 'openai';
   model: string;
 }
 
 const DEFAULT_SETTINGS: ForecastSettings = {
-  service: 'claude',
-  model: 'claude-sonnet-4-6',
+  service: DEFAULT_FORECAST_SERVICE as ForecastSettings['service'],
+  model: DEFAULT_FORECAST_MODEL,
 };
 
 const STORAGE_KEY = 'catoshi:forecast-settings';
@@ -32,10 +34,11 @@ function readFromStorage(): ForecastSettings {
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<ForecastSettings>;
     return {
-      service: parsed.service === 'openai' ? 'openai' : 'claude',
-      model: typeof parsed.model === 'string' && parsed.model.length > 0
-        ? parsed.model
-        : DEFAULT_SETTINGS.model,
+      service: parsed.service === 'claude' ? 'claude' : DEFAULT_SETTINGS.service,
+      model:
+        typeof parsed.model === 'string' && parsed.model.length > 0
+          ? parsed.model
+          : DEFAULT_SETTINGS.model,
     };
   } catch {
     return DEFAULT_SETTINGS;

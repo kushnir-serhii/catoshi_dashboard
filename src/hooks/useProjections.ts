@@ -2,6 +2,7 @@
 
 import useSWR from 'swr';
 
+import { DEFAULT_FORECAST_MODEL, DEFAULT_FORECAST_SERVICE } from '@/consts/projections';
 import type { CoinListItem, ProjectionsResponse } from '@/data/types';
 
 async function fetchProjections(
@@ -15,7 +16,10 @@ async function fetchProjections(
   return res.json() as Promise<ProjectionsResponse | null>;
 }
 
-export function useProjections(service: string = 'claude', model: string = 'claude-sonnet-4-6') {
+export function useProjections(
+  service: string = DEFAULT_FORECAST_SERVICE,
+  model: string = DEFAULT_FORECAST_MODEL,
+) {
   const key = ['projections', service, model] as const;
 
   const {

@@ -61,8 +61,8 @@ _Market state says what moved. News says why. This is the feature that makes the
 
 _The product's core promise: forecasts that are measured, not asserted._
 
-- [ ] **Deeper History**
-  - [ ] **Market History Backfill:** Reconstruct the price-side snapshot history from exchange klines and the sentiment index, clearly labelled as backfilled and excluded from every calibration sample. Ships at daily resolution; whether finer resolution is needed is an open question resolved by evidence, not by argument — `decisions.md` §7.1. _(spec 013)_
+- [ ] **Deeper History** _(spec 013 — code shipped; full backfill run pending operator)_
+  - [ ] **Market History Backfill:** Reconstruct the price-side snapshot history from exchange klines and the sentiment index, clearly labelled as backfilled and excluded from every calibration sample. Ships at daily resolution; whether finer resolution is needed is an open question resolved by evidence, not by argument — `decisions.md` §7.1. _(spec 013 — backfill script, marker-aware upsert and per-asset coverage report shipped; the full BTC/ETH/SOL run against the real DB and the post-run marker-integrity check are pending operator)_
 
 - [ ] **Forecast Scoring & Models Explorer**
   - [x] **Forecast Resolution:** Once a forecast's horizon elapses, fetch the real price and record which scenario actually happened. _(spec 011)_

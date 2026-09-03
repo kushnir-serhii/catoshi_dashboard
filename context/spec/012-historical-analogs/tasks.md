@@ -7,7 +7,7 @@
 ## Slice 0 — THE GATE
 
 - [ ] Confirm spec 013 has run and the backfill is in place **at daily resolution, as spec 013 is written**. Measure and record the **effective** sample size after neighbour exclusion, not the row count — every argument about resolution turns on that number and nobody has measured it (`decisions.md` §7.1). Do not re-backfill finer before running the test; that is what the power analysis is for.
-- [ ] Fix `decisions.md` §8 defect 1 — `etf_streak_days` is unsigned in the collector but `build_state_vec` maps it as signed. Fix it and add a test **before** any vector is built anywhere, including in the test script.
+- [x] Fix `decisions.md` §8 defect 1 — `etf_streak_days` is unsigned in the collector but `build_state_vec` maps it as signed. Fix it and add a test **before** any vector is built anywhere, including in the test script. (Fixed in the vector builder via `signedEtfStreakDays()` in `analog-core.ts` — sign recombined from `etf_net_flow_usd`, collector and spec-014 rule untouched; test `src/scripts/analog-vector.test.ts`.)
 - [ ] Run `src/scripts/analog-falsification.ts` on real history. It must include the **power analysis** — injecting a signal of known strength on the real state geometry. A run without it cannot distinguish "found nothing" from "could not have found anything", and its verdict is not accepted.
 - [ ] Confirm the null is the circular shift and Bonferroni correction is applied across the whole family of statistics (3 statistics × 3 horizons).
 - [ ] Record the verdict, with numbers, in `functional-spec.md` §0.

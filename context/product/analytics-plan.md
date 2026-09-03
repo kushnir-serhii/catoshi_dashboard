@@ -277,6 +277,35 @@ layers documented (§§7.1–7.3). Nothing outstanding here.
 
 ---
 
+## 7. The backfill marker predicate (spec 013)
+
+Spec 013 reconstructs the price side of snapshot history from exchange klines and the
+Fear & Greed index. Those rows carry no funding, open interest, long/short ratio,
+liquidations or ETF flow — the data does not exist for past dates — so every one of them
+is stamped `raw.backfill = true` alongside `raw.backfill_run` and `raw.absent_fields`.
+Live collection never writes the marker and never removes it from a row it upserts over.
+
+**The single predicate for measured-only rows:**
+
+```sql
+WHERE COALESCE((raw->>'backfill')::boolean, false) = false
+```
+
+Where each downstream spec applies it:
+
+- **Spec 011 (forecast scoring / calibration) — always excludes back-filled rows.** A
+  forecast is only ever attached to a live snapshot, so a back-filled row reaching a
+  calibration join is a bug; the predicate makes it visible instead of plausible. The
+  `public.calibration_*` views (migration `0006`) already centralise this exclusion.
+- **Spec 012 (analog search) — includes back-filled rows, but must report the marker
+  count.** Excluding them would defeat spec 013's purpose. Instead `find_analogs` returns
+  how many of the matched neighbours carry `raw.backfill = true`, and the UI must not
+  present a positioning-based conclusion drawn from rows that carry no positioning (012
+  functional-spec AC 2.1 / 2.4). Over back-filled history the match is effectively on the
+  ten price dimensions only.
+
+---
+
 # Appendices — reference material
 
 _Added 02.09.2026, translated from the project's Ukrainian working notes so that `context/`

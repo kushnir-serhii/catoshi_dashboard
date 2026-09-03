@@ -1,3 +1,4 @@
+import { BACKFILL_CHUNK } from '@/consts/collect';
 import { FORECAST_MODEL_PRICING } from '@/consts/forecastPricing';
 import type { ForecastUsage, MarketSnapshot, ProjectionData, StoredForecast } from '@/data/types';
 import { query } from '@/lib/db/client';
@@ -312,6 +313,74 @@ export async function upsertSnapshot(
   } catch (error: unknown) {
     console.error('[analytics] upsertSnapshot failed:', error);
     return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+  }
+}
+
+/**
+ * Chunked, idempotent bulk upsert for the history backfill (spec 013, Slice 4).
+ *
+ * Writes `snapshots` rows in batches of `BACKFILL_CHUNK` on the
+ * `(asset_id, ts)` unique constraint. The critical difference from
+ * `upsertSnapshot` is the conflict predicate:
+ *
+ *   on conflict (asset_id, ts) do update set ...
+ *   where coalesce((snapshots.raw->>'backfill')::boolean, false) = true
+ *
+ * A measured (live-collected) row carries no `raw.backfill` marker, so the
+ * `WHERE` is false and the existing row is left untouched — a concurrent or
+ * prior hourly collection run for `00:00:00Z` is never overwritten by an
+ * inferred row (technical-considerations.md §3.4). A row this process wrote
+ * before (marker present) *is* updated, so re-running an already-covered
+ * range is deterministic (AC 2.3).
+ *
+ * Every caller-supplied `snapshot.raw` must already carry the marker
+ * (`backfill: true`) — that is the backfill script's responsibility, not
+ * this function's.
+ *
+ * Returns the count of rows actually inserted or updated (rows skipped by the
+ * conflict predicate are not counted).
+ */
+export async function upsertSnapshots(
+  snapshots: readonly MarketSnapshot[],
+): Promise<{ written: number; error: Error | null }> {
+  if (snapshots.length === 0) {
+    return { written: 0, error: null };
+  }
+
+  const columnCount = SNAPSHOT_COLUMNS.length;
+  const updateSet = SNAPSHOT_COLUMNS.filter((column) => column !== 'asset_id' && column !== 'ts')
+    .map((column) => `${column} = excluded.${column}`)
+    .join(', ');
+
+  let written = 0;
+  try {
+    for (let start = 0; start < snapshots.length; start += BACKFILL_CHUNK) {
+      const chunk = snapshots.slice(start, start + BACKFILL_CHUNK);
+      const values: unknown[] = [];
+      const rowPlaceholders = chunk.map((snapshot, rowIndex) => {
+        const row = toSnapshotRow(snapshot);
+        const placeholders = SNAPSHOT_COLUMNS.map((column, columnIndex) => {
+          values.push(row[column]);
+          return `$${rowIndex * columnCount + columnIndex + 1}`;
+        });
+        return `(${placeholders.join(', ')})`;
+      });
+
+      const sql = `
+        insert into snapshots (${SNAPSHOT_COLUMNS.join(', ')})
+        values ${rowPlaceholders.join(', ')}
+        on conflict (asset_id, ts) do update set ${updateSet}
+        where coalesce((snapshots.raw->>'backfill')::boolean, false) = true
+        returning asset_id
+      `;
+
+      const rows = await query<Record<string, unknown>>(sql, values);
+      written += rows.length;
+    }
+    return { written, error: null };
+  } catch (error: unknown) {
+    console.error('[analytics] upsertSnapshots failed:', error);
+    return { written, error: error instanceof Error ? error : new Error(String(error)) };
   }
 }
 

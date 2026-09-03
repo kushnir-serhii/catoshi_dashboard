@@ -4,7 +4,7 @@ Everything on this page was expensive to learn. It exists so no agent re-litigat
 settled decision, re-introduces a defect that has already shipped once, or trusts a
 number that has already been shown to be fabricated.
 
-Last reconciled: **02.09.2026**. This file supersedes any conflicting statement elsewhere.
+Last reconciled: **03.09.2026**. This file supersedes any conflicting statement elsewhere.
 
 ---
 
@@ -14,6 +14,7 @@ Last reconciled: **02.09.2026**. This file supersedes any conflicting statement 
 |---|---|---|---|
 | Database | **Neon Postgres** | 01.09.2026 | §2 below |
 | Scheduler for hourly collection | **GitHub Actions** hourly, with a daily `vercel.json` cron as fallback | 01.09.2026 | §4 below |
+| Where the backfill, the analog Gate and live-DB checks run | **GitHub Actions `workflow_dispatch`** (spec 018) | 03.09.2026 | §10 below — no agent execution environment can reach Binance or Neon |
 | Tracked assets | **BTC, ETH, SOL** | 01.09.2026 | Matches `DEFAULT_FORECAST_TARGETS` and the seeded `assets` table |
 | Intermediate state store | **None.** Write straight to Postgres | 01.09.2026 | Vercel KV was proposed before a database existed; it is redundant now |
 | Indicator computation | **In TypeScript** (`src/lib/indicators.ts`), never in the model | 25.08.2026 | ~80k tokens of raw candles vs ~8k for a computed snapshot, and it removes a class of arithmetic error from the model's job |
@@ -253,7 +254,7 @@ in §2's Supabase reversal, repeated.
 
 | # | Defect | Where it bites |
 |---|---|---|
-| 1 | **`etf_streak_days` sign mismatch.** `catoshi-schema.sql` describes it as signed; the collector returns an **unsigned** counter, with direction carried in `etfNetFlowUsd`. The spec-014 rule reads it correctly, but `build_state_vec` computes dimension 16 as `etf_streak_days / 10` mapped into −1..1 — assuming a sign the data does not carry | Spec 012. Must be fixed before any vector is built |
+| 1 | **`etf_streak_days` sign mismatch.** `catoshi-schema.sql` describes it as signed; the collector returns an **unsigned** counter, with direction carried in `etfNetFlowUsd`. The spec-014 rule reads it correctly, but `build_state_vec` computes dimension 16 as `etf_streak_days / 10` mapped into −1..1 — assuming a sign the data does not carry | **Closed 2026-09-03** (spec 012 Slice 0): fixed in the vector builder, not the collector — `signedEtfStreakDays()` in `src/scripts/analog-core.ts` recombines the sign from `etf_net_flow_usd`; the migration and the spec-014 rule are untouched. Test: `src/scripts/analog-vector.test.ts` |
 | 2 | **`SIGNALS_REVALIDATE_SECONDS`** remains in `src/consts/signals.ts` after spec 014 removed `revalidate` from the route. Appears dead | Cleanup, spec 016 |
 | 3 | **Spec-014 rule thresholds are conventions, not evidence.** Chosen by eye | Becomes measurable after spec 011 |
 | 4 | **The analog falsification test has never been run on real data.** `src/scripts/analog-falsification.ts` is written and sitting in the repo | Gate for spec 012 |
@@ -296,3 +297,41 @@ in §2's Supabase reversal, repeated.
   2. Always give probabilities. Never "it will not". And carry an explicit **exogenous shock**
      probability — ~5% in a normal week, 20–30% during an active conflict — which does not
      spread evenly across scenarios but almost always thickens the bearish side.
+
+---
+
+## 10. Why the backfill, the analog Gate and the live-DB checks run on GitHub Actions
+
+Three network-bound runs had no machine to run on:
+
+- the full BTC/ETH/SOL market-history backfill (spec 013, Slice 5);
+- the analog falsification Gate on real data (spec 012, Slice 0);
+- the marker-integrity and live-database verification queries after a backfill
+  (spec 013 Slice 5).
+
+The code for all three is written, type-checks and has tests. What was missing is **network
+reach**. Measured 03.09.2026 from both execution environments available to a coding agent on
+this project:
+
+```
+fapi.binance.com:443          connect rejected (egress policy)
+api.alternative.me:443        connect rejected (egress policy)
+ep-…-pooler…neon.tech:5432    name resolution / connect blocked
+api.github.com:443            200 OK
+```
+
+Neither agent environment can reach Binance, the Fear & Greed API (`api.alternative.me`) or
+the Neon endpoint. A GitHub Actions runner reaches all of them — its egress is unrestricted
+and the repository already writes to the same Neon instance hourly from `collect.yml`. So
+spec 018 moves each run into a `workflow_dispatch` workflow:
+
+- `.github/workflows/backfill.yml` — the market-history backfill;
+- `.github/workflows/verify-backfill.yml` — the three marker-integrity checks;
+- `.github/workflows/analog-gate.yml` — the analog falsification Gate.
+
+**An agent must not try to run the backfill, the analog Gate, or the live-DB verification
+locally or from an agent shell.** It will fail on egress every time. That failure is the
+network policy — it does not mean the database is down, the scripts are broken, or the
+project is broken. Do not "fix" it, do not rewrite the scripts, do not conclude the pipeline
+is dead. Dispatch the relevant workflow from the Actions tab (or `gh workflow run <file>`)
+and read the job summary. `docs/runbook.md` §8 has the inputs and the how-to-read-it detail.

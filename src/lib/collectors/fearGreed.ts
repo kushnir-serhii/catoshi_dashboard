@@ -9,6 +9,12 @@
 const FEAR_GREED_URL = 'https://api.alternative.me/fng/?limit=30';
 
 /**
+ * Full published history of the index, oldest reading 01.02.2018. `limit=0`
+ * means "all rows" (spec 013, history backfill).
+ */
+const FEAR_GREED_HISTORY_URL = 'https://api.alternative.me/fng/?limit=0&format=json';
+
+/**
  * The feed is ordered most-recent-first with one entry per calendar day
  * (verified against the live response: consecutive `timestamp` values are
  * exactly 86400 seconds apart), so the entry 7 days prior to the current
@@ -77,6 +83,50 @@ export async function fetchFearGreed(): Promise<{
     }
 
     return { value, value7dAgo };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * UTC calendar date (`YYYY-MM-DD`) of a Fear & Greed entry, whose `timestamp`
+ * is whole seconds since the epoch marking `00:00:00Z` of that day.
+ */
+function utcDateKey(timestampSeconds: number): string {
+  return new Date(timestampSeconds * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * The entire published Fear & Greed series as a date-indexed map — key is the
+ * UTC calendar date (`YYYY-MM-DD`), value is that day's numeric index reading.
+ *
+ * Method: `GET api.alternative.me/fng/?limit=0` returns every daily entry ever
+ * published (from 01.02.2018). Entries with a non-finite value are dropped.
+ * Resolves to `null` on any non-200, network failure or unexpected payload
+ * shape — never throws (technical-considerations.md §2.3).
+ */
+export async function fetchFearGreedHistory(): Promise<Map<string, number> | null> {
+  try {
+    const res = await fetch(FEAR_GREED_HISTORY_URL);
+    if (!res.ok) {
+      return null;
+    }
+    const body: unknown = await res.json();
+    if (!isFearGreedResponse(body) || body.data.length === 0) {
+      return null;
+    }
+
+    const byDate = new Map<string, number>();
+    for (const entry of body.data) {
+      const value = Number(entry.value);
+      const timestamp = Number(entry.timestamp);
+      if (!Number.isFinite(value) || !Number.isFinite(timestamp)) {
+        continue;
+      }
+      byDate.set(utcDateKey(timestamp), value);
+    }
+
+    return byDate.size > 0 ? byDate : null;
   } catch {
     return null;
   }

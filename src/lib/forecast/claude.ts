@@ -6,14 +6,22 @@ import type { ForecastGenerationResult, ForecastPoint, ProjectionData } from '@/
 import type { MarketData } from '@/lib/marketData';
 
 import { normalizeProbabilities } from './gridSnap';
+import {
+  buildPriceContext,
+  lastKnownPrice,
+  PRICE_ANCHOR_INSTRUCTION,
+  rebaseToMarketPrice,
+} from './priceContext';
 
 /**
  * Bump whenever the prompt text changes — this is what keeps the accuracy
- * metric in spec 011 meaningful. Starting at 1: no prior forecast prompt was
- * formally versioned before spec 010, so this is the first tracked version
- * of the current prompt text (see `buildPrompt` below).
+ * metric in spec 011 meaningful. Version 1 was the first tracked version of
+ * the prompt text (spec 010). Version 2 replaces the price-free "N entries"
+ * history line with the real price context from `buildPriceContext` and the
+ * explicit price-scale instruction, so the model no longer anchors its
+ * projections on a price remembered from training data.
  */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
 const TOOL_INPUT_SCHEMA: Anthropic.Tool['input_schema'] = {
   type: 'object',
@@ -125,12 +133,7 @@ interface ProjectionToolInput {
 
 function buildPrompt(marketData: MarketData, targets: readonly ForecastTarget[]): string {
   const coinList = targets.map((t) => t.symbol).join(', ');
-  const historyLines = targets
-    .map(
-      (t) =>
-        `- ${t.name} 90-day data points: ${marketData.historicalPrices[t.id]?.length ?? 0} entries`,
-    )
-    .join('\n');
+  const priceContext = buildPriceContext(marketData, targets);
 
   return `You are a professional cryptocurrency market analyst. Generate price projections for ${coinList} based on the following market data.
 
@@ -149,11 +152,11 @@ ${marketData.trending}
 ${marketData.reddit}
 
 ### Historical Price Context
-${historyLines}
+${priceContext}
 
 ## Instructions
 Call the generate_projections tool with projections for ${coinList}. For each coin:
-- Set currentPrice to the last known price from historical data or your best estimate
+- ${PRICE_ANCHOR_INSTRUCTION}
 - Each of the bull, base, and bear scenario arrays must contain exactly one {d,p} point for each of the ${FORECAST_GRID_DAYS.length} day offsets in the grid below, with d exactly matching one of the given grid values:
   - Daily, days 1 through 30
   - Weekly, every 7 days from day 37 through day 177
@@ -234,6 +237,12 @@ export async function generateClaudeForecast(
 
   const generatedAt = new Date().toISOString();
 
+  // The real last close per symbol — the same number the prompt told the model
+  // to use as currentPrice, kept here as the safety net in case it ignored it.
+  const marketPriceBySymbol = new Map<string, number | undefined>(
+    targets.map((t) => [t.symbol.toUpperCase(), lastKnownPrice(marketData, t.id)]),
+  );
+
   const projections = parsed.projections
     .map((p): ProjectionData | null => {
       const bull = snapScenarioToGrid(p.bull);
@@ -242,20 +251,23 @@ export async function generateClaudeForecast(
 
       if (!bull || !base || !bear) return null;
 
-      return {
-        coin: p.coin,
-        bull,
-        base,
-        bear,
-        currentPrice: p.currentPrice,
-        generatedAt,
-        confidence: p.confidence,
-        scenarioProbabilities: normalizeProbabilities(p.scenarioProbabilities),
-        reasoning: p.reasoning,
-        service: 'claude' as const,
-        model,
-        schemaVersion: PROJECTION_SCHEMA_VERSION,
-      };
+      return rebaseToMarketPrice<ProjectionData>(
+        {
+          coin: p.coin,
+          bull,
+          base,
+          bear,
+          currentPrice: p.currentPrice,
+          generatedAt,
+          confidence: p.confidence,
+          scenarioProbabilities: normalizeProbabilities(p.scenarioProbabilities),
+          reasoning: p.reasoning,
+          service: 'claude' as const,
+          model,
+          schemaVersion: PROJECTION_SCHEMA_VERSION,
+        },
+        marketPriceBySymbol.get(p.coin.toUpperCase()),
+      );
     })
     .filter((x): x is ProjectionData => x !== null);
 

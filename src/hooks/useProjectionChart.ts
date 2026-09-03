@@ -46,6 +46,15 @@ export interface UseProjectionChartParams {
   scenarioOverride?: ScenarioOverride | null;
 }
 
+/**
+ * Why the bull/base/bear scenario lines are not on the chart, or `null` when
+ * they are (or when the chart is still loading). `no-forecast`: no projection
+ * exists for this coin yet. `anchor-drift`: a projection exists, but the price
+ * it was generated around is more than 2x away from the live price, so
+ * anchoring it would be meaningless — it is dropped rather than drawn wrong.
+ */
+export type ForecastUnavailableReason = 'no-forecast' | 'anchor-drift' | null;
+
 /** Interpolated end-of-`fcastRange` price for each forecast scenario. `undefined`
  * fields mean no sane-anchored forecast is available to derive a badge from. */
 export interface ForecastBadges {
@@ -76,6 +85,12 @@ export interface UseProjectionChartResult {
   histChange: HistChange;
   /** Interpolated end-of-`fcastRange` prices for the bull/base/bear scenario badges. */
   badges: ForecastBadges;
+  /** Set when the scenario lines are absent, so the UI can say why instead of
+   * silently rendering a history-only chart with em-dash badges. */
+  forecastUnavailable: ForecastUnavailableReason;
+  /** The price the active projection was generated around — shown alongside
+   * `forecastUnavailable === 'anchor-drift'` to make the gap concrete. */
+  forecastAnchorPrice: number | undefined;
   /** True when the live price and/or historical price SWR requests most
    * recently failed but stale data is still being shown (`keepPreviousData`). */
   isStale: boolean;
@@ -212,6 +227,15 @@ export function useProjectionChart({
     };
   }, [scenarios, fcastRange]);
 
+  const forecastUnavailable: ForecastUnavailableReason =
+    livePrice === undefined || !projections
+      ? null
+      : projection === null
+        ? 'no-forecast'
+        : useForecast
+          ? null
+          : 'anchor-drift';
+
   return {
     rows,
     yDomain,
@@ -220,6 +244,8 @@ export function useProjectionChart({
     todayMs,
     histChange,
     badges,
+    forecastUnavailable,
+    forecastAnchorPrice: projection?.currentPrice,
     isStale,
     lastUpdatedAt,
     retry,

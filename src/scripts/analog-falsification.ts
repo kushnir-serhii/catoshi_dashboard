@@ -63,6 +63,7 @@ import {
   DAY_MS,
   K,
   runTest,
+  signedEtfStreakDays,
   zScoreColumns,
   powerAnalysis,
   type TestResult,
@@ -301,7 +302,11 @@ function buildStateVec(tf: Record<Timeframe, TfValues>, fearGreed: number): numb
     0, // long_short_ratio: ln(1) / 1.5
     0.5, // liq_24h_short_share
     fearGreed / 100,
-    0, // etf_streak_days
+    // dim 16 — SIGNED ETF streak: sign(etf_net_flow_usd) · etf_streak_days, then
+    // /10 into −1..1. `etf_streak_days` is unsigned in the store, so the sign is
+    // recombined here via `signedEtfStreakDays` (decisions.md §8 defect 1).
+    // No historical ETF-flow series to backfill: stays at the neutral default.
+    clamp(nz(signedEtfStreakDays(null, null), 0) / 10, -1, 1),
   ];
 }
 

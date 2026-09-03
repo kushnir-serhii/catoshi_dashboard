@@ -1,0 +1,160 @@
+name: Market history backfill
+
+# Runs src/scripts/backfill.ts (spec 013, Slice 4/5) on a GitHub Actions
+# runner. This is spec 018, Slice 1.
+#
+# WHY THIS WORKFLOW EXISTS — network reach. The backfill needs Binance
+# (fapi.binance.com) and Neon at the same time. Measured 03.09.2026 from
+# both execution environments available to a coding agent on this project:
+#
+#   fapi.binance.com:443          connect rejected (egress policy)
+#   ep-…-pooler…neon.tech:5432    name resolution / connect blocked
+#   api.github.com:443            200 OK
+#
+# The only machine that can already reach both is a GitHub Actions runner —
+# its egress is unrestricted and the repo already writes to the same Neon
+# instance hourly from collect.yml. So this run is operator-only not by
+# preference but because no local agent environment can perform it. An
+# operator (or an agent with `gh` access) dispatches it from the Actions
+# tab and reads the coverage report from the job summary — no local
+# checkout, no local .env.local, no database client.
+#
+# workflow_dispatch ONLY. No schedule — every run here is a human decision
+# (functional-spec §3, Out-of-Scope: "Scheduling").
+#
+# Required repository secret (Settings -> Secrets and variables -> Actions):
+#   DATABASE_URL — the Neon POOLED connection string. The backfill issues
+#     normal chunked DML through upsertSnapshots (not DDL), so the
+#     transaction-mode pooler is correct here — unlike backup.yml, which
+#     needs the unpooled string for pg_dump's long catalog session. A dry
+#     run touches no database, but the secret is supplied unconditionally
+#     (simpler than branching) and is never printed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      asset:
+        description: 'Asset to back-fill (ALL runs BTC, ETH, SOL sequentially)'
+        type: choice
+        options:
+          - BTC
+          - ETH
+          - SOL
+          - ALL
+        default: BTC
+      from:
+        description: 'Start date YYYY-MM-DD (empty = the asset BACKFILL_START default)'
+        type: string
+        default: ''
+      to:
+        description: 'End date YYYY-MM-DD (empty = script default = yesterday UTC)'
+        type: string
+        default: ''
+      dry_run:
+        description: 'Assemble and report only — write nothing'
+        type: boolean
+        default: true
+
+concurrency:
+  group: catoshi-db-write
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Turn the single `asset` input into a JSON array the run job consumes via
+  # fromJSON() in its strategy.matrix: [asset] normally, or the three assets
+  # when asset == 'ALL'.
+  matrix-prep:
+    runs-on: ubuntu-latest
+    outputs:
+      assets: ${{ steps.build.outputs.assets }}
+    steps:
+      - name: Build asset matrix
+        id: build
+        run: |
+          if [ "${{ inputs.asset }}" = "ALL" ]; then
+            echo 'assets=["BTC","ETH","SOL"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "assets=[\"${{ inputs.asset }}\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+  backfill:
+    needs: matrix-prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      # One asset's full 15m history is held in RAM (spec 013
+      # technical-considerations §2.4 — three assets at once is ~900k
+      # candles). NEVER run assets concurrently: max-parallel is 1 on
+      # purpose, do not "optimise" it away. fail-fast off so one asset
+      # failing does not abandon the others.
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        asset: ${{ fromJSON(needs.matrix-prep.outputs.assets) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run backfill
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -o pipefail
+
+          ARGS="--asset ${{ matrix.asset }}"
+
+          FROM_IN="${{ inputs.from }}"
+          TO_IN="${{ inputs.to }}"
+          # Append --from / --to ONLY when the box was filled. An empty box
+          # means "use the script's default", never --from ''.
+          if [ -n "$FROM_IN" ]; then
+            ARGS="$ARGS --from $FROM_IN"
+          fi
+          if [ -n "$TO_IN" ]; then
+            ARGS="$ARGS --to $TO_IN"
+          fi
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+            echo ">>> DRY RUN — asset=${{ matrix.asset }} from=${FROM_IN:-default} to=${TO_IN:-default}"
+          else
+            echo ">>> WRITING RUN — asset=${{ matrix.asset }} from=${FROM_IN:-default} to=${TO_IN:-default}"
+          fi
+
+          npm run backfill:ci -- $ARGS 2>&1 | tee "backfill-${{ matrix.asset }}.log"
+
+      - name: Append coverage report to job summary
+        if: always()
+        run: |
+          LOG="backfill-${{ matrix.asset }}.log"
+          {
+            echo "## Coverage report — ${{ matrix.asset }}"
+            echo ''
+            echo '```'
+            if [ -f "$LOG" ]; then
+              sed -n '/=== coverage report/,$p' "$LOG"
+            else
+              echo "(no log file — the run step did not produce backfill-${{ matrix.asset }}.log)"
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload full log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backfill-${{ matrix.asset }}-${{ github.run_id }}
+          path: backfill-${{ matrix.asset }}.log
+          retention-days: 90

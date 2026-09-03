@@ -1,0 +1,204 @@
+name: Verify backfill marker integrity
+
+# Spec 018, Slice 2. After a market-history backfill run (backfill.yml), the
+# three marker-integrity checks from spec 013's tasks.md must be run against
+# the live database. Until now those checks were a sentence asking a human to
+# open psql. This workflow makes them a job: marker integrity is verified by
+# the same system that wrote the rows, the result lands in the run summary as
+# PASS/FAIL per check, and a failure is a red run — not a green run with a
+# warning buried in the log.
+#
+# The three checks (technical-considerations.md §2.4):
+#   1. marker row count      — COUNT(*) of rows carrying the backfill marker
+#                              equals the total the backfill run reported
+#                              (supplied as the expected_marker_rows input, so
+#                              the check compares against what the backfill
+#                              actually reported rather than against itself).
+#   2. no mixed history      — zero rows carry the marker together with a
+#                              non-null funding_rate (measured + inferred
+#                              history must never be mixed — the exact failure
+#                              spec 013 exists to prevent).
+#   3. live-row precedence   — back-filling a (ts, asset_id) that already holds
+#                              a live row leaves the live values intact. Run
+#                              entirely against a synthetic sentinel asset at a
+#                              sentinel timestamp far outside any real data,
+#                              inside a single transaction that is ROLLED BACK.
+#                              It never touches a real asset or a real row.
+#
+# workflow_dispatch ONLY — running this is a human decision after a backfill.
+#
+# Required repository secret (Settings -> Secrets and variables -> Actions):
+#   DATABASE_URL_UNPOOLED — the Neon direct/unpooled connection string. Already
+#     present: backup.yml uses it weekly. A single psql session has no
+#     concurrency to pool, and the unpooled endpoint is the right target for a
+#     one-off maintenance session.
+#
+# Secret hygiene: psql quotes the connection string in some error paths, which
+# would leak it into the log and the job summary. So this workflow never hands
+# a URL to psql. A parse step reads DATABASE_URL_UNPOOLED, splits it into
+# discrete PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE via new URL(...)
+# in node, and writes them to $GITHUB_ENV without echoing any part. There is no
+# URL for psql to quote. set -euo pipefail (no set -x) fails loudly without
+# dumping the environment.
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_marker_rows:
+        description: 'Total marker rows the backfill run reported (check 1 compares against this)'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  # SAME group as backfill.yml — a verification run queues behind a backfill
+  # write run (and vice versa) rather than executing beside it. Never cancel.
+  group: catoshi-db-write
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Neon requires TLS.
+      PGSSLMODE: require
+    steps:
+      - name: Install postgresql-client
+        run: |
+          set -euo pipefail
+          sudo apt-get update && sudo apt-get install --yes postgresql-client
+
+      - name: Parse connection parameters into discrete PG* env vars
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+        run: |
+          set -euo pipefail
+          # Parse in node and append the discrete parts to $GITHUB_ENV. Nothing
+          # is echoed — no `echo`, no `cat`, no printing of any component. The
+          # password originates from a secret and stays masked in logs; the
+          # other parts are written straight to $GITHUB_ENV.
+          node -e '
+            const fs = require("fs");
+            const raw = process.env.DATABASE_URL_UNPOOLED;
+            if (!raw) { console.error("DATABASE_URL_UNPOOLED is not set"); process.exit(1); }
+            const u = new URL(raw);
+            const out = [
+              ["PGHOST", u.hostname],
+              ["PGPORT", u.port || "5432"],
+              ["PGUSER", decodeURIComponent(u.username)],
+              ["PGPASSWORD", decodeURIComponent(u.password)],
+              ["PGDATABASE", u.pathname.replace(/^\//, "")],
+            ];
+            for (const [k, v] of out) {
+              if (!v) { console.error(k + " could not be parsed from the connection string"); process.exit(1); }
+            }
+            fs.appendFileSync(process.env.GITHUB_ENV, out.map(([k, v]) => k + "=" + v).join("\n") + "\n");
+          '
+
+      - name: Run the three marker-integrity checks
+        env:
+          EXPECTED_MARKER_ROWS: ${{ inputs.expected_marker_rows }}
+        run: |
+          set -euo pipefail
+
+          # Scalar capture: unaligned, tuples only, quiet, stop on first error.
+          PSQL=(psql --no-align --tuples-only --quiet -v ON_ERROR_STOP=1)
+
+          {
+            echo "## Backfill marker-integrity checks"
+            echo ""
+            echo "| Check | Expected | Actual | Result |"
+            echo "| --- | --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+
+          # --- Check 1 — marker row count --------------------------------------
+          expected1="$EXPECTED_MARKER_ROWS"
+          actual1=$("${PSQL[@]}" -c \
+            "SELECT COUNT(*) FROM snapshots WHERE COALESCE((raw->>'backfill')::boolean, false)" \
+            | tr -d '[:space:]')
+          if [ "$actual1" = "$expected1" ]; then r1=PASS; else r1=FAIL; failed=1; fi
+          echo "| marker row count | $expected1 | $actual1 | $r1 |" >> "$GITHUB_STEP_SUMMARY"
+
+          # --- Check 2 — no mixed history ------------------------------------
+          actual2=$("${PSQL[@]}" -c \
+            "SELECT COUNT(*) FROM snapshots WHERE COALESCE((raw->>'backfill')::boolean, false) AND funding_rate IS NOT NULL" \
+            | tr -d '[:space:]')
+          if [ "$actual2" = "0" ]; then r2=PASS; else r2=FAIL; failed=1; fi
+          echo "| no mixed history | 0 | $actual2 | $r2 |" >> "$GITHUB_STEP_SUMMARY"
+
+          # --- Check 3 — live-row precedence --------------------------------
+          # Everything below runs inside ONE transaction that is ROLLED BACK.
+          # A synthetic sentinel asset (a symbol that cannot collide with a
+          # real one) is created in the same rolled-back tx because
+          # snapshots.asset_id is a NOT NULL FK to assets.id, and assets.id is
+          # `generated always as identity` so it cannot be a fixed literal. The
+          # sentinel snapshot sits at 1970-01-02T00:00:00Z, decades outside any
+          # real data. A "live" row (no backfill marker, price 123456.789) is
+          # inserted, then the SAME upsert/ON CONFLICT path used by
+          # upsertSnapshots (src/lib/db/analytics.ts) is run against the same
+          # (asset_id, ts) with backfill-style NULLs, raw.backfill = 'true', and
+          # a different price (999999.999). The conflict predicate
+          #   WHERE COALESCE((snapshots.raw->>'backfill')::boolean, false) = true
+          # must leave the live row untouched. We assert the surviving price is
+          # still the live value, then ROLLBACK — the rollback is the cleanup,
+          # not a DELETE.
+          set +e
+          verdict3=$("${PSQL[@]}" <<'SQL' | grep -E '^(PASS|FAIL)$' | head -n1
+          BEGIN;
+
+          INSERT INTO assets (symbol, name, binance_pair, coingecko_id)
+          VALUES ('__VERIFY_SENTINEL__', '__VERIFY_SENTINEL__', '__VERIFY_SENTINEL__', '__verify_sentinel__')
+          RETURNING id AS sentinel_asset_id \gset
+
+          -- The "live" row: no backfill marker.
+          INSERT INTO snapshots (asset_id, ts, price, raw)
+          VALUES (:sentinel_asset_id, TIMESTAMPTZ '1970-01-02 00:00:00+00', 123456.789,
+                  jsonb_build_object('note', 'verify-backfill live sentinel'));
+
+          -- The backfill upsert: same conflict target, marker set, backfill-style
+          -- NULLs. This mirrors upsertSnapshots' ON CONFLICT ... DO UPDATE SET
+          -- ... WHERE coalesce((snapshots.raw->>'backfill')::boolean, false) = true
+          INSERT INTO snapshots (asset_id, ts, price, funding_rate, raw)
+          VALUES (:sentinel_asset_id, TIMESTAMPTZ '1970-01-02 00:00:00+00', 999999.999, NULL,
+                  jsonb_build_object('backfill', 'true'))
+          ON CONFLICT (asset_id, ts) DO UPDATE SET
+            price = excluded.price,
+            funding_rate = excluded.funding_rate,
+            raw = excluded.raw
+          WHERE COALESCE((snapshots.raw->>'backfill')::boolean, false) = true;
+
+          -- Did the live price survive?
+          SELECT CASE WHEN price = 123456.789 THEN 'PASS' ELSE 'FAIL' END
+          FROM snapshots
+          WHERE asset_id = :sentinel_asset_id
+            AND ts = TIMESTAMPTZ '1970-01-02 00:00:00+00';
+
+          ROLLBACK;
+          SQL
+          )
+          psql_status=$?
+          set -e
+
+          if [ "$psql_status" -ne 0 ] || [ -z "$verdict3" ]; then
+            r3=FAIL
+            verdict3="(check did not complete)"
+            failed=1
+          elif [ "$verdict3" = "PASS" ]; then
+            r3=PASS
+          else
+            r3=FAIL
+            failed=1
+          fi
+          echo "| live-row precedence | live price retained | $verdict3 | $r3 |" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$failed" -ne 0 ]; then
+            echo "**One or more checks FAILED.**" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "**All three checks passed.**" >> "$GITHUB_STEP_SUMMARY"

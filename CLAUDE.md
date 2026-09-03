@@ -54,6 +54,18 @@ All external API calls must go through Route Handlers — never call third-party
 - Claude models (via `@anthropic-ai/sdk`): `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-8`
 - OpenAI models: `gpt-4o-mini`, `gpt-4o`
 
+Both providers build their prompt from `src/lib/forecast/priceContext.ts` (prompt version 2):
+`buildPriceContext` puts the real 90-day price context — current price, 7/30/90-day change,
+90-day range and the most recent daily closes — into the prompt, and `PRICE_ANCHOR_INSTRUCTION`
+requires `currentPrice` to be exactly that quoted price. Before this, the prompt carried only the
+*number* of history points, so the model invented a price level from training data; the chart then
+refused to anchor it (`isAnchorRatioSane`, ratio must stay inside 0.5–2x) and the bull/base/bear
+lines silently vanished. `rebaseToMarketPrice` is the safety net: a projection still returned on the
+wrong price scale is rescaled onto the real last close, preserving the scenario shape. Tests:
+`src/scripts/price-context.test.ts` (`npx tsx`). The UI no longer fails silently either —
+`useProjectionChart` returns `forecastUnavailable` (`no-forecast` | `anchor-drift`) and `ChartPanel`
+shows a banner with a Reforecast button instead of three em-dash badges.
+
 Market-state signals are **not** LLM-generated — they come from the deterministic rule
 layer in `src/lib/signals/` over the snapshot store (spec 014). News signals **are**
 LLM-classified: `src/lib/news/classify.ts` is a second structured tool-use consumer of

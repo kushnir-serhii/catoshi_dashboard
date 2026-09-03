@@ -4,7 +4,7 @@ Everything an agent needs to finish this project is in this folder. It is writte
 **English only**. Where any other document anywhere disagrees with this folder — a
 Claude Project doc, a chat transcript, a comment in code — **this folder wins**.
 
-Last reconciled: **02.09.2026**.
+Last reconciled: **03.09.2026**.
 
 ---
 
@@ -69,6 +69,7 @@ different shape.
 | 015 | News Impact Classification | **In progress** — pipeline shipped (ingest/classify/publish in `/api/collect`, `kind='news'` signals, `?scope=` filter, Signals-page news cards); twenty-item prompt calibration read + real-run cost verification (Slice 7) pending first run against a deployed collector |
 | 016 | Forecasting-Core Scope Trim | Shipped |
 | 017 | Collection Reliability & Deployment | **In progress** — observability shipped (`/api/health`, `public.collector_status`, `src/lib/freshness.ts`, `docs/runbook.md`); pipeline-run verification, restore drill and deployment audit pending operator |
+| 018 | Operator Workflows on GitHub Actions | **In progress** — three `workflow_dispatch` workflows shipped (`.github/workflows/backfill.yml`, `verify-backfill.yml`, `analog-gate.yml`), each writing its headline result to the job summary, plus runbook §8 documenting them; the pending backfill / marker-integrity / Gate runs (Slice 4) are dispatched by an operator or an agent with `gh` access. Exists because no agent execution environment can reach Binance, the Fear & Greed API or Neon (`decisions.md` §10) |
 
 There is no spec 004-vs-005 ambiguity to resolve and no gap to fill: numbers are never
 reused, and a reserved number that never got a spec does not exist as work.

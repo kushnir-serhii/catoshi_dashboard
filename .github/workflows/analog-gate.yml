@@ -1,0 +1,123 @@
+name: Analog falsification Gate
+
+# Runs src/scripts/analog-falsification.ts (spec 012, Slice 0 — the Gate) on a
+# GitHub Actions runner. This is spec 018, Slice 3.
+#
+# WHY THIS WORKFLOW EXISTS — network reach. The Gate script pulls historical
+# candles straight from Binance (data-api.binance.vision, api*.binance.com).
+# Measured 03.09.2026 from both execution environments available to a coding
+# agent on this project:
+#
+#   data-api.binance.vision:443   connect rejected (egress policy)
+#   api.binance.com:443           connect rejected (egress policy)
+#   api.github.com:443            200 OK
+#
+# The only machine that can already reach Binance is a GitHub Actions runner.
+# So this run is operator-only not by preference but because no local agent
+# environment can perform it.
+#
+# NO DATABASE SECRET. The script never opens a database connection — it reads
+# public candles and writes results to .cache/analogs/ only. It must not be
+# handed a credential it cannot use (functional-spec §2.4). Do not add
+# DATABASE_URL, DATABASE_URL_UNPOOLED, or any other secret to this file.
+#
+# This run's uploaded artifact (.cache/analogs/out/) is the evidence behind
+# the decision on whether spec 012 gets built at all. It is retained far
+# longer than the log on purpose.
+#
+# workflow_dispatch ONLY. No schedule — every run here is a human decision
+# (functional-spec §3, Out-of-Scope: "Scheduling").
+
+on:
+  workflow_dispatch:
+    inputs:
+      assets:
+        description: 'Comma-separated asset list'
+        type: string
+        default: 'BTC,ETH,SOL'
+      perms:
+        description: 'Permutation count for the null distribution'
+        type: string
+        default: '1000'
+
+permissions:
+  contents: read
+
+# No `concurrency` group. This workflow writes nothing shared — no database,
+# no repository commit — so the `catoshi-db-write` group that guards
+# backfill.yml / verify-backfill.yml does not apply here.
+
+jobs:
+  analog-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The script caches downloaded candles under .cache/analogs/ so a
+      # re-run does not re-fetch Binance history. First run 5-10 minutes;
+      # re-runs are minutes. The cache holds public candles only — nothing
+      # sensitive. Keyed on the script sources + the asset list so a code
+      # change or a different asset set misses cleanly; `analogs-` restores
+      # a previous run's candles even on a key miss.
+      - name: Cache analog candles
+        uses: actions/cache@v4
+        with:
+          path: .cache/analogs/
+          key: analogs-${{ hashFiles('src/scripts/analog-falsification.ts', 'src/scripts/analog-core.ts') }}-${{ inputs.assets }}
+          restore-keys: |
+            analogs-
+
+      - name: Run the Gate
+        run: |
+          set -o pipefail
+          echo ">>> ANALOG GATE — assets=${{ inputs.assets }} perms=${{ inputs.perms }}"
+          npm run analog-gate -- --assets "${{ inputs.assets }}" --perms "${{ inputs.perms }}" 2>&1 | tee analog-gate.log
+
+      - name: Append verdict and power curves to job summary
+        if: always()
+        run: |
+          {
+            echo "## Analog Gate verdict"
+            echo ''
+            echo 'The script output is in Ukrainian. The verdict section begins at the'
+            echo '`=== ВЕРДИКТ ===` header; each `--- <asset> ---` block contains a'
+            echo '`потужність (підсаджений сигнал відомої сили):` line — the detection-rate'
+            echo 'power curve for that asset. Both are reproduced below so that "found'
+            echo 'nothing" (a real null result) and "could not have found anything" (no'
+            echo 'statistical power) stay distinguishable.'
+            echo ''
+            echo '```'
+            if [ -f analog-gate.log ]; then
+              cat analog-gate.log
+            else
+              echo "(no log file — the run step did not produce analog-gate.log)"
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results JSON (long retention — outlives the log)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analog-test-results-${{ github.run_id }}
+          path: .cache/analogs/out/
+          retention-days: 400
+
+      - name: Upload full log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analog-gate-log-${{ github.run_id }}
+          path: analog-gate.log
+          retention-days: 90

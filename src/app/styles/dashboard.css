@@ -72,6 +72,17 @@
   gap: 14px;
   width: 100%;
   min-width: 0;
+  padding: 0 28px 40px;
+}
+@media (max-width: 768px) {
+  .prowl .page-content {
+    padding: 0 16px 32px;
+  }
+}
+@media (max-width: 480px) {
+  .prowl .page-content {
+    padding: 0 12px 28px;
+  }
 }
 
 /* Top bar */
@@ -378,6 +389,9 @@
   font-size: 12px;
   font-weight: 500;
   color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .prowl .forecast-mode-indicator__chevron {
   color: var(--text-3);
@@ -445,6 +459,54 @@
 }
 
 /* Chart card */
+/* Chart card header — two stacked rows (coin + model, then legend + ranges)
+   instead of the single squeezed strip the generic .card-header produces. */
+.prowl .card-header.chart-card-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.prowl .chart-head-row,
+.prowl .chart-legend-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+.prowl .chart-head-row > .chart-head-coin,
+.prowl .chart-legend-row > .legend {
+  margin-right: auto;
+}
+.prowl .chart-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.prowl .chart-range-target {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.prowl .chart-range-target:hover {
+  color: var(--text);
+  border-color: var(--line-2);
+}
+.prowl .chart-range-target:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
 .prowl .chart-tabs {
   display: flex;
   gap: 4px;
@@ -1617,7 +1679,7 @@
     margin-bottom: 10px;
   }
 
-  /* Chart card header: coin select gets its own full-width row */
+  /* Chart card header: every control gets its own full-width row */
   .prowl .chart-head-coin {
     margin-left: 0 !important;
     flex-basis: 100%;
@@ -1625,6 +1687,28 @@
   .prowl .chart-head-coin .coin-select-trigger {
     width: 100%;
     justify-content: space-between;
+  }
+  .prowl .chart-head-row > .forecast-mode-indicator {
+    width: 100%;
+    border-radius: 10px;
+  }
+  .prowl .chart-head-row > .forecast-mode-indicator .forecast-mode-indicator__chevron {
+    margin-left: auto;
+  }
+  .prowl .chart-legend-row > .legend {
+    flex-basis: 100%;
+    gap: 8px 12px;
+  }
+  .prowl .chart-range {
+    width: 100%;
+  }
+  .prowl .chart-range .chart-tabs {
+    flex: 1;
+    justify-content: space-between;
+  }
+  .prowl .chart-tabs button {
+    flex: 1;
+    text-align: center;
   }
 
   /* KPIs: stay 2×2 but smaller */

@@ -114,6 +114,8 @@ export function ChartPanel({
     livePrice,
     histChange,
     badges,
+    forecastUnavailable,
+    forecastAnchorPrice,
     isLoading: isChartDataLoading,
     isStale: isChartDataStale,
     lastUpdatedAt,
@@ -194,22 +196,18 @@ export function ChartPanel({
   return (
     <>
       <Surface className="card glow-violet area-chart">
-        <div className="card-header">
-          <div className="row chart-head-row" style={{ gap: 14 }}>
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="marker"></span>
-              {coinSymbol} price forecast
+        <div className="card-header chart-card-header">
+          <div className="chart-head-row">
+            <div className="chart-head-coin">
+              <CoinSelect value={selectedCoin} onChange={setSelectedCoin} />
             </div>
             <ForecastModeIndicator
               service={service}
               model={model}
               onOpen={() => setIsSettingsOpen(true)}
             />
-            <div className="chart-head-coin" style={{ marginLeft: 'auto' }}>
-              <CoinSelect value={selectedCoin} onChange={setSelectedCoin} />
-            </div>
           </div>
-          <div className="row chart-legend-row">
+          <div className="chart-legend-row">
             <div className="legend">
               <span>
                 <span className="sw" style={{ background: 'oklch(0.86 0.20 145)' }}></span>Bull case
@@ -233,28 +231,34 @@ export function ChartPanel({
                 </span>
               )}
             </div>
-            <div className="chart-tabs" style={{ alignItems: 'center', gap: 6 }}>
-              {RANGE_OPTIONS.map((r) => {
-                const isActive = rangeTarget === 'history' ? histRange === r : fcastRange === r;
-                return (
-                  <button
-                    key={r}
-                    className={isActive ? 'active' : ''}
-                    onClick={() => (rangeTarget === 'history' ? setHistRange(r) : setFcastRange(r))}
-                  >
-                    {r}
-                  </button>
-                );
-              })}
+            <div className="chart-range">
               <button
-                className="btn-primary"
+                type="button"
+                className="chart-range-target"
                 onClick={() => setRangeTarget((t) => (t === 'history' ? 'forecast' : 'history'))}
-                aria-label={`Range target: ${rangeTarget}. Click to switch to ${rangeTarget === 'history' ? 'forecast' : 'history'}.`}
+                aria-label={`Range applies to ${rangeTarget}. Click to switch to ${rangeTarget === 'history' ? 'forecast' : 'history'}.`}
                 title="Toggle whether the range buttons apply to the history or forecast range"
-                style={{ padding: '4px 10px', fontSize: 10, marginLeft: 4 }}
               >
-                {rangeTarget === 'history' ? 'History ▾' : 'Forecast ▾'}
+                {rangeTarget === 'history' ? 'History' : 'Forecast'}{' '}
+                <span aria-hidden="true">▾</span>
               </button>
+              <div className="chart-tabs">
+                {RANGE_OPTIONS.map((r) => {
+                  const isActive = rangeTarget === 'history' ? histRange === r : fcastRange === r;
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      className={isActive ? 'active' : ''}
+                      onClick={() =>
+                        rangeTarget === 'history' ? setHistRange(r) : setFcastRange(r)
+                      }
+                    >
+                      {r}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -385,6 +389,45 @@ export function ChartPanel({
             </button>
           </div>
         </div>
+        {forecastUnavailable !== null && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'oklch(0.78 0.22 295 / 0.12)',
+              border: '1px solid oklch(0.78 0.22 295 / 0.35)',
+              color: 'oklch(0.85 0.12 295)',
+              fontSize: 12,
+              marginBottom: 10,
+            }}
+          >
+            <span>
+              {forecastUnavailable === 'no-forecast'
+                ? `No AI forecast for ${coinSymbol} yet — the bull/base/bear lines appear once one is generated.`
+                : `Forecast hidden: it was generated around ${
+                    forecastAnchorPrice !== undefined
+                      ? formatPrice(forecastAnchorPrice)
+                      : 'an unknown price'
+                  }, too far from the live price to anchor. Reforecast to redraw the scenario lines.`}
+            </span>
+            <button
+              className="btn-ghost"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              style={{
+                marginLeft: 'auto',
+                padding: '2px 10px',
+                fontSize: 11,
+                opacity: isRefreshing ? 0.6 : 1,
+              }}
+            >
+              {isRefreshing ? 'Reforecasting…' : 'Reforecast'}
+            </button>
+          </div>
+        )}
         {isChartDataStale && (
           <div
             style={{

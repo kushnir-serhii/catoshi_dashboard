@@ -20,7 +20,7 @@ If they disagree about *when*, this file wins.
    **same commit** as the slice.
 6. A **GATE** means stop. Do not build past it without a recorded verdict.
 
-Total remaining: **7 stages**, of which one is gated on evidence and one is optional.
+Total remaining: **8 stages**, of which one is gated on evidence and one is optional.
 
 ---
 
@@ -36,10 +36,12 @@ Stage 3  News signals ────────────┤         (needs a r
 Stage 4  Backfill (daily) ────────┤         (independent of 3; can run in parallel)
                                   │
 Stage 5  Scoring ─────────────────┤         (needs 2; better with 4)
+                                  │
+Stage 6  Operator workflows ══════╡         (spec 018 — the Gate below cannot run without it)
                                   ↓
-Stage 6  Analogs ═══ GATE ═══     (needs 4 and 5, plus a passing falsification test)
+Stage 7  Analogs ═══ GATE ═══     (needs 4, 5 and 6, plus a passing falsification test)
                                   ↓
-Stage 7  Ticker (optional) ───────┘         (nothing depends on it)
+Stage 8  Ticker (optional) ───────┘         (nothing depends on it)
 ```
 
 ---
@@ -153,7 +155,7 @@ is being written correctly.
       requirement 2.5 — verify it is honoured once both exist).
 - [ ] Row counts per asset recorded, **and the effective sample size after neighbour exclusion
       measured** — not just the row count. Every argument about resolution turns on that
-      number and nobody has measured it yet. Stage 6's gate needs it.
+      number and nobody has measured it yet. Stage 7's gate needs it.
 
 ---
 
@@ -190,7 +192,36 @@ correct behaviour, not a bug.
 
 ---
 
-## Stage 6 — Historical analogs ═══ GATE ═══
+## Stage 6 — Operator workflows on GitHub Actions
+
+**Spec:** 018 (all slices)
+**Why here:** the Gate in Stage 7 — plus spec 013 Slice 5's full backfill run and its
+marker-integrity check — cannot run in any agent execution environment. Measured 03.09.2026:
+neither environment can reach `fapi.binance.com`, `api.alternative.me` or the Neon endpoint;
+a GitHub Actions runner reaches all three (`decisions.md` §10). This stage puts those
+network-bound runs behind `workflow_dispatch` workflows so the Gate is actually runnable.
+
+**Entry criteria:** Stage 4 complete (there is back-filled history to verify) and Stage 5 in
+place. The `DATABASE_URL` repository secret exists (pooled Neon string); `DATABASE_URL_UNPOOLED`
+is already present from `backup.yml`.
+
+**Work:** spec 018 slices 1–5. Slices 1–3 and 5 ship the three workflows and the runbook
+section; Slice 4 is an operator (or an agent with `gh` access) dispatching the pending runs
+and recording their results back into specs 013 and 012.
+
+**Exit criteria:**
+
+- [ ] `.github/workflows/backfill.yml`, `verify-backfill.yml` and `analog-gate.yml` exist,
+      `workflow_dispatch` only, each writing its headline result to the job summary and
+      retaining a full log/results artifact.
+- [ ] The full BTC/ETH/SOL backfill has run (spec 013 Slice 5) and marker integrity is
+      verified PASS against the live database.
+- [ ] `docs/runbook.md` §8 names all three workflows: what each is for, what to pass, how to
+      read the summary, what to do when one goes red.
+
+---
+
+## Stage 7 — Historical analogs ═══ GATE ═══
 
 **Spec:** 012 — read its §0 before anything else.
 
@@ -198,6 +229,8 @@ correct behaviour, not a bug.
 
 - [ ] Stage 4 complete (backfill in place at daily resolution, with the effective sample size
       after exclusion measured).
+- [ ] Stage 6 complete — `analog-gate.yml` exists and can be dispatched by anyone with
+      repository access.
 - [ ] `decisions.md` §8 defect 1 fixed: `etf_streak_days` sign. Building any vector before
       this bakes a sign the data does not carry into every stored row.
 
@@ -209,7 +242,7 @@ in `spec/012-historical-analogs/functional-spec.md` §0.
 | Verdict | Action |
 |---|---|
 | **1** — signal in dispersion, none in direction | Build, as a source of **range and base rates only**. No directional claim anywhere |
-| **2** — nothing found, power adequate | **Stop.** Close 012 as rejected in `README.md` §3 and the roadmap. The project is then done after Stage 7 |
+| **2** — nothing found, power adequate | **Stop.** Close 012 as rejected in `README.md` §3 and the roadmap. The project is then done after Stage 8 |
 | **3** — nothing found, test blind to an injected signal | **Stop.** Only here does finer backfill resolution become worth buying, and then **4-hourly first**, not hourly (`decisions.md` §7.1). Record the exits considered — fewer dimensions, finer resolution, or both. Each is a new gate |
 
 **Exit criteria (Verdict 1 only):** spec 012 slices 1–6 complete, every guard tested such that
@@ -218,7 +251,7 @@ the test fails when the guard is removed, and the prompt injection carried out b
 
 ---
 
-## Stage 7 — Real-time ticker (optional)
+## Stage 8 — Real-time ticker (optional)
 
 **Spec:** 007 (all slices)
 **Why last:** nothing depends on it. It is polish.

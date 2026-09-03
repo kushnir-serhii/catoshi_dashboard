@@ -1,6 +1,7 @@
 'use client';
 
 import { Surface } from '@heroui/react';
+import Link from 'next/link';
 import type { Signal } from '@/data/types';
 
 interface SignalsPanelProps {
@@ -12,7 +13,7 @@ export function SignalsPanel({ items }: SignalsPanelProps) {
     <Surface className="card area-signals padless" style={{ background: 'transparent', border: 0, padding: 0 }}>
       <div className="card-header" style={{ padding: '0 4px' }}>
         <div className="card-title"><span className="marker green"></span>Signals · last 24h</div>
-        <button className="btn-ghost">All signals →</button>
+        <Link href="/signals" className="btn-ghost">All signals →</Link>
       </div>
       <div className="signals">
         {items.map((s, i) => (

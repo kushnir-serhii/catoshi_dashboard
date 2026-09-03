@@ -11,6 +11,36 @@ export const LAPLACE = 1;
 export const DAY_MS = 86_400_000;
 
 // ---------------------------------------------------------------------------
+// Побудова вектора стану: службові
+// ---------------------------------------------------------------------------
+
+/**
+ * Signed ETF-flow streak for the state-vector dimension.
+ *
+ * `snapshots.etf_streak_days` (from `etfFlows.streakDays`) is an UNSIGNED
+ * consecutive-day count — its direction lives in `etf_net_flow_usd`. The
+ * spec-014 `etf_streak` rule reads it exactly that way and is correct. The
+ * state vector, however, needs a *signed* dimension: an inflow streak and an
+ * outflow streak of equal length must sit at opposite ends, not on top of one
+ * another. This is the single place that recombines the two columns
+ * (decisions.md §8 defect 1; spec 012 technical-considerations §2.1 — resolved
+ * in the vector builder, so the migration and the rule are left untouched).
+ *
+ * Returns `null` when the streak or the flow is missing/non-finite, or when the
+ * flow is exactly zero (no direction). The caller substitutes the neutral
+ * default — never a spurious signed value. Magnitude is taken from the count,
+ * sign purely from the flow, so an already-signed input cannot double-apply.
+ */
+export function signedEtfStreakDays(
+  streakDays: number | null | undefined,
+  netFlowUsd: number | null | undefined,
+): number | null {
+  if (streakDays == null || !Number.isFinite(streakDays)) return null;
+  if (netFlowUsd == null || !Number.isFinite(netFlowUsd) || netFlowUsd === 0) return null;
+  return Math.sign(netFlowUsd) * Math.abs(streakDays);
+}
+
+// ---------------------------------------------------------------------------
 // Статистика
 // ---------------------------------------------------------------------------
 

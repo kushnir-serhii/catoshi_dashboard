@@ -253,7 +253,7 @@ in §2's Supabase reversal, repeated.
 
 | # | Defect | Where it bites |
 |---|---|---|
-| 1 | **`etf_streak_days` sign mismatch.** `catoshi-schema.sql` describes it as signed; the collector returns an **unsigned** counter, with direction carried in `etfNetFlowUsd`. The spec-014 rule reads it correctly, but `build_state_vec` computes dimension 16 as `etf_streak_days / 10` mapped into −1..1 — assuming a sign the data does not carry | Spec 012. Must be fixed before any vector is built |
+| 1 | **`etf_streak_days` sign mismatch.** `catoshi-schema.sql` describes it as signed; the collector returns an **unsigned** counter, with direction carried in `etfNetFlowUsd`. The spec-014 rule reads it correctly, but `build_state_vec` computes dimension 16 as `etf_streak_days / 10` mapped into −1..1 — assuming a sign the data does not carry | **Closed 2026-09-03** (spec 012 Slice 0): fixed in the vector builder, not the collector — `signedEtfStreakDays()` in `src/scripts/analog-core.ts` recombines the sign from `etf_net_flow_usd`; the migration and the spec-014 rule are untouched. Test: `src/scripts/analog-vector.test.ts` |
 | 2 | **`SIGNALS_REVALIDATE_SECONDS`** remains in `src/consts/signals.ts` after spec 014 removed `revalidate` from the route. Appears dead | Cleanup, spec 016 |
 | 3 | **Spec-014 rule thresholds are conventions, not evidence.** Chosen by eye | Becomes measurable after spec 011 |
 | 4 | **The analog falsification test has never been run on real data.** `src/scripts/analog-falsification.ts` is written and sitting in the repo | Gate for spec 012 |

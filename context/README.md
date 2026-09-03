@@ -64,7 +64,7 @@ different shape.
 | 010 | Market Snapshot Store | Shipped |
 | 011 | Forecast Scoring + Models Explorer | Specced, **not built** |
 | 012 | Historical Analogs (pgvector) | Specced, **gated** — see its Gate section |
-| 013 | Market History Backfill | Specced, **not built** |
+| 013 | Market History Backfill | **In progress** — code shipped (backfill script, backwards klines / F&G fetch, chunked marker-aware upsert, per-asset coverage report with effective sample size after neighbour exclusion); the full BTC/ETH/SOL backfill run and the post-run marker-integrity SQL check are pending operator |
 | 014 | Signals From Market State | Shipped — 16 rules, 473 tests |
 | 015 | News Impact Classification | **In progress** — pipeline shipped (ingest/classify/publish in `/api/collect`, `kind='news'` signals, `?scope=` filter, Signals-page news cards); twenty-item prompt calibration read + real-run cost verification (Slice 7) pending first run against a deployed collector |
 | 016 | Forecasting-Core Scope Trim | Shipped |

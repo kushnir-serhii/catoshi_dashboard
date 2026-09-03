@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "daily-analysis": "node --env-file=.env.local --import tsx src/scripts/daily-analysis.ts"
+    "daily-analysis": "node --env-file=.env.local --import tsx src/scripts/daily-analysis.ts",
+    "backfill": "node --env-file=.env.local --import tsx src/scripts/backfill.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <mask id="catC_open">
+      <rect width="32" height="32" fill="white" />
+      <path d="M16 16 L34 6 L34 26 Z" fill="black" />
+      <circle cx="16" cy="17" r="4.4" fill="black" />
+    </mask>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="#0d0b16" />
+  <circle cx="16" cy="17" r="10" fill="#a06bff" mask="url(#catC_open)" />
+  <path d="M9 9 L8.2 4 L12.2 7.6 Z" fill="#a06bff" />
+  <path d="M23 9 L23.8 4 L19.8 7.6 Z" fill="#a06bff" />
+</svg>

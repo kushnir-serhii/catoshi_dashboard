@@ -70,6 +70,17 @@ export function newestTimestamp(
 }
 
 /**
+ * Whether the product's one background model call (news classification,
+ * spec 019 Slice 4) is currently paused via `NEWS_CLASSIFY_ENABLED`. Shared so
+ * `/api/health` and the Signals page agree on the same definition rather than
+ * each re-checking the env var inline — the same reasoning as the rest of this
+ * module: one pure source of truth so callers can never disagree.
+ */
+export function isNewsClassificationPaused(): boolean {
+  return process.env.NEWS_CLASSIFY_ENABLED === 'false';
+}
+
+/**
  * Plain-words age for a staleness note, e.g. "3h ago", "45m ago", "2d ago".
  * Returns `null` when there is no usable timestamp.
  */

@@ -229,6 +229,8 @@ not self-healing.
 | `CRON_SECRET`               | Vercel env + GitHub Actions secret  | Shared bearer token authenticating `/api/collect`. Vercel also auto-injects it on its own native cron calls. Compared with `crypto.timingSafeEqual`.     |
 | `COLLECT_ENDPOINT`          | GitHub Actions secret **only**      | Deployed URL `collect.yml` POSTs to, e.g. `https://<host>/api/collect`. The app never reads this — it is the caller's address. Not in `.env`.            |
 | `NEXT_PUBLIC_USE_MOCK_DATA` | Vercel env                          | Must be **`false`** in production. When `true`, routes (`/api/signals`, `/api/projections`, `/api/health`) return synthetic data and never touch the DB. |
+| `ADMIN_SECRET`              | Vercel env                          | Shared secret gating `POST /api/projections/refresh` ("Reforecast", spec 019). Unset → the route always answers 503, never falls open. See §10.          |
+| `NEWS_CLASSIFY_ENABLED`     | Vercel env, `.env.example`          | Default `true`. Set `false` to pause `classifyNews()` (the one unattended model call) while testing alone. Collection, ingest, and publishing of already-classified items are unaffected. See §10. |
 
 Migrations: `node --env-file=.env.local scripts/migrate.mjs` (all pending) or
 `... scripts/migrate.mjs 0007` (one file by prefix). Runs each file in one
@@ -360,3 +362,81 @@ diverges from its peers, which a row-per-source models directly; `/api/health`
 reads it with a plain indexed `select` and no jsonb extraction; and there is no
 existing settings table to hang a jsonb row off. See
 `db/migrations/0007_collector_status.sql`.
+
+---
+
+## 10. Forecast cost control (spec 019)
+
+Spec 019 put a ceiling on how many real AI forecast calls the app can make, and a
+credential on the one action that can force a fresh one. Nothing here changes what
+`GET /api/projections` serves on a normal page load (that still reads the platform
+cache, refreshed on the 6h `FORECAST_TTL_SECONDS` cycle, `src/consts/projections.ts`)
+— it only bounds *how many times a real generation happens*.
+
+### The two environment values
+
+`ADMIN_SECRET` and `NEWS_CLASSIFY_ENABLED` (added to the §6 table above) are the
+only environment-level knobs this spec introduced. A third number matters here too
+but is **not** an environment value — `FORECAST_DAILY_CALL_LIMIT` (currently **20**)
+is a code constant in `src/consts/projections.ts`, changed by editing that file and
+redeploying, not by an env var.
+
+### Unlocking the Reforecast button
+
+`GET /api/admin/unlock?key=<ADMIN_SECRET>` — no page, no form, a URL the operator
+visits once in a browser. On a match it sets the `catoshi_admin` cookie (HttpOnly,
+`SameSite=Lax`, `Secure` in production, 30-day `maxAge`) that `POST
+/api/projections/refresh` later reads, so the operator doesn't have to attach a
+bearer token by hand for every click of "Reforecast". Visiting with an empty or
+missing `key` clears the cookie (`{"status": "cleared"}`). A non-empty `key` that
+doesn't match `ADMIN_SECRET` returns `401 {"status": "unauthorized"}` and never
+touches the cookie; an unset `ADMIN_SECRET` returns `503
+{"status": "unconfigured"}` — same fail-closed shape as the refresh route itself.
+The refresh route also accepts the credential directly as `Authorization: Bearer
+<ADMIN_SECRET>`, for scripted use.
+
+### Counting today's generations
+
+`getDailyForecastGenerationCount` (`src/lib/db/analytics.ts`) is what the refresh
+route checks before making a real call:
+
+```sql
+select count(distinct as_of) as count
+  from public.forecasts
+ where created_at >= date_trunc('day', now() at time zone 'utc');
+```
+
+One AI call generates a whole batch (every target coin in one response) and every
+row from that batch shares the same `as_of` — so `count(distinct as_of)` counts
+*generations*, not rows. That's the number to compare against
+`FORECAST_DAILY_CALL_LIMIT` (20), and against "how many times did I actually open
+the page across 6-hour cache windows, plus how many times I clicked Reforecast" —
+proving the bill matches intent is functional-spec 019 §1's stated success
+criterion. Run the query above directly against the DB to audit a day by hand.
+
+### What each honest UI state means
+
+`POST /api/projections/refresh` never fails silently — `useProjections.ts`'s
+`ForecastRefreshError` / `describeRefreshError` map each non-2xx response to a
+short, specific message instead of a generic failure:
+
+| Status | UI message                    | Cause                                                                                                          |
+| ------ | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 401    | "Operator unlock required"     | No/wrong admin credential (cookie or bearer). Visit the unlock URL above.                                                                                                                                          |
+| 429    | "Daily limit reached (n/N)"    | `FORECAST_DAILY_CALL_LIMIT` (20) already hit for the UTC day. Body carries `{ count, limit }`, which the message quotes directly.                                                                                  |
+| 503    | "Refresh disabled"             | Two distinct causes, both refuse rather than proceed: `ADMIN_SECRET` unset (misconfigured deploy — never falls back to open), **or** the daily-count query itself failed (fail-closed — an unreadable count is never treated as zero). |
+
+Two related honest states live elsewhere but belong in the same "why isn't
+something updating" search:
+
+- **Signals page — "news classification paused."** When `NEWS_CLASSIFY_ENABLED=false`,
+  `SignalsPage.tsx` shows: *"NEWS_CLASSIFY_ENABLED is off — no new headlines are
+  being classified. Already-classified items above are unaffected; ingest and
+  publishing continue."* `/api/health`'s `newsClassificationPaused` field reports
+  the same state — it's informational only and never affects the 200/503 decision,
+  which stays purely about snapshot staleness.
+- **ChartPanel — "Session-only" note.** A coin outside `DEFAULT_FORECAST_TARGETS`
+  (BTC/ETH/SOL) has no `assets` row, so `persistForecasts` silently skips it —
+  the forecast still renders but isn't saved. `ChartPanel.tsx` surfaces this
+  directly: *"Session-only: {coinSymbol} has no stored history, so this forecast
+  isn't saved and won't survive a reload."*

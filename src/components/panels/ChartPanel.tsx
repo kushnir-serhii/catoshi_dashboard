@@ -8,10 +8,11 @@ import { ForecastContextPanel } from '@/components/dashboard/ForecastContextPane
 import { ForecastModeIndicator } from '@/components/dashboard/ForecastModeIndicator';
 import { ForecastSettingsModal } from '@/components/dashboard/ForecastSettingsModal';
 import { CoinSelect } from '@/components/ui/CoinSelect';
-import { RANGE_OPTIONS } from '@/consts/projections';
+import { DEFAULT_FORECAST_TARGETS, RANGE_OPTIONS } from '@/consts/projections';
 import type { CoinListItem, ForecastSnapshot, ProjectionData } from '@/data/types';
 import type { ScenarioOverride } from '@/hooks/useProjectionChart';
 import { useProjectionChart } from '@/hooks/useProjectionChart';
+import { describeRefreshError } from '@/hooks/useProjections';
 import { formatPrice } from '@/lib/projectionSeries';
 
 type ChartRange = (typeof RANGE_OPTIONS)[number];
@@ -131,13 +132,18 @@ export function ChartPanel({
   const [isSavePromptOpen, setIsSavePromptOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [reforecastError, setReforecastError] = useState<string | null>(null);
 
   const coinSymbol = selectedCoin.symbol.toUpperCase();
+  const isOffBatchCoin = !DEFAULT_FORECAST_TARGETS.some((t) => t.symbol === coinSymbol);
 
   async function handleRefresh() {
     setIsRefreshing(true);
+    setReforecastError(null);
     try {
       await onReforecast();
+    } catch (err) {
+      setReforecastError(describeRefreshError(err));
     } finally {
       setIsRefreshing(false);
     }
@@ -389,6 +395,12 @@ export function ChartPanel({
             </button>
           </div>
         </div>
+        {isOffBatchCoin && (
+          <div className="muted small" style={{ marginBottom: 10 }}>
+            Session-only: {coinSymbol} has no stored history, so this forecast isn&apos;t saved and
+            won&apos;t survive a reload.
+          </div>
+        )}
         {forecastUnavailable !== null && (
           <div
             style={{
@@ -426,6 +438,24 @@ export function ChartPanel({
             >
               {isRefreshing ? 'Reforecasting…' : 'Reforecast'}
             </button>
+          </div>
+        )}
+        {reforecastError && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'oklch(0.65 0.18 25 / 0.15)',
+              border: '1px solid oklch(0.65 0.18 25 / 0.35)',
+              color: 'oklch(0.75 0.18 25)',
+              fontSize: 12,
+              marginBottom: 10,
+            }}
+          >
+            <span>{reforecastError}</span>
           </div>
         )}
         {isChartDataStale && (

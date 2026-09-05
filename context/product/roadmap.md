@@ -44,6 +44,12 @@ _Before adding anything, remove everything the product claims but cannot do. Thi
   - [ ] **Prove the Pipeline Runs:** Verify hourly collection actually writes, expose true data freshness on every surface that displays it, and make a stalled pipeline visible rather than silent. _(spec 017 — observability shipped: `/api/health`, `public.collector_status`, freshness note, runbook; pipeline-run verification pending deployment/secrets)_
   - [ ] **Survive Neglect:** Weekly database dump, documented restore, and a scheduler that degrades to daily rather than to silence. _(spec 017 — restore procedure documented in `docs/runbook.md`; restore drill pending operator)_
 
+- [ ] **Cost Control While There Are No Users** _(spec 019 — all four sub-items shipped; setting `ADMIN_SECRET`/`NEWS_CLASSIFY_ENABLED` in Vercel, the unlock-URL visit and the one-day generation-count reconciliation are pending operator)_
+  - [x] **One Forecast Path:** Collapse the duplicated projections and refresh routes into a single validated sequence, so a guard added once applies everywhere. _(spec 019, Slice 1)_
+  - [x] **Generate On Demand, Once Per Window:** Serve projections from the stored forecast until the 6-hour window elapses, surviving redeploys, with no scheduled job ever requesting one. _(spec 019, Slices 1–2)_
+  - [x] **Lock and Cap the Manual Path:** Reforecast requires an operator credential and refuses past a daily generation ceiling, and says which of the two it is. _(spec 019, Slice 3)_
+  - [x] **A Visible Off Switch for Background Classification:** The product's only background model call can be paused, and the paused state is shown as itself — never as healthy, never as broken. _(spec 019, Slice 4)_
+
 ---
 
 ### Phase 4 — Signals That Explain, Not Just Flag

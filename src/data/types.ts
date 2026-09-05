@@ -131,6 +131,14 @@ export interface SignalsResponse {
    * filtered to `expires_at > now()` and to any `?scope=` requested.
    */
   newsSignals?: NewsSignalItem[];
+  /**
+   * True when news classification is deliberately paused via
+   * `NEWS_CLASSIFY_ENABLED=false` (spec 019 Slice 4), per `isNewsClassificationPaused()`
+   * in `src/lib/freshness.ts`. Distinct from `fetchError`/`collectionHealthy`: this
+   * is an expected, intentional pause — not a broken feed — so the Signals page can
+   * tell "paused" apart from "silently producing zero results."
+   */
+  newsClassificationPaused?: boolean;
 }
 
 export interface ForecastPoint {
@@ -177,6 +185,14 @@ export interface ForecastSnapshot {
 export interface ProjectionsResponse {
   projections: ProjectionData[];
   generatedAt: string;
+  /**
+   * The service/model pair that actually produced this forecast — never the raw
+   * requested values (spec 019 AC 2.2). Optional so `/api/projections/refresh`
+   * (out of scope for this task; already reports via its own response fields)
+   * is unaffected — every field-adding caller in this task's scope sets both.
+   */
+  service?: string;
+  model?: string;
 }
 
 /** Token counts for one provider API call, used for analytics cost tracking. */
@@ -357,6 +373,11 @@ export interface SourceStatus {
   source: string;
   ok: boolean;
   error?: string;
+  // A deliberate pause (e.g. NEWS_CLASSIFY_ENABLED=false, spec 019 Slice 4),
+  // distinct from both success (`ok: true` implies real work happened) and
+  // failure (`ok: false` implies something broke). Consumers should render
+  // this as its own state rather than lumping it in with either.
+  disabled?: boolean;
 }
 
 /**

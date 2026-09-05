@@ -199,19 +199,27 @@ async function handleCollect(request: Request): Promise<NextResponse> {
   // capped at `NEWS_CLASSIFY_MAX_PER_RUN` items per run — most collection runs
   // are a cheap no-op here. On any failure it writes nothing (no neutral row,
   // no placeholder) and surfaces `{ source: 'news:classify', ok: false }`. In
-  // mock mode it never calls the model.
-  try {
-    const { sources: classifySources } = await classifyNews();
-    if (classifySources.length > 0) {
-      sourcesBySymbol.news = [...(sourcesBySymbol.news ?? []), ...classifySources];
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[collect] news classification failed:', error);
+  // mock mode it never calls the model. `NEWS_CLASSIFY_ENABLED=false` (spec
+  // 019, Slice 4) skips the call entirely, reporting `disabled: true` instead.
+  if (process.env.NEWS_CLASSIFY_ENABLED === 'false') {
     sourcesBySymbol.news = [
       ...(sourcesBySymbol.news ?? []),
-      { source: 'news:classify', ok: false, error: message },
+      { source: 'news:classify', ok: true, disabled: true },
     ];
+  } else {
+    try {
+      const { sources: classifySources } = await classifyNews();
+      if (classifySources.length > 0) {
+        sourcesBySymbol.news = [...(sourcesBySymbol.news ?? []), ...classifySources];
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[collect] news classification failed:', error);
+      sourcesBySymbol.news = [
+        ...(sourcesBySymbol.news ?? []),
+        { source: 'news:classify', ok: false, error: message },
+      ];
+    }
   }
 
   // News publication (spec 015, Slice 5). Runs after classification, same

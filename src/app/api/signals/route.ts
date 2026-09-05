@@ -9,6 +9,7 @@ import {
 import { mockSignalsResponse } from '@/data/signals';
 import type { NewsScope, NewsSignalItem, SignalItem, SignalsResponse } from '@/data/types';
 import { query } from '@/lib/db/client';
+import { isNewsClassificationPaused } from '@/lib/freshness';
 
 // Collection runs hourly and the client polls every minute — a static cache
 // would hide a fresh signal for hours. Never cache this route.
@@ -207,6 +208,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       collectionHealthy: newestSnapshotTs !== null,
       signals,
       newsSignals,
+      newsClassificationPaused: isNewsClassificationPaused(),
     };
 
     return NextResponse.json(response);
@@ -221,6 +223,9 @@ export async function GET(request: Request): Promise<NextResponse> {
       nextUpdate: null,
       fetchError: true,
       signals: [],
+      // A dead DB and a deliberate pause are different facts — this is a pure
+      // env read with no DB dependency, so it stays reliable even here.
+      newsClassificationPaused: isNewsClassificationPaused(),
     };
 
     return NextResponse.json(response);

@@ -1,6 +1,13 @@
 import { BACKFILL_CHUNK } from '@/consts/collect';
 import { FORECAST_MODEL_PRICING } from '@/consts/forecastPricing';
-import type { ForecastUsage, MarketSnapshot, ProjectionData, StoredForecast } from '@/data/types';
+import { PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
+import type {
+  ForecastUsage,
+  MarketSnapshot,
+  ProjectionData,
+  StoredForecast,
+  StoredForecastScenarios,
+} from '@/data/types';
 import { query } from '@/lib/db/client';
 
 /**
@@ -595,4 +602,125 @@ export async function persistForecasts(
   }
 
   return insertForecasts(forecasts);
+}
+
+/**
+ * Daily forecast-generation ceiling read (spec 019 §2.5). Counts distinct
+ * `as_of` values on `public.forecasts` created since the start of the
+ * current UTC day — `as_of` is shared by every row of one batch generation,
+ * so distinct `as_of` counts generations, not rows. Returns `null` on any
+ * query failure: a count that cannot be read is not zero, and the caller
+ * (the refresh route) must treat `null` as "fail closed", never as
+ * "no calls yet".
+ */
+export async function getDailyForecastGenerationCount(
+  queryFn: typeof query = query,
+): Promise<number | null> {
+  try {
+    const rows = await queryFn<{ count: string }>(
+      `select count(distinct as_of) as count
+         from public.forecasts
+        where created_at >= date_trunc('day', now() at time zone 'utc')`,
+    );
+    return Number(rows[0].count);
+  } catch (error: unknown) {
+    console.error('[analytics] getDailyForecastGenerationCount failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Cache-of-record read for the forecast batch cache (spec 019 §2.2). Returns
+ * the freshest `public.forecasts` row per requested symbol, or `[]` on any
+ * kind of miss — this function never returns a partial batch.
+ *
+ * `schema_version = $3` is enforced in the `where` clause, not filtered in
+ * TypeScript afterward: a row written under an older `ProjectionData` shape
+ * must never reach the caller, since resurrecting an incompatible curve is
+ * exactly the failure this guard exists to prevent.
+ *
+ * Partial coverage is treated as a miss for the whole batch: if even one
+ * requested symbol has no valid, fresh, correctly-versioned row, this
+ * returns `[]` rather than the subset it did find. The forecast prompt is
+ * batched (one AI call covers every target coin), so a cache miss for one
+ * symbol should regenerate all of them together — otherwise the caller would
+ * mix a freshly-generated curve with a stale cached one on the same chart,
+ * which is exactly the class of defect `decisions.md` §3 warns about.
+ */
+export async function getLatestForecasts(
+  symbols: string[],
+  maxAgeMs: number,
+  queryFn: typeof query = query,
+): Promise<ProjectionData[]> {
+  if (symbols.length === 0) {
+    return [];
+  }
+
+  try {
+    const rows = await queryFn<Record<string, unknown>>(
+      `select distinct on (f.asset_id)
+         a.symbol,
+         f.as_of,
+         f.scenarios,
+         f.anchor_price,
+         f.confidence,
+         f.reasoning,
+         f.source,
+         f.model,
+         f.schema_version
+       from forecasts f
+       join assets a on a.id = f.asset_id
+       where a.symbol = any($1)
+         and f.as_of >= now() - $2::interval
+         and f.schema_version = $3
+       order by f.asset_id, f.as_of desc`,
+      [symbols, `${maxAgeMs} milliseconds`, String(PROJECTION_SCHEMA_VERSION)],
+    );
+
+    const bySymbol = new Map<string, ProjectionData>();
+    for (const row of rows) {
+      const symbol = row.symbol as string;
+      const scenarios = row.scenarios as StoredForecastScenarios | null;
+      const anchorPrice = toNumber(row.anchor_price);
+
+      // A row missing any scenario curve, the probabilities, or the anchor
+      // price is a miss for that symbol — never substitute a default.
+      if (
+        !scenarios ||
+        !scenarios.bull ||
+        !scenarios.base ||
+        !scenarios.bear ||
+        !scenarios.probabilities ||
+        anchorPrice === null
+      ) {
+        continue;
+      }
+
+      bySymbol.set(symbol, {
+        coin: symbol,
+        bull: scenarios.bull,
+        base: scenarios.base,
+        bear: scenarios.bear,
+        currentPrice: anchorPrice,
+        generatedAt: row.as_of as string,
+        confidence: row.confidence as number,
+        scenarioProbabilities: scenarios.probabilities,
+        reasoning: row.reasoning as string[],
+        service: row.source as 'claude' | 'openai',
+        model: row.model as string,
+        schemaVersion: PROJECTION_SCHEMA_VERSION,
+      });
+    }
+
+    // Partial coverage is a miss for the whole batch — see the doc comment
+    // above and decisions.md §3.
+    if (!symbols.every((symbol) => bySymbol.has(symbol))) {
+      return [];
+    }
+
+    return symbols.map((symbol) => bySymbol.get(symbol)!);
+  } catch (error: unknown) {
+    console.error('[analytics] getLatestForecasts failed:', error);
+    return [];
+  }
 }

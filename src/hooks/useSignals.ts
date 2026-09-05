@@ -26,6 +26,7 @@ export function useSignals() {
     nextUpdate: data?.nextUpdate ?? null,
     fetchError: data?.fetchError ?? false,
     collectionHealthy: data?.collectionHealthy ?? false,
+    newsClassificationPaused: data?.newsClassificationPaused ?? false,
     isLoading,
     isStale,
   };

@@ -35,6 +35,21 @@ export const ALLOWED_FORECAST_MODELS: Record<string, string[]> = {
 export const DEFAULT_FORECAST_SERVICE = 'openai';
 export const DEFAULT_FORECAST_MODEL = 'gpt-4o-mini';
 
+/** How long a forecast batch is served from the platform cache before the
+ * next request triggers a fresh generation (spec 019). */
+export const FORECAST_TTL_SECONDS = 21600; // 6 hours
+
+/** Ceiling on forecast generations (distinct `as_of` groups in
+ * `public.forecasts`) per UTC day, enforced by the reforecast route
+ * (spec 019, Slice 3). */
+export const FORECAST_DAILY_CALL_LIMIT = 20;
+
+/** Name of the HttpOnly cookie that carries the admin credential, set by
+ * `GET /api/admin/unlock` and read by `POST /api/projections/refresh`
+ * (spec 019, Slice 3). Shared here per the constants rule — it's used in
+ * both routes. */
+export const ADMIN_COOKIE_NAME = 'catoshi_admin';
+
 export const RANGE_OPTIONS = ['1W', '1M', '3M', '6M', '1Y'] as const;
 
 export const RANGE_DAYS: Record<(typeof RANGE_OPTIONS)[number], number> = {

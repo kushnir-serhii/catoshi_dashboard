@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 
 import { COLLECT_ASSETS, SNAPSHOT_STALE_MINUTES } from '@/consts/collect';
 import { readHealthData } from '@/lib/db/health';
-import { isSnapshotStale, newestTimestamp, snapshotAgeMinutes } from '@/lib/freshness';
+import {
+  isNewsClassificationPaused,
+  isSnapshotStale,
+  newestTimestamp,
+  snapshotAgeMinutes,
+} from '@/lib/freshness';
 
 /**
  * `GET /api/health` — spec 017, Slice 4.
@@ -47,6 +52,14 @@ interface HealthPayload {
     lastAttemptAt: string | null;
     lastError: string | null;
   }[];
+  /**
+   * Whether news classification (the one background model call, spec 019
+   * Slice 4) is currently paused via `NEWS_CLASSIFY_ENABLED`. This is a
+   * deliberate, expected state during testing — not an outage — so it is
+   * reported alongside `ok` but never folds into the 200/503 decision, which
+   * stays purely about snapshot staleness.
+   */
+  newsClassificationPaused: boolean;
 }
 
 function mockPayload(now: number): HealthPayload {
@@ -65,6 +78,8 @@ function mockPayload(now: number): HealthPayload {
       stale: false,
     })),
     collectors: [],
+    // Mock mode never calls a model, so pausing has no meaning here.
+    newsClassificationPaused: false,
   };
 }
 
@@ -104,6 +119,7 @@ export async function GET(): Promise<NextResponse> {
         lastAttemptAt: collector.lastAttemptAt,
         lastError: collector.lastError,
       })),
+      newsClassificationPaused: isNewsClassificationPaused(),
     };
 
     return NextResponse.json(payload, { status: ok ? 200 : 503 });
@@ -121,6 +137,9 @@ export async function GET(): Promise<NextResponse> {
         error: 'health read failed',
         assets: [],
         collectors: [],
+        // Reading this doesn't touch the DB, so it's safe to compute even
+        // though the health read itself just failed.
+        newsClassificationPaused: isNewsClassificationPaused(),
       },
       { status: 503 },
     );

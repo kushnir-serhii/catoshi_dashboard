@@ -263,7 +263,13 @@ function NewsCard({ n }: { n: NewsSignalItem }) {
  * news item, and an explicit empty state. Never hidden, never backfilled with
  * expired items — the API already excludes those.
  */
-function NewsFeedSection({ newsSignals }: { newsSignals: NewsSignalItem[] }) {
+function NewsFeedSection({
+  newsSignals,
+  newsClassificationPaused,
+}: {
+  newsSignals: NewsSignalItem[];
+  newsClassificationPaused: boolean;
+}) {
   const [filter, setFilter] = useState<NewsScopeFilter>('all');
   const visible = filterNewsByScope(newsSignals, filter);
   const newestAll = newestNewsPublishedAt(newsSignals);
@@ -283,15 +289,23 @@ function NewsFeedSection({ newsSignals }: { newsSignals: NewsSignalItem[] }) {
         </div>
       </div>
       {visible.length === 0 ? (
-        <FeedNotice
-          tone="quiet"
-          title="No live news signals"
-          body={
-            filter === 'all'
-              ? 'No classified headline is currently within its impact horizon.'
-              : `No live news signals for ${SCOPE_LABELS[filter]}.`
-          }
-        />
+        newsClassificationPaused ? (
+          <FeedNotice
+            tone="quiet"
+            title="News classification paused"
+            body="NEWS_CLASSIFY_ENABLED is off — no new headlines are being classified. Already-classified items above are unaffected; ingest and publishing continue."
+          />
+        ) : (
+          <FeedNotice
+            tone="quiet"
+            title="No live news signals"
+            body={
+              filter === 'all'
+                ? 'No classified headline is currently within its impact horizon.'
+                : `No live news signals for ${SCOPE_LABELS[filter]}.`
+            }
+          />
+        )
       ) : (
         <div className="pg-signals-2" style={{ gap: 14 }}>
           {visible.map((n) => (
@@ -313,6 +327,7 @@ export function SignalsPage() {
     isStale,
     fetchError,
     collectionHealthy,
+    newsClassificationPaused,
   } = useSignals();
 
   const showStaleCollection = !!lastUpdated && isSnapshotStale(lastUpdated);
@@ -361,7 +376,10 @@ export function SignalsPage() {
       </div>
 
       {!isLoading && !fetchError && newsSignals !== null && (
-        <NewsFeedSection newsSignals={newsSignals} />
+        <NewsFeedSection
+          newsSignals={newsSignals}
+          newsClassificationPaused={newsClassificationPaused}
+        />
       )}
 
       {lastUpdated && (

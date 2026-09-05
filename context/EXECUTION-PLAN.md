@@ -20,7 +20,7 @@ If they disagree about *when*, this file wins.
    **same commit** as the slice.
 6. A **GATE** means stop. Do not build past it without a recorded verdict.
 
-Total remaining: **8 stages**, of which one is gated on evidence and one is optional.
+Total remaining: **9 stages** (1, 1b, 2–8), of which one is gated on evidence and one is optional.
 
 ---
 
@@ -28,6 +28,7 @@ Total remaining: **8 stages**, of which one is gated on evidence and one is opti
 
 ```
 Stage 1  Truth pass ──────────────┐         (no dependencies — start here)
+Stage 1b Cost control ────────────┤         (spec 019 — no dependencies; do before more live-model testing)
                                   │
 Stage 2  Reliability ─────────────┤         (urgent: history is being lost)
                                   │
@@ -69,6 +70,40 @@ features to a product that misstates what it is. `decisions.md` §3 and §5.
 - [ ] Every landing-page sentence traces to a file in `src/`.
 - [ ] Grep sweep clean per spec 016 Slice 4.
 - [ ] `npm run build` succeeds.
+
+---
+
+## Stage 1b — Cost control while there are no users
+
+**Spec:** 019 (all slices)
+**Why here:** it depends on nothing, it is small, and every day it is not done is a day the
+product can spend model tokens on nobody. The product has one user — its author — and three
+measured defects let a browser address bar, an unauthenticated POST, or a redeploy each buy a
+model call. Full rationale in the spec's §1.
+
+**Entry criteria:** none. Can run in parallel with Stage 1.
+
+**Work:** spec 019 `tasks.md`, Slices 1–5 in order. Slice 1 is a pure refactor and must land
+before Slices 2–3, which depend on there being one route to change.
+
+**Exit criteria:**
+
+- [ ] `COIN_CONFIGS`, `seededRng`, `buildScenario` and `buildProjection` each appear in exactly
+      one file, and both routes call one shared `runForecast`.
+- [ ] Fifty requests with distinct invalid `?model=` values add at most one generation to
+      `public.forecasts`.
+- [ ] A redeploy inside the 6-hour window serves projections with no model call, from the
+      stored forecast.
+- [ ] `POST /api/projections/refresh` without a credential returns 401 before any market-data
+      fetch; with one it costs exactly one generation, and the following `GET` costs none.
+- [ ] Past the daily ceiling the route returns 429 stating count and limit; an unreadable count
+      refuses rather than assuming zero.
+- [ ] With `NEWS_CLASSIFY_ENABLED=false` a collection run makes no model call and reports the
+      paused state on `/api/health` and the Signals page — snapshots still collected hourly.
+- [ ] One full testing day's generation count equals windows opened plus Reforecast clicks.
+
+**Do not** pause `.github/workflows/collect.yml` or the Vercel cron to save tokens. They call
+no model, and Binance retains ~30 days of derivatives history — see Stage 2.
 
 ---
 

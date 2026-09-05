@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import type { ForecastSnapshot } from '@/data/types';
 import { CLAUDE_MODELS, OPENAI_MODELS } from '@/hooks/useForecastSettings';
+import { describeRefreshError } from '@/hooks/useProjections';
 
 interface ForecastSettingsModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export function ForecastSettingsModal({
   const [isApplying, setIsApplying] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const handleClose = useCallback(() => {
     if (!isApplying) onClose();
@@ -48,22 +50,32 @@ export function ForecastSettingsModal({
     if (isOpen) {
       setLocalService(service);
       setLocalModel(model);
+      setApplyError(null);
     }
   }, [isOpen, service, model]);
 
   function handleServiceChange(s: 'claude' | 'openai') {
     setLocalService(s);
+    setApplyError(null);
     const firstModel = s === 'claude' ? CLAUDE_MODELS[0].id : OPENAI_MODELS[0].id;
     setLocalModel(firstModel);
   }
 
+  function handleModelChange(m: string) {
+    setLocalModel(m);
+    setApplyError(null);
+  }
+
   async function handleApply() {
     setIsApplying(true);
+    setApplyError(null);
     try {
       setService(localService);
       setModel(localModel);
       await refresh(localService, localModel);
       onClose();
+    } catch (err) {
+      setApplyError(describeRefreshError(err));
     } finally {
       setIsApplying(false);
     }
@@ -161,7 +173,7 @@ export function ForecastSettingsModal({
                   {activeModels.map((m) => (
                     <button
                       key={m.id}
-                      onClick={() => setLocalModel(m.id)}
+                      onClick={() => handleModelChange(m.id)}
                       style={{
                         padding: '6px 14px',
                         borderRadius: 100,
@@ -205,6 +217,13 @@ export function ForecastSettingsModal({
               >
                 {isApplying ? 'Applying…' : 'Apply & refresh'}
               </button>
+              {applyError && (
+                <span
+                  style={{ fontSize: 12, color: 'var(--red)', textAlign: 'center', marginTop: -8 }}
+                >
+                  {applyError}
+                </span>
+              )}
 
               {/* Section 3: Saved Forecasts */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

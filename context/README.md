@@ -70,6 +70,7 @@ different shape.
 | 016 | Forecasting-Core Scope Trim | Shipped |
 | 017 | Collection Reliability & Deployment | **In progress** — observability shipped (`/api/health`, `public.collector_status`, `src/lib/freshness.ts`, `docs/runbook.md`); pipeline-run verification, restore drill and deployment audit pending operator |
 | 018 | Operator Workflows on GitHub Actions | **In progress** — three `workflow_dispatch` workflows shipped (`.github/workflows/backfill.yml`, `verify-backfill.yml`, `analog-gate.yml`), each writing its headline result to the job summary, plus runbook §8 documenting them; the pending backfill / marker-integrity / Gate runs (Slice 4) are dispatched by an operator or an agent with `gh` access. Exists because no agent execution environment can reach Binance, the Fear & Greed API or Neon (`decisions.md` §10) |
+| 019 | Forecast Cost Control & Route Consolidation | **In progress** — one forecast path (`runForecast`), the forecasts-table cache-of-record, the authenticated+capped reforecast route, and the news-classification off switch are all shipped; setting `ADMIN_SECRET`/`NEWS_CLASSIFY_ENABLED` in Vercel, the unlock-URL visit and the one-day generation-count reconciliation are pending operator |
 
 There is no spec 004-vs-005 ambiguity to resolve and no gap to fill: numbers are never
 reused, and a reserved number that never got a spec does not exist as work.

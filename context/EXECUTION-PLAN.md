@@ -29,6 +29,7 @@ Total remaining: **9 stages** (1, 1b, 2–8), of which one is gated on evidence 
 ```
 Stage 1  Truth pass ──────────────┐         (no dependencies — start here)
 Stage 1b Cost control ────────────┤         (spec 019 — no dependencies; do before more live-model testing)
+Stage 1c Scheduled forecasts ═════╡         (spec 020 — needs 1b; GATE: can a scheduled task reach the deployment?)
                                   │
 Stage 2  Reliability ─────────────┤         (urgent: history is being lost)
                                   │
@@ -104,6 +105,42 @@ before Slices 2–3, which depend on there being one route to change.
 
 **Do not** pause `.github/workflows/collect.yml` or the Vercel cron to save tokens. They call
 no model, and Binance retains ~30 days of derivatives history — see Stage 2.
+
+---
+
+## Stage 1c — Scheduled forecast production ═══ GATE ═══
+
+**Spec:** 020 (all slices)
+**Why here:** Stage 1b made the paid forecast lazy; this stage makes it rare. A scheduled
+Claude task produces the batch outside the product and POSTs it in, so the normal page load
+is served from storage at zero provider cost, and the paid path in Stage 1b becomes the
+fallback for a schedule that did not run. Full rationale in the spec's §1.
+
+**Entry criteria:** Stage 1b exit criteria met — one forecast path, the forecasts table as
+cache of record, and the admin-auth pattern to copy.
+
+**Work:** spec 020 `tasks.md`, Slices 1–5 in order. Slice 1 is a gate.
+
+**Gate:** a scheduled Claude task must be able to `GET /api/projections/inputs` on the
+deployment. If it cannot, stop: record it in `product/decisions.md`, close 020 as rejected in
+`README.md` §3, and leave the Stage 1b behaviour as the only producer. Do not substitute a
+GitHub Actions job calling the provider API — that is the paid path this stage exists to
+avoid.
+
+**Exit criteria:**
+
+- [ ] A scheduled run writes three `source='routine'`, `cost_usd=0` rows, and the next page
+      load serves them with no model call.
+- [ ] An ingest with an anchor price 30% off the reference returns 422 and changes nothing.
+- [ ] An ingest without the credential returns 401 and changes nothing.
+- [ ] With the schedule disabled for longer than the freshness window, exactly one paid
+      generation occurs, the page labels it `on-demand`, and `/api/health` reports the
+      schedule as `late` before that happens.
+- [ ] One week of normal running: zero rows with `cost_usd > 0`, recorded in
+      `product/decisions.md`.
+
+**Do not** give the scheduled task database credentials or repository write access. The HTTP
+boundary is what makes its output validatable.
 
 ---
 

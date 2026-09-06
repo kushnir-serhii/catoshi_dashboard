@@ -167,7 +167,9 @@ export interface ProjectionData {
   /** Likelihood of each scenario playing out, distinct from `confidence` (the AI's overall certainty). */
   scenarioProbabilities: ScenarioProbabilities;
   reasoning: string[];
-  service: 'claude' | 'openai';
+  /** Producer of this forecast: a paid provider call (`claude`/`openai`) or the
+   * spec 020 scheduled Claude task (`routine`, stored with `cost_usd = 0`). */
+  service: 'claude' | 'openai' | 'routine';
   model: string;
   schemaVersion: typeof PROJECTION_SCHEMA_VERSION;
 }
@@ -193,6 +195,15 @@ export interface ProjectionsResponse {
    */
   service?: string;
   model?: string;
+  /**
+   * Who produced the batch being served (spec 020 §2.3). Derived from the
+   * stored row's `source` — `scheduled` when a routine ingest wrote it,
+   * `on-demand` when the paid provider fallback ran, `mock` in mock mode — not
+   * from which branch of the route happened to run, so a stored batch served
+   * after a redeploy still reports its real producer. Repeated `on-demand` is
+   * the visible symptom of a dead schedule.
+   */
+  producer?: 'scheduled' | 'on-demand' | 'mock';
 }
 
 /** Token counts for one provider API call, used for analytics cost tracking. */

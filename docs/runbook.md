@@ -231,6 +231,7 @@ not self-healing.
 | `NEXT_PUBLIC_USE_MOCK_DATA` | Vercel env                          | Must be **`false`** in production. When `true`, routes (`/api/signals`, `/api/projections`, `/api/health`) return synthetic data and never touch the DB. |
 | `ADMIN_SECRET`              | Vercel env                          | Shared secret gating `POST /api/projections/refresh` ("Reforecast", spec 019). Unset → the route always answers 503, never falls open. See §10.          |
 | `NEWS_CLASSIFY_ENABLED`     | Vercel env, `.env.example`          | Default `true`. Set `false` to pause `classifyNews()` (the one unattended model call) while testing alone. Collection, ingest, and publishing of already-classified items are unaffected. See §10. |
+| `FORECAST_INGEST_SECRET`    | Vercel env + scheduled-task config  | Shared bearer token for the machine-to-machine scheduled-forecast routes (`GET /api/projections/inputs`, `POST /api/projections/ingest`, spec 020). **A different secret from `ADMIN_SECRET`** — this one lives in a scheduled Claude task's prompt config, a different blast radius from the operator's browser cookie. Unset → both routes answer 503, never open. See §11. |
 
 Migrations: `node --env-file=.env.local scripts/migrate.mjs` (all pending) or
 `... scripts/migrate.mjs 0007` (one file by prefix). Runs each file in one
@@ -440,3 +441,98 @@ something updating" search:
   the forecast still renders but isn't saved. `ChartPanel.tsx` surfaces this
   directly: *"Session-only: {coinSymbol} has no stored history, so this forecast
   isn't saved and won't survive a reload."*
+
+---
+
+## 11. Scheduled forecast production (spec 020)
+
+Spec 020 adds a **second, unpaid producer** of forecast batches, ahead of the
+spec 019 paid path. A scheduled Claude task fetches the same market inputs the
+in-product providers use, produces the batch itself (no provider API call, zero
+bill), and POSTs it to the product. `GET /api/projections` then serves a batch
+that is **already stored** — the paid on-demand generation becomes a fallback for
+when the schedule did not run, not the normal case.
+
+The task prompt is versioned in the repo: `docs/routine-forecast-prompt.md`,
+carrying `ROUTINE_PROMPT_VERSION` (`routine-v1`). Editing the prompt without
+bumping that constant is a defect (README §4 rule 3).
+
+### Cadence and lead time
+
+- `SCHEDULED_FORECAST_INTERVAL_HOURS` = **3**, against the 6-hour
+  `FORECAST_TTL_SECONDS` freshness window. One missed run costs nothing — the
+  next run still lands inside the window.
+- Two consecutive misses cost exactly **one** paid generation (the next page
+  load falls through to the spec 019 path).
+- `/api/health` flips `forecastIngest.state` to `late` at
+  `SCHEDULED_FORECAST_LATE_AFTER_SECONDS` (2 × the interval = 21600s / 6h), i.e.
+  as the freshness window elapses — so the operator learns the schedule stopped
+  around the moment the product would otherwise start paying for it.
+
+### The two secrets — do not conflate
+
+| Secret | Gates | Lives in | Unset → |
+| --- | --- | --- | --- |
+| `ADMIN_SECRET` | `POST /api/projections/refresh` (the operator's "Reforecast" button), `GET /api/admin/unlock` | the operator's browser cookie / a manual bearer | 503 (§10) |
+| `FORECAST_INGEST_SECRET` | `GET /api/projections/inputs`, `POST /api/projections/ingest` (machine-to-machine only, **no cookie path**) | a scheduled Claude task's prompt configuration | 503 |
+
+They are deliberately separate: a leak of the ingest secret can only write
+forecast rows (capped per day, `cost_usd = 0`, cannot generate, cannot read the
+DB); a leak of `ADMIN_SECRET` can force paid generations. Rotate either by
+changing the one env var in Vercel and the task config.
+
+### Re-run the task by hand
+
+The scheduled task can be triggered manually from the Anthropic Routines UI
+("Run now"). Or drive the two endpoints directly with the ingest secret:
+
+```bash
+# 1. fetch the inputs the producer must use
+curl -s -H "Authorization: Bearer $FORECAST_INGEST_SECRET" \
+  https://<host>/api/projections/inputs | jq .
+
+# 2. POST a batch built to that schema (see docs/routine-forecast-prompt.md)
+curl -s -X POST -H "Authorization: Bearer $FORECAST_INGEST_SECRET" \
+  -H 'Content-Type: application/json' -d @batch.json \
+  https://<host>/api/projections/ingest | jq .
+```
+
+A 200 response carries `{ "producer": "routine", "accepted": [...], "storedCount": n, "skipped": [] }`.
+Confirm the write:
+
+```sql
+select source, model, cost_usd, as_of
+  from public.forecasts
+ order by created_at desc
+ limit 3;
+-- expect three rows, source='routine', cost_usd=0
+```
+
+### `/api/health` reports `forecastIngest.state` — what each state means
+
+`GET /api/health` → `forecastIngest: { state, lastAcceptedAt, lastAcceptedAgeMinutes, lastRejectionReason }`.
+The state is derived (`forecastIngestState` in `src/lib/freshness.ts`) from the
+`forecast_ingest` row in `public.collector_status`:
+
+| State | Meaning | What to do |
+| --- | --- | --- |
+| `healthy` | Last **accepted** ingest is within `SCHEDULED_FORECAST_LATE_AFTER_SECONDS`. | Nothing. |
+| `late` | Last accepted ingest is older than that threshold; no failure recorded. | Check the Routine ran. Re-run by hand (above) if it's overdue. The page still serves the last valid batch, correctly labelled and aged; the next real page load past the 6h window will pay for one on-demand generation. |
+| `failing` | The **most recent attempt was rejected** — `lastRejectionReason` names the failed check(s), e.g. `BTC:anchor`. A rejected ingest never reads as `healthy`. | Read `lastRejectionReason`. `anchor` = the producer's `currentPrice` drifted >5% from the server reference (the model likely used a remembered price — check the task is actually fetching `/api/projections/inputs` first). `coverage` = sparse scenario. `probabilities` = didn't sum to 100. Fix the prompt if systematic; **bump `ROUTINE_PROMPT_VERSION`** if you change the wording. Do not lower `INGEST_ANCHOR_MAX_DEVIATION_PCT` to make it pass. |
+| `never-run` | No `forecast_ingest` row, or attempts but never an accepted ingest. | The Routine has never successfully posted. Verify `FORECAST_INGEST_SECRET` matches on both sides and the task is enabled. |
+
+`forecastIngest` never affects the `/api/health` 200/503 decision — that stays
+purely about snapshot staleness (§1).
+
+### Code constants (not env vars)
+
+In `src/consts/projections.ts`, changed by editing the file and redeploying:
+`SCHEDULED_FORECAST_INTERVAL_HOURS` (3), `SCHEDULED_FORECAST_LATE_AFTER_SECONDS`
+(21600), `FORECAST_DAILY_INGEST_LIMIT` (48), `INGEST_ANCHOR_MAX_DEVIATION_PCT`
+(5 — expected to tighten once a week of accepted ingests shows the real spread),
+`ROUTINE_SOURCE` (`routine`), `ROUTINE_PROMPT_VERSION` (`routine-v1`),
+`FORECAST_INGEST_COMPONENT` (`forecast_ingest`).
+
+The spec 019 paid ceiling `getDailyForecastGenerationCount` now counts
+`source <> 'routine'` only — scheduled ingests do **not** consume the operator's
+Reforecast budget.

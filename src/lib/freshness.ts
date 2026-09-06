@@ -14,6 +14,7 @@
  */
 
 import { SNAPSHOT_STALE_MINUTES } from '@/consts/collect';
+import { SCHEDULED_FORECAST_LATE_AFTER_SECONDS } from '@/consts/projections';
 
 /** Parses an ISO string or Date to epoch ms; returns `NaN` for anything unusable. */
 function toEpochMs(ts: string | Date): number {
@@ -78,6 +79,53 @@ export function newestTimestamp(
  */
 export function isNewsClassificationPaused(): boolean {
   return process.env.NEWS_CLASSIFY_ENABLED === 'false';
+}
+
+/** State of the spec 020 scheduled forecast producer, as reported by `/api/health`. */
+export type ForecastIngestState = 'healthy' | 'late' | 'failing' | 'never-run';
+
+/** The `public.collector_status` row for `forecast_ingest`, as `/api/health` reads it. */
+export interface ForecastIngestStatusRow {
+  lastSuccessAt: string | null;
+  lastAttemptAt: string | null;
+  lastError: string | null;
+}
+
+/**
+ * Derives the scheduled producer's state from its `collector_status` row
+ * (spec 020 §2.5). `persistCollectorStatus` clears `last_error` on an accepted
+ * ingest and sets it on a rejection while leaving `last_success_at` pointing at
+ * the genuinely last accepted one — so a non-null `last_error` means the most
+ * recent attempt failed (`failing`), and a rejected ingest can never read as
+ * `healthy`.
+ *
+ * - `never-run`  — no row, or a row that has never recorded an accepted ingest
+ *   and is not currently failing;
+ * - `failing`    — the most recent attempt was rejected;
+ * - `late`       — last accepted ingest is older than
+ *   `SCHEDULED_FORECAST_LATE_AFTER_SECONDS` (reached before the freshness window
+ *   elapses, so the operator learns the schedule stopped before the paid path
+ *   engages);
+ * - `healthy`    — last accepted ingest is within that window.
+ */
+export function forecastIngestState(
+  row: ForecastIngestStatusRow | null | undefined,
+  now: number | Date = Date.now(),
+): ForecastIngestState {
+  if (
+    !row ||
+    (row.lastSuccessAt === null && row.lastAttemptAt === null && row.lastError === null)
+  ) {
+    return 'never-run';
+  }
+  if (row.lastError !== null) return 'failing';
+  if (row.lastSuccessAt === null) return 'never-run';
+
+  const successMs = toEpochMs(row.lastSuccessAt);
+  if (Number.isNaN(successMs)) return 'never-run';
+  const nowMs = now instanceof Date ? now.getTime() : now;
+  const ageSeconds = Math.max(0, (nowMs - successMs) / 1000);
+  return ageSeconds > SCHEDULED_FORECAST_LATE_AFTER_SECONDS ? 'late' : 'healthy';
 }
 
 /**

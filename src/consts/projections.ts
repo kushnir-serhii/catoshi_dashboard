@@ -50,6 +50,40 @@ export const FORECAST_DAILY_CALL_LIMIT = 20;
  * both routes. */
 export const ADMIN_COOKIE_NAME = 'catoshi_admin';
 
+/** Spec 020 — scheduled forecast ingestion.
+ *
+ * `ROUTINE_SOURCE` is the `public.forecasts.source` value for a batch produced
+ * by the scheduled Claude task rather than a paid provider call; it is also the
+ * `source <> 'routine'` predicate spec 019's paid daily ceiling filters on.
+ * `ROUTINE_PROMPT_VERSION` is the `prompt_version` (text) those rows carry —
+ * bumped whenever `docs/routine-forecast-prompt.md` changes. */
+export const ROUTINE_SOURCE = 'routine';
+export const ROUTINE_PROMPT_VERSION = 'routine-v1';
+
+/** Separate, larger daily ceiling than `FORECAST_DAILY_CALL_LIMIT` — it protects
+ * `public.forecasts` from a looping scheduler, not the operator's paid budget.
+ * At `SCHEDULED_FORECAST_INTERVAL_HOURS` a healthy schedule makes 8 ingests/day. */
+export const FORECAST_DAILY_INGEST_LIMIT = 48;
+
+/** Max % gap between an ingested batch's per-coin `currentPrice` and the server's
+ * own reference price for that coin before the batch is rejected (spec 020
+ * functional-spec §2.4). Starts at 5; expected to tighten once a week of
+ * accepted ingests shows the real spread. */
+export const INGEST_ANCHOR_MAX_DEVIATION_PCT = 5;
+
+/** Cadence of the scheduled forecast task, against the 6-hour freshness window:
+ * one missed run still lands inside the window, so it costs nothing. */
+export const SCHEDULED_FORECAST_INTERVAL_HOURS = 3;
+
+/** `/api/health` flips the scheduled producer to `late` at this age — 2× the
+ * interval, i.e. before the freshness window elapses and the paid path engages. */
+export const SCHEDULED_FORECAST_LATE_AFTER_SECONDS = SCHEDULED_FORECAST_INTERVAL_HOURS * 2 * 3600;
+
+/** `public.collector_status.source` key the ingest route records each attempt
+ * under (accepted or rejected), and the component `/api/health` reads back as
+ * the scheduled producer's state. Shared between the ingest flow and health. */
+export const FORECAST_INGEST_COMPONENT = 'forecast_ingest';
+
 export const RANGE_OPTIONS = ['1W', '1M', '3M', '6M', '1Y'] as const;
 
 export const RANGE_DAYS: Record<(typeof RANGE_OPTIONS)[number], number> = {

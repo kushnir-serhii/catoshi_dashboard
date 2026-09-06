@@ -1,97 +1,21 @@
 import OpenAI from 'openai';
 
 import type { ForecastTarget } from '@/consts/projections';
-import { FORECAST_GRID_DAYS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
+import { PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
 import type { ForecastGenerationResult, ProjectionData } from '@/data/types';
 import type { MarketData } from '@/lib/marketData';
 
 import { normalizeProbabilities, snapScenarioToGrid } from './gridSnap';
 import {
-  buildPriceContext,
-  lastKnownPrice,
-  PRICE_ANCHOR_INSTRUCTION,
-  rebaseToMarketPrice,
-} from './priceContext';
+  buildForecastInputs,
+  buildForecastPrompt,
+  FORECAST_PROMPT_VERSION,
+  PROJECTIONS_OUTPUT_SCHEMA,
+} from './inputs';
+import { rebaseToMarketPrice } from './priceContext';
 
-/**
- * Bump whenever the prompt text changes — this is what keeps the accuracy
- * metric in spec 011 meaningful. Version 1 was the first tracked version of
- * the prompt text (spec 010). Version 2 replaces the price-free "N entries"
- * history line with the real price context from `buildPriceContext` and the
- * explicit price-scale instruction, so the model no longer anchors its
- * projections on a price remembered from training data.
- */
-export const PROMPT_VERSION = 2;
-
-const SCENARIO_POINT_SCHEMA = {
-  type: 'object',
-  properties: {
-    d: {
-      type: 'number',
-      description:
-        'Day offset from today, must be one of the exact grid values given in the prompt',
-    },
-    p: { type: 'number', description: 'Forecasted USD price at day d' },
-  },
-  required: ['d', 'p'],
-  additionalProperties: false,
-} as const;
-
-const SCENARIO_ARRAY_SCHEMA = {
-  type: 'array',
-  items: SCENARIO_POINT_SCHEMA,
-  description: `Array of {d,p} points, one for each of the ${FORECAST_GRID_DAYS.length} day offsets listed in the prompt`,
-} as const;
-
-const PROJECTIONS_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    projections: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          coin: { type: 'string' },
-          currentPrice: { type: 'number' },
-          confidence: { type: 'number', description: '0-100' },
-          scenarioProbabilities: {
-            type: 'object',
-            properties: {
-              bull: { type: 'number', description: '0-100' },
-              base: { type: 'number', description: '0-100' },
-              bear: { type: 'number', description: '0-100' },
-            },
-            required: ['bull', 'base', 'bear'],
-            additionalProperties: false,
-            description:
-              'Likelihood of each scenario playing out; bull + base + bear must sum to 100',
-          },
-          reasoning: {
-            type: 'array',
-            items: { type: 'string' },
-            description: '2-3 short bullets',
-          },
-          bull: SCENARIO_ARRAY_SCHEMA,
-          base: SCENARIO_ARRAY_SCHEMA,
-          bear: SCENARIO_ARRAY_SCHEMA,
-        },
-        required: [
-          'coin',
-          'currentPrice',
-          'confidence',
-          'scenarioProbabilities',
-          'reasoning',
-          'bull',
-          'base',
-          'bear',
-        ],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ['projections'],
-  additionalProperties: false,
-} as const;
+/** @deprecated Use `FORECAST_PROMPT_VERSION` from `./inputs`. Re-exported for callers. */
+export const PROMPT_VERSION = FORECAST_PROMPT_VERSION;
 
 interface ProjectionItem {
   coin: string;
@@ -129,45 +53,6 @@ function isProjectionsJson(value: unknown): value is ProjectionsJson {
   });
 }
 
-function buildPrompt(marketData: MarketData, targets: readonly ForecastTarget[]): string {
-  const coinList = targets.map((t) => t.symbol).join(', ');
-  const priceContext = buildPriceContext(marketData, targets);
-
-  return `You are a professional cryptocurrency market analyst. Generate price projections for ${coinList} based on the following market data.
-
-## Current Market Data
-
-### News Headlines
-${marketData.news}
-
-### Fear & Greed Index (last 7 days)
-${marketData.fearGreed}
-
-### Trending Coins
-${marketData.trending}
-
-### Reddit Sentiment
-${marketData.reddit}
-
-### Historical Price Context
-${priceContext}
-
-## Instructions
-Return a JSON object with a "projections" array containing objects for ${coinList}. For each coin:
-- ${PRICE_ANCHOR_INSTRUCTION}
-- Each of the bull, base, and bear scenario arrays must contain exactly one {d,p} point for each of the ${FORECAST_GRID_DAYS.length} day offsets in the grid below, with d exactly matching one of the given grid values:
-  - Daily, days 1 through 30
-  - Weekly, every 7 days from day 37 through day 177
-  - Monthly, at days 210, 240, 270, 300, 330, and 365
-  - The exact day offsets: ${FORECAST_GRID_DAYS.join(', ')}
-- Bull scenario: optimistic outlook
-- Base scenario: most likely outlook
-- Bear scenario: pessimistic outlook
-- Provide 2-3 concise reasoning bullets explaining your projections
-- Set confidence 0-100 reflecting certainty level
-- Set scenarioProbabilities.bull/base/bear to the likelihood (0-100) of each scenario actually playing out, summing to exactly 100 — this is distinct from confidence`;
-}
-
 export async function generateOpenAIForecast(
   marketData: MarketData,
   model: string,
@@ -175,7 +60,8 @@ export async function generateOpenAIForecast(
 ): Promise<ForecastGenerationResult> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const coinList = targets.map((t) => t.symbol).join(', ');
+  const inputs = buildForecastInputs(marketData, targets);
+  const { coinList } = inputs;
 
   const completion = await client.chat.completions.create({
     model,
@@ -185,7 +71,7 @@ export async function generateOpenAIForecast(
       json_schema: {
         name: 'generate_projections',
         description: `Price projections for ${coinList} across bull, base, and bear scenarios on a fixed day grid.`,
-        schema: PROJECTIONS_JSON_SCHEMA,
+        schema: PROJECTIONS_OUTPUT_SCHEMA,
         strict: true,
       },
     },
@@ -197,7 +83,10 @@ export async function generateOpenAIForecast(
       },
       {
         role: 'user',
-        content: buildPrompt(marketData, targets),
+        content: buildForecastPrompt(
+          inputs,
+          `Return a JSON object with a "projections" array containing objects for ${coinList}.`,
+        ),
       },
     ],
   });
@@ -222,9 +111,7 @@ export async function generateOpenAIForecast(
 
   // The real last close per symbol — the same number the prompt told the model
   // to use as currentPrice, kept here as the safety net in case it ignored it.
-  const marketPriceBySymbol = new Map<string, number | undefined>(
-    targets.map((t) => [t.symbol.toUpperCase(), lastKnownPrice(marketData, t.id)]),
-  );
+  const marketPriceBySymbol = inputs.referencePrices;
 
   const projections = parsed.projections
     .map((p): ProjectionData | null => {
@@ -256,7 +143,7 @@ export async function generateOpenAIForecast(
 
   return {
     projections,
-    promptVersion: PROMPT_VERSION,
+    promptVersion: FORECAST_PROMPT_VERSION,
     usage: {
       inputTokens: completion.usage?.prompt_tokens ?? 0,
       outputTokens: completion.usage?.completion_tokens ?? 0,

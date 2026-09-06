@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 
 import { COLLECT_ASSETS, SNAPSHOT_STALE_MINUTES } from '@/consts/collect';
+import { FORECAST_INGEST_COMPONENT } from '@/consts/projections';
 import { readHealthData } from '@/lib/db/health';
 import {
+  type ForecastIngestState,
+  forecastIngestState,
   isNewsClassificationPaused,
   isSnapshotStale,
   newestTimestamp,
@@ -60,6 +63,20 @@ interface HealthPayload {
    * stays purely about snapshot staleness.
    */
   newsClassificationPaused: boolean;
+  /**
+   * The spec 020 scheduled forecast producer, as its own component (§2.5):
+   * `healthy | late | failing | never-run`, the last accepted ingest and its
+   * age, and the last rejection reason when the most recent attempt failed.
+   * `late` is reached at `SCHEDULED_FORECAST_LATE_AFTER_SECONDS` — before the
+   * 6-hour freshness window elapses and the paid fallback engages. Never folds
+   * into the 200/503 decision, which stays about snapshot staleness.
+   */
+  forecastIngest: {
+    state: ForecastIngestState;
+    lastAcceptedAt: string | null;
+    lastAcceptedAgeMinutes: number | null;
+    lastRejectionReason: string | null;
+  };
 }
 
 function mockPayload(now: number): HealthPayload {
@@ -80,6 +97,12 @@ function mockPayload(now: number): HealthPayload {
     collectors: [],
     // Mock mode never calls a model, so pausing has no meaning here.
     newsClassificationPaused: false,
+    forecastIngest: {
+      state: 'healthy',
+      lastAcceptedAt: freshTs,
+      lastAcceptedAgeMinutes: 5,
+      lastRejectionReason: null,
+    },
   };
 }
 
@@ -106,6 +129,16 @@ export async function GET(): Promise<NextResponse> {
     const newestTs = newestTimestamp(assets.map((asset) => asset.newestSnapshotTs));
     const ok = !isSnapshotStale(newestTs, now);
 
+    const ingestRow = data.collectors.find(
+      (collector) => collector.source === FORECAST_INGEST_COMPONENT,
+    );
+    const forecastIngest = {
+      state: forecastIngestState(ingestRow ?? null, now),
+      lastAcceptedAt: ingestRow?.lastSuccessAt ?? null,
+      lastAcceptedAgeMinutes: snapshotAgeMinutes(ingestRow?.lastSuccessAt ?? null, now),
+      lastRejectionReason: ingestRow?.lastError ?? null,
+    };
+
     const payload: HealthPayload = {
       ok,
       checkedAt: new Date(now).toISOString(),
@@ -120,6 +153,7 @@ export async function GET(): Promise<NextResponse> {
         lastError: collector.lastError,
       })),
       newsClassificationPaused: isNewsClassificationPaused(),
+      forecastIngest,
     };
 
     return NextResponse.json(payload, { status: ok ? 200 : 503 });
@@ -140,6 +174,12 @@ export async function GET(): Promise<NextResponse> {
         // Reading this doesn't touch the DB, so it's safe to compute even
         // though the health read itself just failed.
         newsClassificationPaused: isNewsClassificationPaused(),
+        forecastIngest: {
+          state: forecastIngestState(null, now),
+          lastAcceptedAt: null,
+          lastAcceptedAgeMinutes: null,
+          lastRejectionReason: null,
+        },
       },
       { status: 503 },
     );

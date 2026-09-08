@@ -54,8 +54,14 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
     );
   }
 
+  // Producer of the displayed batch (spec 020 §2.5). A routine ingest is the
+  // normal case after spec 020; "Produced on demand" showing up repeatedly is
+  // the visible symptom of a dead schedule and must be legible here, not only
+  // in a bill or a log.
+  const isScheduled = projData.service === 'routine';
+  const producerLabel = isScheduled ? 'Scheduled analysis' : 'Produced on demand';
   const serviceName = projData.service === 'claude' ? 'Claude' : 'OpenAI';
-  const badgeLabel = `${serviceName} · ${projData.model}`;
+  const badgeLabel = isScheduled ? 'Scheduled analysis' : `${serviceName} · ${projData.model}`;
   const relativeTime = formatRelativeTime(projData.generatedAt);
   const reasoningText = projData.reasoning.join(' · ');
 
@@ -121,6 +127,7 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
           </div>
         )}
 
+        <span className="muted small">{producerLabel}</span>
         <span className="muted small">{relativeTime}</span>
 
         <span

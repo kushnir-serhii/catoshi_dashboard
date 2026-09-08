@@ -134,6 +134,9 @@ export function useProjections(
   return {
     projections: data?.projections ?? null,
     generatedAt: data?.generatedAt ?? null,
+    /** Who produced the batch on screen (spec 020 §2.3): `scheduled`,
+     * `on-demand` or `mock`. Null until the first response lands. */
+    producer: data?.producer ?? null,
     isLoading,
     isStale,
     refresh,

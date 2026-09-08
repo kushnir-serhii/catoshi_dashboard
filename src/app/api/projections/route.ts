@@ -49,6 +49,10 @@ function getCachedForecast(service: string, model: string) {
           generatedAt: newest.generatedAt,
           service: newest.service,
           model: newest.model,
+          // Producer is the stored row's own `source` (spec 020 §2.3), so a
+          // batch served after a redeploy still names who made it — regardless
+          // of the fact that this branch (the cache-of-record hit) always runs.
+          producer: stored.some((p) => p.service === 'routine') ? 'scheduled' : 'on-demand',
         };
       }
 
@@ -64,6 +68,7 @@ function getCachedForecast(service: string, model: string) {
         generatedAt: result.generatedAt,
         service: result.service,
         model: result.model,
+        producer: 'on-demand',
       };
     },
     ['projections', service, model],
@@ -88,7 +93,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       generatedAt: new Date().toISOString(),
       service,
       model,
-    });
+      producer: 'mock',
+    } satisfies ProjectionsResponse);
   }
 
   try {

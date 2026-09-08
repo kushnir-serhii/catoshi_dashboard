@@ -50,6 +50,12 @@ _Before adding anything, remove everything the product claims but cannot do. Thi
   - [x] **Lock and Cap the Manual Path:** Reforecast requires an operator credential and refuses past a daily generation ceiling, and says which of the two it is. _(spec 019, Slice 3)_
   - [x] **A Visible Off Switch for Background Classification:** The product's only background model call can be paused, and the paused state is shown as itself — never as healthy, never as broken. _(spec 019, Slice 4)_
 
+- [ ] **Forecasts Produced On A Schedule, Not On A Bill** _(spec 020 — all four sub-items' code shipped; pending operator: set `FORECAST_INGEST_SECRET` + deploy, the Slice 1 reachability gate, create the scheduled task, and the one-week zero-paid-generation reconciliation)_
+  - [x] **A Second, Unpaid Producer:** A scheduled Claude task fetches the same market inputs, produces the forecast batch itself, and posts it into the product, so an opened page is served from storage with no provider call. _(spec 020, Slices 1–2)_
+  - [x] **An Untrusted Producer:** Every posted batch is validated on grid coverage, probabilities and anchor price against the server's own reference, and is rejected whole rather than stored partially. _(spec 020, Slice 3)_
+  - [x] **A Fallback That Cannot Hide:** When the schedule does not run, the paid on-demand path still answers, the page says which producer made what it is showing and how old it is, and `/api/health` reports a late schedule before the product starts paying for it. _(spec 020, Slice 4)_
+  - [x] **Reproducible From The Repo:** The scheduled task's exact prompt lives in `docs/routine-forecast-prompt.md` carrying its `prompt_version`, and runbook §11 documents cadence, the two secrets, manual re-run and the health states. _(spec 020, Slice 5)_
+
 ---
 
 ### Phase 4 — Signals That Explain, Not Just Flag

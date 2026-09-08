@@ -1,6 +1,6 @@
 import { BACKFILL_CHUNK } from '@/consts/collect';
 import { FORECAST_MODEL_PRICING } from '@/consts/forecastPricing';
-import { PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
+import { PROJECTION_SCHEMA_VERSION, ROUTINE_SOURCE } from '@/consts/projections';
 import type {
   ForecastUsage,
   MarketSnapshot,
@@ -530,16 +530,26 @@ function computeCostUsd(model: string, inputTokens: number, outputTokens: number
  * `snapshotIds` maps coin symbol (e.g. "BTC") -> that coin's most recent
  * `snapshots.id`, or null when no snapshot exists yet for it (nullable FK).
  *
- * `promptVersion` comes from the provider module's exported `PROMPT_VERSION`
- * (see `ForecastGenerationResult.promptVersion`); passed in here rather than
- * re-derived, since only the caller (which already called `generateForecast`)
- * has it on hand.
+ * `meta` carries the batch-level attribution that used to be read off each
+ * projection row (spec 020): `source`/`model`/`promptVersion` describe the
+ * producer — a paid provider call, or the scheduled Claude task
+ * (`source = 'routine'`). `usage` is the token count for the whole batch call
+ * (`null` for a routine batch — no provider call was made). `costUsd`, when
+ * given, is stored verbatim (a routine batch passes `0`, a measured fact);
+ * when omitted it is computed from `usage` + `model` via `FORECAST_MODEL_PRICING`.
  */
+export interface PersistForecastMeta {
+  source: string;
+  model: string;
+  promptVersion: number | string;
+  usage: ForecastUsage | null;
+  costUsd?: number | null;
+}
+
 export async function persistForecasts(
   projections: ProjectionData[],
   snapshotIds: Record<string, number | null>,
-  usage: ForecastUsage,
-  promptVersion: number,
+  meta: PersistForecastMeta,
 ): Promise<{ data: StoredForecast[] | null; error: Error | null }> {
   if (projections.length === 0) {
     return { data: [], error: null };
@@ -548,11 +558,7 @@ export async function persistForecasts(
   const symbols = Array.from(new Set(projections.map((p) => p.coin)));
   let assetIdBySymbol: Record<string, number>;
   try {
-    const rows = await query<{ id: number; symbol: string }>(
-      'select id, symbol from assets where symbol = any($1)',
-      [symbols],
-    );
-    assetIdBySymbol = Object.fromEntries(rows.map((row) => [row.symbol, row.id]));
+    assetIdBySymbol = await getAssetIdsBySymbol(symbols);
   } catch (error: unknown) {
     console.error('[analytics] persistForecasts asset lookup failed:', error);
     return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
@@ -590,14 +596,19 @@ export async function persistForecasts(
       reasoning: projection.reasoning,
       anchorPrice: projection.currentPrice,
 
-      source: projection.service,
-      model: projection.model,
-      promptVersion: String(promptVersion),
+      source: meta.source,
+      model: meta.model,
+      promptVersion: String(meta.promptVersion),
       schemaVersion: String(projection.schemaVersion),
 
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-      costUsd: computeCostUsd(projection.model, usage.inputTokens, usage.outputTokens),
+      inputTokens: meta.usage?.inputTokens ?? null,
+      outputTokens: meta.usage?.outputTokens ?? null,
+      costUsd:
+        meta.costUsd !== undefined
+          ? meta.costUsd
+          : meta.usage
+            ? computeCostUsd(meta.model, meta.usage.inputTokens, meta.usage.outputTokens)
+            : null,
     });
   }
 
@@ -605,13 +616,35 @@ export async function persistForecasts(
 }
 
 /**
- * Daily forecast-generation ceiling read (spec 019 §2.5). Counts distinct
- * `as_of` values on `public.forecasts` created since the start of the
- * current UTC day — `as_of` is shared by every row of one batch generation,
- * so distinct `as_of` counts generations, not rows. Returns `null` on any
- * query failure: a count that cannot be read is not zero, and the caller
- * (the refresh route) must treat `null` as "fail closed", never as
- * "no calls yet".
+ * Resolves `assets.id` for a set of symbols. Returns `{ SYMBOL: id }` with only
+ * the symbols that exist — a missing key means no `public.assets` row.
+ */
+export async function getAssetIdsBySymbol(
+  symbols: readonly string[],
+  queryFn: typeof query = query,
+): Promise<Record<string, number>> {
+  if (symbols.length === 0) return {};
+  const rows = await queryFn<{ id: number; symbol: string }>(
+    'select id, symbol from assets where symbol = any($1)',
+    [symbols as string[]],
+  );
+  return Object.fromEntries(rows.map((row) => [row.symbol, row.id]));
+}
+
+/**
+ * Daily **paid** forecast-generation ceiling read (spec 019 §2.5, tightened by
+ * spec 020 §2.7). Counts distinct `as_of` values on `public.forecasts` created
+ * since the start of the current UTC day — `as_of` is shared by every row of
+ * one batch generation, so distinct `as_of` counts generations, not rows.
+ *
+ * `source <> 'routine'` excludes scheduled-task ingests (spec 020): those cost
+ * nothing, so they must not consume the operator's Reforecast budget. The
+ * `source` predicate is used rather than `cost_usd > 0` so a paid generation
+ * whose model is absent from `FORECAST_MODEL_PRICING` (null `cost_usd`) still
+ * counts.
+ *
+ * Returns `null` on any query failure: a count that cannot be read is not zero,
+ * and the caller (the refresh route) must treat `null` as "fail closed".
  */
 export async function getDailyForecastGenerationCount(
   queryFn: typeof query = query,
@@ -620,11 +653,40 @@ export async function getDailyForecastGenerationCount(
     const rows = await queryFn<{ count: string }>(
       `select count(distinct as_of) as count
          from public.forecasts
-        where created_at >= date_trunc('day', now() at time zone 'utc')`,
+        where created_at >= date_trunc('day', now() at time zone 'utc')
+          and source <> $1`,
+      [ROUTINE_SOURCE],
     );
     return Number(rows[0].count);
   } catch (error: unknown) {
     console.error('[analytics] getDailyForecastGenerationCount failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Daily scheduled-ingest ceiling read (spec 020 §2.2). Counts distinct `as_of`
+ * groups written with `source = 'routine'` since the start of the current UTC
+ * day, so a scheduler stuck in a loop cannot fill `public.forecasts`. Separate
+ * from `getDailyForecastGenerationCount` (that one guards the operator's paid
+ * budget; this one guards the table). Returns `null` on any query failure —
+ * the caller must fail closed, never treat it as "no ingests yet".
+ */
+export async function getDailyIngestCount(
+  source: string,
+  queryFn: typeof query = query,
+): Promise<number | null> {
+  try {
+    const rows = await queryFn<{ count: string }>(
+      `select count(distinct as_of) as count
+         from public.forecasts
+        where source = $1
+          and created_at >= date_trunc('day', now() at time zone 'utc')`,
+      [source],
+    );
+    return Number(rows[0].count);
+  } catch (error: unknown) {
+    console.error('[analytics] getDailyIngestCount failed:', error);
     return null;
   }
 }
@@ -706,7 +768,7 @@ export async function getLatestForecasts(
         confidence: row.confidence as number,
         scenarioProbabilities: scenarios.probabilities,
         reasoning: row.reasoning as string[],
-        service: row.source as 'claude' | 'openai',
+        service: row.source as ProjectionData['service'],
         model: row.model as string,
         schemaVersion: PROJECTION_SCHEMA_VERSION,
       });

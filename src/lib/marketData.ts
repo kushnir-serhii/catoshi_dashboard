@@ -109,6 +109,32 @@ async function fetchCoinHistory(coinId: string): Promise<number[]> {
   }
 }
 
+/**
+ * Server-side live USD spot prices from CoinGecko `/simple/price` — the same
+ * source `/api/prices` proxies. Returns a `coinId -> usd` map; ids that fail to
+ * resolve are simply absent. Used as the spec 020 ingest anchor-check reference
+ * when a coin has no fresh snapshot.
+ */
+export async function fetchLiveUsdPrices(
+  coinIds: readonly string[],
+): Promise<Record<string, number>> {
+  if (coinIds.length === 0) return {};
+  try {
+    const url = `${COINGECKO_BASE_URL}/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd`;
+    const res = await fetch(url, { next: { revalidate: 60 } });
+    if (!res.ok) return {};
+    const data = (await res.json()) as Record<string, { usd?: number } | undefined>;
+    const prices: Record<string, number> = {};
+    for (const id of coinIds) {
+      const usd = data[id]?.usd;
+      if (typeof usd === 'number' && Number.isFinite(usd)) prices[id] = usd;
+    }
+    return prices;
+  } catch {
+    return {};
+  }
+}
+
 export async function fetchMarketData(
   targets: readonly ForecastTarget[] = DEFAULT_FORECAST_TARGETS,
 ): Promise<MarketData> {

@@ -1,7 +1,7 @@
 import type { ForecastTarget } from '@/consts/projections';
 import { FORECAST_SNAPSHOT_MAX_AGE_MINUTES } from '@/consts/scoring';
 import type { ProjectionData } from '@/data/types';
-import { getLatestSnapshot, persistForecasts } from '@/lib/db/analytics';
+import { getLatestSnapshot, type PersistForecastMeta, persistForecasts } from '@/lib/db/analytics';
 import { validateForecastParams } from '@/lib/forecast/params';
 import { generateForecast } from '@/lib/forecastProvider';
 import { fetchMarketData } from '@/lib/marketData';
@@ -60,14 +60,16 @@ export async function runForecast(options: RunForecastOptions): Promise<RunForec
     }),
   );
 
+  const persistMeta: PersistForecastMeta = {
+    source: service,
+    model,
+    promptVersion: result.promptVersion,
+    usage: result.usage,
+  };
+
   let persisted: boolean | undefined;
   if (awaitPersist) {
-    const { data, error } = await persistForecasts(
-      result.projections,
-      snapshotIds,
-      result.usage,
-      result.promptVersion,
-    );
+    const { data, error } = await persistForecasts(result.projections, snapshotIds, persistMeta);
     persisted = data !== null && error === null;
     if (!persisted) {
       console.error('[forecast-persist]', error);
@@ -76,12 +78,9 @@ export async function runForecast(options: RunForecastOptions): Promise<RunForec
     // Deliberately not awaited (AC 2.6): an unreachable/slow DB must never
     // degrade this route's response time or success. Errors are logged,
     // never thrown into the request path.
-    void persistForecasts(
-      result.projections,
-      snapshotIds,
-      result.usage,
-      result.promptVersion,
-    ).catch((e) => console.error('[forecast-persist]', e));
+    void persistForecasts(result.projections, snapshotIds, persistMeta).catch((e) =>
+      console.error('[forecast-persist]', e),
+    );
   }
 
   return {

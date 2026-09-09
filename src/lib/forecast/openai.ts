@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 
 import type { ForecastTarget } from '@/consts/projections';
-import { PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
+import { FORECAST_MAX_OUTPUT_TOKENS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
 import type { ForecastGenerationResult, ProjectionData } from '@/data/types';
 import type { MarketData } from '@/lib/marketData';
 
@@ -65,7 +65,7 @@ export async function generateOpenAIForecast(
 
   const completion = await client.chat.completions.create({
     model,
-    max_tokens: 8192,
+    max_tokens: FORECAST_MAX_OUTPUT_TOKENS,
     response_format: {
       type: 'json_schema',
       json_schema: {
@@ -91,7 +91,18 @@ export async function generateOpenAIForecast(
     ],
   });
 
-  const rawContent = completion.choices[0]?.message?.content;
+  const choice = completion.choices[0];
+
+  // A batch that runs past the output cap comes back as a syntactically
+  // broken JSON document, so the parse below would report it as a malformed
+  // model response rather than as the budget problem it is. Name it here.
+  if (choice?.finish_reason === 'length') {
+    throw new Error(
+      `OpenAI response was truncated at the ${FORECAST_MAX_OUTPUT_TOKENS}-token output cap`,
+    );
+  }
+
+  const rawContent = choice?.message?.content;
   if (!rawContent) {
     throw new Error('OpenAI returned empty content');
   }

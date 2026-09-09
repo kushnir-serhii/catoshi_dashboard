@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import type { ForecastTarget } from '@/consts/projections';
-import { PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
+import { FORECAST_MAX_OUTPUT_TOKENS, PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
 import type { ForecastGenerationResult, ProjectionData } from '@/data/types';
 import type { MarketData } from '@/lib/marketData';
 
@@ -44,7 +44,7 @@ export async function generateClaudeForecast(
 
   const response = await client.messages.create({
     model,
-    max_tokens: 8192,
+    max_tokens: FORECAST_MAX_OUTPUT_TOKENS,
     tools: [
       {
         name: 'generate_projections',
@@ -63,6 +63,15 @@ export async function generateClaudeForecast(
       },
     ],
   });
+
+  // Same truncation guard as the OpenAI path: a tool call cut off at the cap
+  // arrives as a partial tool input, which reads downstream as a model that
+  // simply omitted fields rather than one that ran out of room.
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error(
+      `Claude response was truncated at the ${FORECAST_MAX_OUTPUT_TOKENS}-token output cap`,
+    );
+  }
 
   const toolUseBlock = response.content.find(
     (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',

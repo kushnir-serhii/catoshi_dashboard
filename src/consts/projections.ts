@@ -99,6 +99,14 @@ export const MIN_PX_PER_POINT = 6;
 export const Y_DOMAIN_PADDING = 0.03;
 export const PROJECTION_SCHEMA_VERSION = 3;
 
+/** Output-token ceiling for a forecast call, shared by both providers.
+ * One batch is 3 coins x 3 scenarios x `FORECAST_GRID_DAYS.length` {d,p}
+ * points; a measured gpt-4o-mini run spends ~7.4k output tokens on that,
+ * so the previous 8192 cap sat inside normal variance. Truncation is a
+ * silent failure — OpenAI returns half a JSON document, Claude a half-built
+ * tool input — so the cap is set well clear of the observed cost. */
+export const FORECAST_MAX_OUTPUT_TOKENS = 16384;
+
 /** Number of popular coins shown in the "Model predictions" panel. */
 export const AI_PANEL_ROW_COUNT = 5;
 

@@ -1,4 +1,10 @@
+import { SCENARIO_HORIZON_DEFAULT } from '@/consts/scenario';
 import type { CoinListItem } from '@/data/types';
+
+/** Horizon the watchlist summarises each projection to (spec 021) — the same
+ * 60-day base-curve horizon the AI panel projects to, reused rather than
+ * redeclared as a fresh literal. */
+export const WATCHLIST_HORIZON_DAYS = SCENARIO_HORIZON_DEFAULT;
 
 /** Coin the Projections page opens on before the user picks their own. */
 export const DEFAULT_COIN: CoinListItem = {

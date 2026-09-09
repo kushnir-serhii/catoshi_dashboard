@@ -44,7 +44,8 @@ labelled so nobody reads them as a description of shipped code._
 
 | Route | Purpose | Auth |
 |---|---|---|
-| `/api/prices`, `/api/prices/history`, `/api/coins/list`, `/api/markets` | CoinGecko proxies | none |
+| `/api/prices`, `/api/prices/history`, `/api/coins/list` | CoinGecko proxies | none |
+| `/api/markets` | CoinGecko `/coins/markets` proxy. Optional `?ids=` (comma-separated CoinGecko ids) narrows the response to the watchlist (spec 021) — see §8.1 | none |
 | `/api/projections`, `/api/projections/refresh` | Forecast generation, 6 h `unstable_cache`, tag `projections` | none |
 | `/api/signals` | Reads stored signal rows only — never computes, never calls an external API. Optional `?scope=market\|BTC\|ETH\|SOL` filters both kinds; live news is `kind = 'news' AND expires_at > now()` (spec 015) | none |
 | `/api/collect` | Hourly collection: snapshot build + upsert, then market-state signal generation, then forecast resolution + scoring (spec 011), then news ingest → classify → publish (spec 015) — every stage isolated and non-fatal | `Authorization: Bearer CRON_SECRET` |
@@ -205,4 +206,28 @@ Client-side state that must survive page reloads or browser restarts is stored i
 
 - **`localStorage` — Forecast Settings:** Key `catoshi:forecast-settings` stores the user's forecast UI preferences as a JSON string (selected provider, time horizon, confidence display threshold, pinned assets). Read on component mount; written on any setting change. Cleared if the stored schema version mismatches.
 - **`localStorage` — Chart Preferences:** Key `catoshi:chart-prefs` stores the user's last-selected asset and time range for the Historical Price Chart as a JSON string (`{ coinId: string; days: number }`). Read on mount via a lazy initializer (SSR-safe); written on every selection change. Defaults to `{ coinId: "bitcoin", days: 30 }` on first visit.
+- **`localStorage` — Watchlist:** Key `catoshi:watchlist` (`WATCHLIST_STORAGE_KEY`, `src/consts/prices.ts`) stores the user's followed coins as a versioned JSON payload `{ v: number; coins: WatchlistCoin[] }`, where `WatchlistCoin` is `{ id, symbol, name }` — the minimal identity needed to render a strip row's label before the first `/api/markets` response arrives (spec 021 §2.3). `v` is `WATCHLIST_STORAGE_VERSION` (currently `1`); a missing value, malformed JSON, a version mismatch, or a bad payload shape all fall back to `DEFAULT_FORECAST_TARGETS` (`src/consts/projections.ts`) — the same seed list the Projections page forecasts, so the strip and the forecast targets cannot drift apart. Read on mount through a lazy `useState` initializer that returns the default list when `typeof window === 'undefined'` (SSR-safe); written on every add/remove. The list is capped at `WATCHLIST_MAX_COINS` (`10`) on both read (`.slice`) and write (`addCoin` is a no-op when full). All reads/writes are wrapped in `try/catch` — private browsing, blocked site data, and quota errors are non-fatal. Owned by `useWatchlist` (`src/hooks/useWatchlist.ts`); the pure reducers (`parseStored`, `addCoin`, `removeCoin`) are unit-tested in `src/scripts/watchlist.test.ts`.
 - **`IndexedDB` — Forecast Snapshots:** Database `catoshi-db`, object store `catoshi-snapshots`. Holds up to 5 named forecast snapshots — each snapshot contains the full `ForecastResult` payload, a user-provided label, and a timestamp. When the limit is reached, the oldest snapshot is evicted. Accessed via a thin async wrapper in `src/lib/snapshotStore.ts` (no external IndexedDB library required).
+
+## 8.1 Watchlist-Scoped Markets Query (spec 021)
+
+`GET /api/markets` takes an optional `?ids=` parameter so the client can fetch live
+data for exactly the coins in the persisted watchlist (§8) instead of the default
+market-cap page. The pure helpers live in `src/app/api/markets/marketIds.ts`
+(colocated, server-independent, unit-tested in `src/scripts/watchlist.test.ts`):
+
+- **`parseMarketIds(raw)`** — splits on comma, trims, lowercases, de-duplicates
+  (first occurrence wins), drops empties. A list longer than `WATCHLIST_MAX_COINS`
+  (`10`) is rejected with **HTTP 400** (`{ error }`) — the URL is user-controllable
+  and must not fan out an arbitrarily large upstream request. An absent `ids` param
+  leaves the route on its default `order=market_cap_desc` page; an empty/all-blank
+  value parses to `[]` and returns `[]`.
+- **`orderByRequestedIds(rows, ids)`** — re-orders the upstream rows to match the
+  requested order and drops any row whose id was not requested. An id with **no
+  matching upstream row** (unknown or delisted coin CoinGecko did not return) is
+  simply absent from the response — **never synthesised as a row of zeroes**
+  (functional spec §2.7). The client is responsible for rendering a placeholder
+  from its stored `WatchlistCoin` identity when a row is missing.
+
+The mock-data path (`NEXT_PUBLIC_USE_MOCK_DATA=true`) applies the same
+parse/re-order logic against `MOCK_MARKETS`.

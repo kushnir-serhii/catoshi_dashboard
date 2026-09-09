@@ -39,6 +39,7 @@ _Before adding anything, remove everything the product claims but cannot do. Thi
 - [x] **Stop Showing Unmeasured Numbers**
   - [x] **Delete the Fabricated Models Data:** Remove the invented model roster and accuracy figures that the Models page renders as if measured. _(spec 011, Slice 1)_
   - [x] **Trim to the Forecasting Core:** Remove the Portfolio page, holdings panels and mocked holdings data, and rewrite the landing page so it describes only what the product does — no wallet connection, no pricing tiers, no invented traction statistics. _(spec 016)_
+  - [x] **Real Watchlist With Live Data:** Replace the fixed Projections watchlist strip with a user-chosen list of coins showing live prices, 24h change, real 7-day trends and the saved forecast (or a labelled absent projection), a working "Manage list", device-local persistence, honest loading/staleness states, and real 7-day trend lines on the Markets summary cards. _(spec 021)_
 
 - [ ] **Trustworthy Collection**
   - [ ] **Prove the Pipeline Runs:** Verify hourly collection actually writes, expose true data freshness on every surface that displays it, and make a stalled pipeline visible rather than silent. _(spec 017 — observability shipped: `/api/health`, `public.collector_status`, freshness note, runbook; pipeline-run verification pending deployment/secrets)_

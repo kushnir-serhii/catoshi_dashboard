@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 
 import { useDashboard } from '@/components/dashboard/context';
+import { WatchlistManageModal } from '@/components/dashboard/WatchlistManageModal';
 import {
   AIPanel,
   ChartPanel,
@@ -11,7 +12,7 @@ import {
   WatchlistPanel,
 } from '@/components/panels';
 import { DEFAULT_COIN } from '@/consts/projections';
-import { panelSignals, watchlistRows } from '@/data/projections';
+import { panelSignals } from '@/data/projections';
 import type { CoinListItem, ProjectionData } from '@/data/types';
 import { useCoinSearch } from '@/hooks/useCoinSearch';
 import { useForecastSettings } from '@/hooks/useForecastSettings';
@@ -19,6 +20,7 @@ import { useForecastSnapshots } from '@/hooks/useForecastSnapshots';
 import { useMarkets } from '@/hooks/useMarkets';
 import type { ScenarioOverride } from '@/hooks/useProjectionChart';
 import { useProjections } from '@/hooks/useProjections';
+import { useWatchlist } from '@/hooks/useWatchlist';
 
 export function ProjectionsPage() {
   const { glow } = useDashboard();
@@ -27,12 +29,21 @@ export function ProjectionsPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [snapshotOverride, setSnapshotOverride] = useState<ProjectionData | null>(null);
   const [scenarioOverride, setScenarioOverride] = useState<ScenarioOverride | null>(null);
+  const [isWatchlistManageOpen, setIsWatchlistManageOpen] = useState(false);
 
-  const { service, model, setService, setModel } = useForecastSettings();
+  const { service, model, setServiceAndModel } = useForecastSettings();
   const { projections, isLoading, isStale, refresh, refreshCoin } = useProjections(service, model);
   const snapshots = useForecastSnapshots();
   const { search: searchCoins } = useCoinSearch();
   const { assets: popularAssets } = useMarkets();
+
+  const watchlist = useWatchlist();
+  const {
+    assets: watchlistAssets,
+    isLoading: watchlistLoading,
+    isStale: watchlistStale,
+    countdown: watchlistCountdown,
+  } = useMarkets(watchlist.ids);
 
   const handleLoadSnapshot = useCallback(
     (id: string) => {
@@ -71,8 +82,7 @@ export function ProjectionsPage() {
         isStale={isStale}
         service={service}
         model={model}
-        setService={setService}
-        setModel={setModel}
+        setServiceAndModel={setServiceAndModel}
         isSettingsOpen={isSettingsOpen}
         setIsSettingsOpen={setIsSettingsOpen}
         refresh={refresh}
@@ -97,8 +107,24 @@ export function ProjectionsPage() {
         onScenarioChange={setScenarioOverride}
         onReforecast={handleReforecast}
       />
-      <WatchlistPanel rows={watchlistRows} />
+      <WatchlistPanel
+        coins={watchlist.coins}
+        assets={watchlistAssets}
+        projections={projections}
+        isLoading={watchlistLoading}
+        isStale={watchlistStale}
+        countdown={watchlistCountdown}
+        onManage={() => setIsWatchlistManageOpen(true)}
+      />
       <SignalsPanel items={panelSignals} />
+      <WatchlistManageModal
+        isOpen={isWatchlistManageOpen}
+        onClose={() => setIsWatchlistManageOpen(false)}
+        coins={watchlist.coins}
+        add={watchlist.add}
+        remove={watchlist.remove}
+        isFull={watchlist.isFull}
+      />
     </div>
   );
 }

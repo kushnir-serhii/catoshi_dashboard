@@ -1,25 +1,39 @@
 'use client';
 
-import useSWR from 'swr';
 import { useEffect, useRef, useState } from 'react';
-import type { MarketListItem } from '@/data/types';
-import { PRICES_REFRESH_INTERVAL_MS } from '@/consts/prices';
+import useSWR from 'swr';
 
-async function fetchMarkets(): Promise<MarketListItem[]> {
-  const res = await fetch('/api/markets');
+import { PRICES_REFRESH_INTERVAL_MS } from '@/consts/prices';
+import type { MarketListItem } from '@/data/types';
+
+async function fetchMarkets(url: string): Promise<MarketListItem[]> {
+  const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch markets');
   return res.json() as Promise<MarketListItem[]>;
 }
 
-export function useMarkets() {
-  const { data, error, isLoading: swrLoading } = useSWR<MarketListItem[]>(
-    '/api/markets',
-    fetchMarkets,
-    {
-      refreshInterval: PRICES_REFRESH_INTERVAL_MS,
-      keepPreviousData: true,
-    }
-  );
+/**
+ * Build the request URL for a given id set. No ids → the plain `/api/markets`
+ * key, byte-identical to the top-markets call `MarketsPage` makes. An empty
+ * array → `null`, which tells SWR not to fetch (the empty-watchlist state).
+ */
+function marketsKey(ids?: string[]): string | null {
+  if (ids === undefined) return '/api/markets';
+  if (ids.length === 0) return null;
+  return `/api/markets?ids=${encodeURIComponent(ids.join(','))}`;
+}
+
+export function useMarkets(ids?: string[]) {
+  const key = marketsKey(ids);
+
+  const {
+    data,
+    error,
+    isLoading: swrLoading,
+  } = useSWR<MarketListItem[]>(key, fetchMarkets, {
+    refreshInterval: PRICES_REFRESH_INTERVAL_MS,
+    keepPreviousData: true,
+  });
 
   // isLoading = true only on first load (no prior data)
   const isLoading = swrLoading && !data;
@@ -36,7 +50,7 @@ export function useMarkets() {
     setCountdown(PRICES_REFRESH_INTERVAL_MS / 1000);
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
-      setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);

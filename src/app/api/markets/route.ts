@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
+
+import { COINGECKO_API_KEY_HEADER, MARKETS_PAGE_SIZE } from '@/consts/prices';
 import type { MarketListItem } from '@/data/types';
-import { MARKETS_PAGE_SIZE, COINGECKO_API_KEY_HEADER } from '@/consts/prices';
+
+import { orderByRequestedIds, parseMarketIds } from './marketIds';
 
 const MOCK_MARKETS: MarketListItem[] = [
   {
@@ -8,7 +11,7 @@ const MOCK_MARKETS: MarketListItem[] = [
     symbol: 'btc',
     name: 'Bitcoin',
     image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png',
-    current_price: 69750.40,
+    current_price: 69750.4,
     price_change_percentage_24h: 1.84,
     market_cap: 1370000000000,
     total_volume: 28400000000,
@@ -41,8 +44,8 @@ const MOCK_MARKETS: MarketListItem[] = [
     symbol: 'tao',
     name: 'Bittensor',
     image: 'https://assets.coingecko.com/coins/images/28452/large/ARUsPeNQ_400x400.jpeg',
-    current_price: 456.20,
-    price_change_percentage_24h: 5.20,
+    current_price: 456.2,
+    price_change_percentage_24h: 5.2,
     market_cap: 3400000000,
     total_volume: 220000000,
     sparkline_in_7d: { price: [400, 415, 430, 440, 435, 450, 456] },
@@ -60,8 +63,21 @@ const MOCK_MARKETS: MarketListItem[] = [
   },
 ];
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
+  const rawIds = new URL(request.url).searchParams.get('ids');
+  const parsed = rawIds === null ? null : parseMarketIds(rawIds);
+
+  if (parsed && !parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+
+  const requestedIds = parsed?.ok ? parsed.ids : null;
+
   if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') {
+    if (requestedIds) {
+      const filtered = orderByRequestedIds(MOCK_MARKETS, requestedIds);
+      return NextResponse.json(filtered, { status: 200 });
+    }
     return NextResponse.json(MOCK_MARKETS, { status: 200 });
   }
 
@@ -71,19 +87,22 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({ error: 'Failed to fetch markets' }, { status: 502 });
   }
 
-  const url =
-    `${baseUrl}/coins/markets` +
-    `?vs_currency=usd` +
-    `&order=market_cap_desc` +
-    `&per_page=${MARKETS_PAGE_SIZE}` +
-    `&page=1` +
-    `&sparkline=true` +
-    `&price_change_percentage=24h`;
+  const url = requestedIds
+    ? `${baseUrl}/coins/markets` +
+      `?vs_currency=usd` +
+      `&ids=${encodeURIComponent(requestedIds.join(','))}` +
+      `&sparkline=true` +
+      `&price_change_percentage=24h`
+    : `${baseUrl}/coins/markets` +
+      `?vs_currency=usd` +
+      `&order=market_cap_desc` +
+      `&per_page=${MARKETS_PAGE_SIZE}` +
+      `&page=1` +
+      `&sparkline=true` +
+      `&price_change_percentage=24h`;
 
   const apiKey = process.env.COINGECKO_API_KEY;
-  const headers: Record<string, string> = apiKey
-    ? { [COINGECKO_API_KEY_HEADER]: apiKey }
-    : {};
+  const headers: Record<string, string> = apiKey ? { [COINGECKO_API_KEY_HEADER]: apiKey } : {};
 
   let response: Response;
 
@@ -121,5 +140,7 @@ export async function GET(): Promise<NextResponse> {
     },
   }));
 
-  return NextResponse.json(data, { status: 200 });
+  const body = requestedIds ? orderByRequestedIds(data, requestedIds) : data;
+
+  return NextResponse.json(body, { status: 200 });
 }

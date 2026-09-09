@@ -12,8 +12,7 @@ interface ForecastSettingsModalProps {
   onClose: () => void;
   service: 'claude' | 'openai';
   model: string;
-  setService: (s: 'claude' | 'openai') => void;
-  setModel: (m: string) => void;
+  setServiceAndModel: (s: 'claude' | 'openai', m: string) => void;
   refresh: (service: string, model: string) => Promise<void>;
   snapshots: ForecastSnapshot[];
   onLoadSnapshot: (id: string) => void;
@@ -26,8 +25,7 @@ export function ForecastSettingsModal({
   onClose,
   service,
   model,
-  setService,
-  setModel,
+  setServiceAndModel,
   refresh,
   snapshots,
   onLoadSnapshot,
@@ -57,8 +55,13 @@ export function ForecastSettingsModal({
   function handleServiceChange(s: 'claude' | 'openai') {
     setLocalService(s);
     setApplyError(null);
-    const firstModel = s === 'claude' ? CLAUDE_MODELS[0].id : OPENAI_MODELS[0].id;
-    setLocalModel(firstModel);
+    // Returning to the committed provider restores its committed model;
+    // any other provider falls back to its first model.
+    if (s === service) {
+      setLocalModel(model);
+      return;
+    }
+    setLocalModel(s === 'claude' ? CLAUDE_MODELS[0].id : OPENAI_MODELS[0].id);
   }
 
   function handleModelChange(m: string) {
@@ -70,8 +73,7 @@ export function ForecastSettingsModal({
     setIsApplying(true);
     setApplyError(null);
     try {
-      setService(localService);
-      setModel(localModel);
+      setServiceAndModel(localService, localModel);
       await refresh(localService, localModel);
       onClose();
     } catch (err) {

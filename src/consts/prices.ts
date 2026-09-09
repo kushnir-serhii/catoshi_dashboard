@@ -19,3 +19,10 @@ export const MARKETS_PAGE_SIZE = 10;
  * with error_code 10010. Pro keys use `x-cg-pro-api-key` + pro-api.coingecko.com.
  */
 export const COINGECKO_API_KEY_HEADER = 'x-cg-demo-api-key';
+
+/** Watchlist (spec 021) — user-curated set of coins with live data. */
+export const WATCHLIST_MAX_COINS = 10;
+/** localStorage key holding the persisted watchlist. */
+export const WATCHLIST_STORAGE_KEY = 'catoshi:watchlist';
+/** Schema version of the persisted watchlist payload; bump on shape change. */
+export const WATCHLIST_STORAGE_VERSION = 1;

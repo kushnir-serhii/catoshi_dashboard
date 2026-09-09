@@ -9,8 +9,9 @@ export interface KpiItem {
   deltaText: string;
   deltaClass: string;
   subText?: string;
-  sparkSeed?: number;
-  sparkColor?: 'green' | 'violet' | 'red';
+  /** Real 7-day price series for the card's trend line. Absent → no line
+   * (no seeded fallback). */
+  sparkline?: number[];
 }
 
 export interface Sector {
@@ -41,17 +42,6 @@ export interface Signal {
   body?: string;
   meta: string;
   conf?: number;
-}
-
-export interface WatchlistRow {
-  sym: string;
-  name: string;
-  price: string;
-  d24: string;
-  up: boolean;
-  proj: string;
-  side: 'bull' | 'bear';
-  spark: number;
 }
 
 export interface KPIsProps {

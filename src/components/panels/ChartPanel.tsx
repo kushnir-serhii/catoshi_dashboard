@@ -27,8 +27,7 @@ interface ChartPanelProps {
   isStale: boolean;
   service: string;
   model: string;
-  setService: (s: 'claude' | 'openai') => void;
-  setModel: (m: string) => void;
+  setServiceAndModel: (s: 'claude' | 'openai', m: string) => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (v: boolean) => void;
   refresh: (service: string, model: string) => Promise<void>;
@@ -89,8 +88,7 @@ export function ChartPanel({
   isStale,
   service,
   model,
-  setService,
-  setModel,
+  setServiceAndModel,
   isSettingsOpen,
   setIsSettingsOpen,
   refresh,
@@ -529,8 +527,7 @@ export function ChartPanel({
         onClose={() => setIsSettingsOpen(false)}
         service={service as 'claude' | 'openai'}
         model={model}
-        setService={setService}
-        setModel={setModel}
+        setServiceAndModel={setServiceAndModel}
         refresh={refresh}
         snapshots={snapshots}
         onLoadSnapshot={onLoadSnapshot}

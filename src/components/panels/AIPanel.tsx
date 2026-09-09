@@ -2,9 +2,10 @@
 
 import { Surface } from '@heroui/react';
 
-import { AI_PANEL_ROW_COUNT } from '@/consts/projections';
+import { AI_PANEL_ROW_COUNT, WATCHLIST_HORIZON_DAYS } from '@/consts/projections';
 import type { CoinListItem, MarketListItem, ProjectionData } from '@/data/types';
-import { formatPrice, interpolateAt } from '@/lib/projectionSeries';
+import { formatPrice } from '@/lib/projectionSeries';
+import { projectedPriceAt } from '@/lib/projectionSummary';
 
 interface AIPanelProps {
   glow?: number;
@@ -18,7 +19,9 @@ interface AIPanelProps {
   onSelectCoin: (coin: CoinListItem) => void;
 }
 
-const FORECAST_HORIZON_DAYS = 60;
+/** The base-curve horizon this panel projects to — the same value the
+ * watchlist strip summarises to (`WATCHLIST_HORIZON_DAYS`). */
+const FORECAST_HORIZON_DAYS = WATCHLIST_HORIZON_DAYS;
 
 export function AIPanel({ popularAssets, projections, selectedCoin, onSelectCoin }: AIPanelProps) {
   const rows = (popularAssets ?? []).slice(0, AI_PANEL_ROW_COUNT);
@@ -47,10 +50,7 @@ export function AIPanel({ popularAssets, projections, selectedCoin, onSelectCoin
         const projection = projections?.find((p) => p.coin === symbol) ?? null;
         const isActive = selectedCoin.id === asset.id;
 
-        const target =
-          projection && projection.currentPrice > 0
-            ? interpolateAt(projection.base, FORECAST_HORIZON_DAYS)
-            : undefined;
+        const target = projectedPriceAt(projection, FORECAST_HORIZON_DAYS) ?? undefined;
         const deltaPct =
           target !== undefined
             ? ((target - asset.current_price) / asset.current_price) * 100

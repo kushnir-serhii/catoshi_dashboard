@@ -21,17 +21,17 @@ interface ResolvedMode {
 function resolveMode(service: string, model: string): ResolvedMode {
   const claude = CLAUDE_MODELS.find((m) => m.id === model);
   if (claude) {
-    return { provider: 'Claude', model: claude.label, accent: 'oklch(0.72 0.14 55)' };
+    return { provider: 'Claude', model: claude.label, accent: 'var(--color-accent-claude)' };
   }
   const openai = OPENAI_MODELS.find((m) => m.id === model);
   if (openai) {
-    return { provider: 'OpenAI', model: openai.label, accent: 'oklch(0.74 0.13 165)' };
+    return { provider: 'OpenAI', model: openai.label, accent: 'var(--color-accent-openai)' };
   }
   // Unknown model id — fall back to the stored service and the raw id.
   return {
     provider: service === 'claude' ? 'Claude' : 'OpenAI',
     model: model || 'Default',
-    accent: 'oklch(0.72 0.05 280)',
+    accent: 'var(--color-accent-neutral)',
   };
 }
 
@@ -48,7 +48,7 @@ export function ForecastModeIndicator({ service, model, onOpen }: ForecastModeIn
     >
       <span
         className="forecast-mode-indicator__dot"
-        style={{ background: accent, boxShadow: `0 0 6px ${accent}` }}
+        style={{ background: accent, boxShadow: `0 0 var(--glow-sm) ${accent}` }}
         aria-hidden="true"
       />
       <span className="forecast-mode-indicator__text">

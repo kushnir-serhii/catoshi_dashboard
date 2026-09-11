@@ -68,7 +68,7 @@ handing any personal or financial data to a third party.
   with resolved-forecast counts, hit rate, Brier score, and a regime breakdown showing
   which market conditions the forecaster handles badly. Empty until enough forecasts have
   resolved. (Spec 011.)
-- **Historical Analogs** — *Conditional.* "Has this setup happened before, and what
+- **Historical Analogs** — _Conditional._ "Has this setup happened before, and what
   followed?" answered from stored snapshots as measured base rates. Only built if the
   falsification test shows the method has signal and the data has power. (Spec 012.)
 
@@ -117,8 +117,13 @@ deletes the code and copy that implies otherwise.
   `HoldingsDonut` and `src/data/portfolio.ts` are removed.
 - **Wallet and exchange connections** — No wallet addresses, no read-only exchange API
   keys, no balance syncing. Any landing copy promising this is removed.
-- **Any personal data** — No user accounts, no sign-up, no login, no email capture, no
-  per-user storage on the server. The product is anonymous and read-only.
+- **Any personal data** — Spec 022 adds Google sign-in for one bounded purpose: metering
+  the paid Reforecast action per person (three per day). Guests still get the entire
+  read-only product — every price, signal, projection, model score and chart — and are
+  never asked to sign in to read anything. There is still no password, no sign-up form, no
+  email sent by the product, no profile, and no per-user storage beyond what identifies a
+  person and counts their forecasts. The 02.09.2026 decision that removed accounts
+  entirely is deliberately reversed for this one purpose (spec 022).
 - **Pricing, plans and billing** — No paid tiers, no trial, no "talk to sales". The landing
   page pricing section is removed, along with the invented traction statistics.
 - **Social / sharing features** — No sharing, following, or social feed.
@@ -130,5 +135,10 @@ deletes the code and copy that implies otherwise.
 
 ### 3.3. Boundary Test
 
-If a proposed feature needs to know *who the user is* or *what they own*, it is out of
-scope. If it needs only *what the market did*, it is in scope.
+If a proposed feature needs to know _who the user is_ or _what they own_, it is out of
+scope. If it needs only _what the market did_, it is in scope.
+
+**One deliberate, bounded exception (spec 022):** identity is used solely to attribute and
+meter the paid Reforecast action — three forecasts per signed-in person per day — and for
+the admin role that grants that metering. It is not a licence to add any further feature
+that depends on knowing who the user is.

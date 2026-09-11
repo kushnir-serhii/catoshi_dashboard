@@ -93,3 +93,20 @@ export const NEWS_MAGNITUDE_SEVERITY: Record<'LOW' | 'MEDIUM' | 'HIGH', number> 
  */
 export const NEWS_HORIZON_HOURS_MIN = 6;
 export const NEWS_HORIZON_HOURS_MAX = 720;
+
+/**
+ * `public.app_settings.key` under which the admin-toggled news-classification
+ * pause is stored (spec 022 §2.9). A row value of `'true'` means paused,
+ * `'false'` means running; when the row is ABSENT the pause falls back to
+ * `NEWS_CLASSIFY_ENABLED` below.
+ */
+export const APP_SETTING_NEWS_PAUSE = 'news_classification_paused';
+
+/**
+ * Env-var fallback for the news-classification pause (the pre-spec-022
+ * behaviour): unattended classification runs unless `NEWS_CLASSIFY_ENABLED`
+ * is explicitly `'false'`. Consulted only when the `app_settings` row is
+ * absent, so toggling the admin switch and then clearing it returns to exactly
+ * this value.
+ */
+export const NEWS_CLASSIFY_ENABLED = process.env.NEWS_CLASSIFY_ENABLED !== 'false';

@@ -102,9 +102,16 @@ _Neither item is committed. The first is gated on evidence; the second is a nice
 ### Explicitly Not On This Roadmap
 
 Removed by decision on 02.09.2026, not deferred: portfolio and holdings, wallet or
-exchange connections, user accounts and any personal data, pricing tiers and billing,
-social features, mobile app, trading execution or recommendations, and alerting. See
-`product-definition.md` §3.2. Spec 016 deletes the code that implies these exist.
+exchange connections, pricing tiers and billing, social features, mobile app, trading
+execution or recommendations, and alerting. See `product-definition.md` §3.2. Spec 016
+deletes the code that implies these exist.
+
+**User accounts and personal data** were on this list too, but spec 022
+(`context/spec/022-google-auth-roles-reforecast-allowance/`) deliberately reversed that
+for one specific purpose: metering the cost of the Reforecast action per person (Google
+sign-in, three forecasts per signed-in person per day, an admin role). Guests keep the
+full read-only product. Nothing else about accounts — passwords, email, profiles, paid
+plans — is in scope.
 
 Also not on this roadmap: **news-headline signals as originally designed in spec 002**
 (LLM classification with no persistence, no scope tagging and no scoreable claim). Spec

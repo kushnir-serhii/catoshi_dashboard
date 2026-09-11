@@ -4,15 +4,18 @@ import { Surface } from '@heroui/react';
 import { useState } from 'react';
 
 import { ProjectionChart } from '@/components/dashboard/charts';
+import { ChartSkeleton } from '@/components/dashboard/ChartSkeleton';
 import { ForecastContextPanel } from '@/components/dashboard/ForecastContextPanel';
 import { ForecastModeIndicator } from '@/components/dashboard/ForecastModeIndicator';
 import { ForecastSettingsModal } from '@/components/dashboard/ForecastSettingsModal';
+import { SignInInviteModal } from '@/components/dashboard/SignInInviteModal';
 import { CoinSelect } from '@/components/ui/CoinSelect';
 import { DEFAULT_FORECAST_TARGETS, RANGE_OPTIONS } from '@/consts/projections';
 import type { CoinListItem, ForecastSnapshot, ProjectionData } from '@/data/types';
 import type { ScenarioOverride } from '@/hooks/useProjectionChart';
 import { useProjectionChart } from '@/hooks/useProjectionChart';
-import { describeRefreshError } from '@/hooks/useProjections';
+import { describeRefreshError, exhaustedAllowanceMessage } from '@/hooks/useProjections';
+import { useSession } from '@/hooks/useSession';
 import { formatPrice } from '@/lib/projectionSeries';
 
 type ChartRange = (typeof RANGE_OPTIONS)[number];
@@ -131,11 +134,31 @@ export function ChartPanel({
   const [saveName, setSaveName] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reforecastError, setReforecastError] = useState<string | null>(null);
+  const [isSignInInviteOpen, setIsSignInInviteOpen] = useState(false);
+  const { session } = useSession();
+  const role = session?.role ?? 'guest';
+  const isGuest = role === 'guest';
+  const remaining = session?.remaining ?? null;
+  const reforecastLabel =
+    role === 'user' && remaining !== null ? `Reforecast — ${remaining} left today` : 'Reforecast';
 
   const coinSymbol = selectedCoin.symbol.toUpperCase();
   const isOffBatchCoin = !DEFAULT_FORECAST_TARGETS.some((t) => t.symbol === coinSymbol);
 
   async function handleRefresh() {
+    // Guests: the button stays enabled and un-greyed, but pressing it invites
+    // sign-in instead of calling the API (spec 022, §2.3). No forecast is fired
+    // optimistically after sign-in — the user presses again deliberately.
+    if (isGuest) {
+      setIsSignInInviteOpen(true);
+      return;
+    }
+    // Client-side courtesy: a user at zero sees the exhausted message with the
+    // reset time without a round-trip. The server refuses independently.
+    if (role === 'user' && remaining === 0) {
+      setReforecastError(exhaustedAllowanceMessage(session?.resetsAt ?? null));
+      return;
+    }
     setIsRefreshing(true);
     setReforecastError(null);
     try {
@@ -182,17 +205,12 @@ export function ChartPanel({
       <Surface className="card glow-violet area-chart animate-pulse">
         <div className="card-header">
           <div
-            style={{ height: 14, width: '40%', borderRadius: 4, background: 'var(--surface-3)' }}
+            style={{ height: 14, width: '40%', borderRadius: 'var(--radius-sm)', background: 'var(--surface-3)' }}
           />
         </div>
-        <div
-          style={{
-            height: 320,
-            borderRadius: 'var(--radius)',
-            background: 'var(--surface-3)',
-            marginTop: 12,
-          }}
-        />
+        <div style={{ marginTop: 'var(--sp-3)' }}>
+          <ChartSkeleton />
+        </div>
       </Surface>
     );
   }
@@ -214,23 +232,23 @@ export function ChartPanel({
           <div className="chart-legend-row">
             <div className="legend">
               <span>
-                <span className="sw" style={{ background: 'oklch(0.86 0.20 145)' }}></span>Bull case
+                <span className="sw" style={{ background: 'var(--color-chart-bull)' }}></span>Bull case
                 {activeProjData?.scenarioProbabilities &&
                   ` (${activeProjData.scenarioProbabilities.bull}%)`}
               </span>
               <span>
-                <span className="sw" style={{ background: 'oklch(0.78 0.22 295)' }}></span>Base case
+                <span className="sw" style={{ background: 'var(--color-chart-base)' }}></span>Base case
                 {activeProjData?.scenarioProbabilities &&
                   ` (${activeProjData.scenarioProbabilities.base}%)`}
               </span>
               <span>
-                <span className="sw" style={{ background: 'oklch(0.65 0.18 25)' }}></span>Bear case
+                <span className="sw" style={{ background: 'var(--color-chart-bear)' }}></span>Bear case
                 {activeProjData?.scenarioProbabilities &&
                   ` (${activeProjData.scenarioProbabilities.bear}%)`}
               </span>
               {scenarioOverride && (
                 <span>
-                  <span className="sw" style={{ background: 'oklch(0.80 0.18 85)' }}></span>Your
+                  <span className="sw" style={{ background: 'var(--color-chart-scenario)' }}></span>Your
                   scenario
                 </span>
               )}
@@ -268,10 +286,10 @@ export function ChartPanel({
         </div>
         <div
           className="row chart-price-row"
-          style={{ alignItems: 'baseline', gap: 18, marginBottom: 6 }}
+          style={{ alignItems: 'baseline', gap: 'var(--sp-4)', marginBottom: 'var(--sp-2)' }}
         >
           <div
-            style={{ fontSize: 32, fontWeight: 500, letterSpacing: '-0.02em' }}
+            style={{ fontSize: 'var(--fs-xl)', fontWeight: 500, letterSpacing: 'var(--ls-tight)' }}
             className="tnum glow-text-violet"
           >
             {livePrice !== undefined ? formatPrice(livePrice) : '$—'}
@@ -289,7 +307,7 @@ export function ChartPanel({
               <div className="muted small">{histChange.label}</div>
             </>
           )}
-          <div className="right" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="right" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
             <div style={{ position: 'relative' }}>
               <button
                 className="btn-ghost"
@@ -313,16 +331,16 @@ export function ChartPanel({
                     position: 'absolute',
                     top: 'calc(100% + 6px)',
                     right: 0,
-                    zIndex: 200,
+                    zIndex: 'var(--z-popover)',
                     background: 'var(--surface-2)',
                     border: '1px solid var(--surface-3)',
                     borderRadius: 'var(--radius)',
-                    padding: '10px 12px',
+                    padding: 'var(--sp-3) var(--sp-3)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 8,
+                    gap: 'var(--sp-2)',
                     minWidth: 220,
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+                    boxShadow: 'var(--shadow-raised)',
                   }}
                 >
                   <input
@@ -343,25 +361,27 @@ export function ChartPanel({
                       border: '1px solid var(--surface-3)',
                       borderRadius: 'var(--radius)',
                       color: 'var(--text)',
-                      fontSize: 16,
-                      padding: '6px 10px',
+                      fontSize: 'var(--fs-base)',
+                      padding: 'var(--sp-2) var(--sp-3)',
                       outline: 'none',
                     }}
                   />
                   {saveError && (
-                    <span style={{ fontSize: 11, color: 'var(--red)' }}>{saveError}</span>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--red)' }}>
+                      {saveError}
+                    </span>
                   )}
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
                     <button
                       className="btn-ghost"
                       onClick={() => void handleSaveConfirm()}
                       style={{
                         flex: 1,
-                        padding: '5px 0',
-                        fontSize: 13,
-                        background: 'oklch(0.78 0.22 295 / 0.15)',
-                        border: '1px solid oklch(0.78 0.22 295)',
-                        color: 'oklch(0.78 0.22 295)',
+                        padding: 'var(--sp-1) 0',
+                        fontSize: 'var(--fs-sm)',
+                        background: 'var(--color-selected-soft)',
+                        border: '1px solid var(--color-chart-base)',
+                        color: 'var(--color-chart-base)',
                         borderRadius: 'var(--radius)',
                       }}
                     >
@@ -374,7 +394,7 @@ export function ChartPanel({
                         setSaveName('');
                         setSaveError(null);
                       }}
-                      style={{ padding: '5px 10px', fontSize: 13 }}
+                      style={{ padding: 'var(--sp-1) var(--sp-3)', fontSize: 'var(--fs-sm)' }}
                     >
                       Cancel
                     </button>
@@ -389,12 +409,12 @@ export function ChartPanel({
               title={`Generate a fresh AI forecast for ${coinSymbol}`}
               style={{ opacity: isRefreshing ? 0.6 : 1 }}
             >
-              {isRefreshing ? 'Reforecasting…' : 'Reforecast'}
+              {isRefreshing ? 'Reforecasting…' : reforecastLabel}
             </button>
           </div>
         </div>
         {isOffBatchCoin && (
-          <div className="muted small" style={{ marginBottom: 10 }}>
+          <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>
             Session-only: {coinSymbol} has no stored history, so this forecast isn&apos;t saved and
             won&apos;t survive a reload.
           </div>
@@ -404,14 +424,14 @@ export function ChartPanel({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              padding: '6px 12px',
+              gap: 'var(--sp-3)',
+              padding: 'var(--sp-2) var(--sp-3)',
               borderRadius: 'var(--radius-sm)',
-              background: 'oklch(0.78 0.22 295 / 0.12)',
+              background: 'var(--color-selected-softer)',
               border: '1px solid oklch(0.78 0.22 295 / 0.35)',
               color: 'oklch(0.85 0.12 295)',
-              fontSize: 12,
-              marginBottom: 10,
+              fontSize: 'var(--fs-sm)',
+              marginBottom: 'var(--sp-3)',
             }}
           >
             <span>
@@ -429,8 +449,8 @@ export function ChartPanel({
               disabled={isRefreshing}
               style={{
                 marginLeft: 'auto',
-                padding: '2px 10px',
-                fontSize: 11,
+                padding: 'var(--sp-0) var(--sp-3)',
+                fontSize: 'var(--fs-xs)',
                 opacity: isRefreshing ? 0.6 : 1,
               }}
             >
@@ -443,14 +463,14 @@ export function ChartPanel({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              padding: '6px 12px',
+              gap: 'var(--sp-3)',
+              padding: 'var(--sp-2) var(--sp-3)',
               borderRadius: 'var(--radius-sm)',
               background: 'oklch(0.65 0.18 25 / 0.15)',
               border: '1px solid oklch(0.65 0.18 25 / 0.35)',
               color: 'oklch(0.75 0.18 25)',
-              fontSize: 12,
-              marginBottom: 10,
+              fontSize: 'var(--fs-sm)',
+              marginBottom: 'var(--sp-3)',
             }}
           >
             <span>{reforecastError}</span>
@@ -461,14 +481,14 @@ export function ChartPanel({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              padding: '6px 12px',
+              gap: 'var(--sp-3)',
+              padding: 'var(--sp-2) var(--sp-3)',
               borderRadius: 'var(--radius-sm)',
-              background: 'oklch(0.65 0.18 60 / 0.15)',
-              border: '1px solid oklch(0.65 0.18 60 / 0.35)',
-              color: 'oklch(0.85 0.15 60)',
-              fontSize: 12,
-              marginBottom: 10,
+              background: 'var(--color-notice-bg)',
+              border: '1px solid var(--color-notice-border)',
+              color: 'var(--color-notice)',
+              fontSize: 'var(--fs-sm)',
+              marginBottom: 'var(--sp-3)',
             }}
           >
             <span>
@@ -481,8 +501,8 @@ export function ChartPanel({
               disabled={isRetrying}
               style={{
                 marginLeft: 'auto',
-                padding: '2px 10px',
-                fontSize: 11,
+                padding: 'var(--sp-0) var(--sp-3)',
+                fontSize: 'var(--fs-xs)',
                 opacity: isRetrying ? 0.6 : 1,
               }}
             >
@@ -490,38 +510,43 @@ export function ChartPanel({
             </button>
           </div>
         )}
-        <div className="chart-stage">
-          <ProjectionChart glow={glow} rows={chartRows} yDomain={chartYDomain} todayMs={todayMs} />
-          <div
-            className="scenario-tag"
-            style={{ top: 18, right: 56, color: 'oklch(0.86 0.20 145)' }}
-          >
-            <span className="dot" style={{ background: 'oklch(0.86 0.20 145)' }}></span>
-            Bull · {formatBadgeValue(badges.bull, livePrice)}
-            {activeProjData?.scenarioProbabilities &&
-              ` · ${activeProjData.scenarioProbabilities.bull}% likely`}
+        <div className="chart-stage-wrap">
+          <div className="chart-stage">
+            <ProjectionChart
+              glow={glow}
+              rows={chartRows}
+              yDomain={chartYDomain}
+              todayMs={todayMs}
+            />
           </div>
-          <div
-            className="scenario-tag"
-            style={{ top: 130, right: 56, color: 'oklch(0.78 0.22 295)' }}
-          >
-            <span className="dot" style={{ background: 'oklch(0.78 0.22 295)' }}></span>
-            Base · {formatBadgeValue(badges.base, livePrice)}
-            {activeProjData?.scenarioProbabilities &&
-              ` · ${activeProjData.scenarioProbabilities.base}% likely`}
-          </div>
-          <div
-            className="scenario-tag"
-            style={{ top: 232, right: 56, color: 'oklch(0.65 0.18 25)' }}
-          >
-            <span className="dot" style={{ background: 'oklch(0.65 0.18 25)' }}></span>
-            Bear · {formatBadgeValue(badges.bear, livePrice)}
-            {activeProjData?.scenarioProbabilities &&
-              ` · ${activeProjData.scenarioProbabilities.bear}% likely`}
+          {/* The three scenario values. Absolutely positioned over the chart on a
+            wide screen; below ~640px the chart is only 180px tall and they were
+            simply hidden, which removed the forecast's actual numbers from the
+            phone entirely. They now reflow into a row under the chart instead. */}
+          <div className="scenario-tags">
+            <div className="scenario-tag bull" style={{ color: 'var(--color-chart-bull)' }}>
+              <span className="dot" style={{ background: 'var(--color-chart-bull)' }}></span>
+              Bull · {formatBadgeValue(badges.bull, livePrice)}
+              {activeProjData?.scenarioProbabilities &&
+                ` · ${activeProjData.scenarioProbabilities.bull}% likely`}
+            </div>
+            <div className="scenario-tag base" style={{ color: 'var(--color-chart-base)' }}>
+              <span className="dot" style={{ background: 'var(--color-chart-base)' }}></span>
+              Base · {formatBadgeValue(badges.base, livePrice)}
+              {activeProjData?.scenarioProbabilities &&
+                ` · ${activeProjData.scenarioProbabilities.base}% likely`}
+            </div>
+            <div className="scenario-tag bear" style={{ color: 'var(--color-chart-bear)' }}>
+              <span className="dot" style={{ background: 'var(--color-chart-bear)' }}></span>
+              Bear · {formatBadgeValue(badges.bear, livePrice)}
+              {activeProjData?.scenarioProbabilities &&
+                ` · ${activeProjData.scenarioProbabilities.bear}% likely`}
+            </div>
           </div>
         </div>
         <ForecastContextPanel projData={activeProjData} isStale={isStale} />
       </Surface>
+      <SignInInviteModal isOpen={isSignInInviteOpen} onClose={() => setIsSignInInviteOpen(false)} />
       <ForecastSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

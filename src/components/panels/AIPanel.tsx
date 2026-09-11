@@ -32,7 +32,7 @@ export function AIPanel({ popularAssets, projections, selectedCoin, onSelectCoin
         <div className="card-title">
           <span className="marker green"></span>Model predictions
         </div>
-        <span className="mono" style={{ fontSize: 10, color: 'var(--text-3)' }}>
+        <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-3)' }}>
           Most popular
         </span>
       </div>
@@ -41,7 +41,7 @@ export function AIPanel({ popularAssets, projections, selectedCoin, onSelectCoin
         — pick any other coin above to forecast it too.
       </p>
       {rows.length === 0 && (
-        <div className="muted small" style={{ padding: '12px 0' }}>
+        <div className="muted small" style={{ padding: 'var(--sp-3) 0' }}>
           Loading popular coins…
         </div>
       )}
@@ -65,12 +65,14 @@ export function AIPanel({ popularAssets, projections, selectedCoin, onSelectCoin
               display: 'block',
               width: '100%',
               textAlign: 'left',
-              cursor: 'pointer',
               font: 'inherit',
               color: 'inherit',
-              outline: isActive ? '1px solid oklch(0.78 0.22 295 / 0.5)' : 'none',
-              outlineOffset: 2,
+              // Selected state is a box-shadow, not an outline: `outline` is
+              // now reserved for the keyboard focus ring, and the two on the
+              // same element are indistinguishable.
+              boxShadow: isActive ? '0 0 0 1px oklch(0.78 0.22 295 / 0.6)' : 'none',
             }}
+            aria-pressed={isActive}
           >
             <div className="pair">
               <div className="row">

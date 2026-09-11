@@ -30,23 +30,42 @@ const faqs = [
 ];
 
 function FaqItem({
+  id,
   q,
   a,
   open,
   onToggle,
 }: {
+  id: string;
   q: string;
   a: string;
   open: boolean;
   onToggle: () => void;
 }) {
+  // The question is a real <button>, not a div with a click handler: the row
+  // is reachable by keyboard, announces its open/closed state, and the answer
+  // is tied to it so a screen reader reads the pair together.
   return (
-    <div className={['faq-item', open && 'open'].filter(Boolean).join(' ')} onClick={onToggle}>
-      <div className="faq-q">
+    <div className={['faq-item', open && 'open'].filter(Boolean).join(' ')}>
+      <button
+        type="button"
+        className="faq-q"
+        aria-expanded={open}
+        aria-controls={`${id}-answer`}
+        id={`${id}-question`}
+        onClick={onToggle}
+      >
         <span>{q}</span>
-        <span className="faq-icon">+</span>
-      </div>
-      <div className="faq-body">
+        <span className="faq-icon" aria-hidden="true">
+          +
+        </span>
+      </button>
+      <div
+        className="faq-body"
+        id={`${id}-answer`}
+        role="region"
+        aria-labelledby={`${id}-question`}
+      >
         <div>
           <p>{a}</p>
         </div>
@@ -68,6 +87,7 @@ export function FaqSection() {
         {faqs.map((item, i) => (
           <FaqItem
             key={i}
+            id={`faq-${i}`}
             q={item.q}
             a={item.a}
             open={openIndex === i}

@@ -12,7 +12,6 @@ import {
   WatchlistPanel,
 } from '@/components/panels';
 import { DEFAULT_COIN } from '@/consts/projections';
-import { panelSignals } from '@/data/projections';
 import type { CoinListItem, ProjectionData } from '@/data/types';
 import { useCoinSearch } from '@/hooks/useCoinSearch';
 import { useForecastSettings } from '@/hooks/useForecastSettings';
@@ -20,6 +19,7 @@ import { useForecastSnapshots } from '@/hooks/useForecastSnapshots';
 import { useMarkets } from '@/hooks/useMarkets';
 import type { ScenarioOverride } from '@/hooks/useProjectionChart';
 import { useProjections } from '@/hooks/useProjections';
+import { useSignals } from '@/hooks/useSignals';
 import { useWatchlist } from '@/hooks/useWatchlist';
 
 export function ProjectionsPage() {
@@ -36,6 +36,15 @@ export function ProjectionsPage() {
   const snapshots = useForecastSnapshots();
   const { search: searchCoins } = useCoinSearch();
   const { assets: popularAssets } = useMarkets();
+
+  // The panel showed four hardcoded mock signals ("Whale accumulation up 14%
+  // w/w") next to live prices. It now reads the same store the Signals page
+  // does — SWR dedupes the request between the two.
+  const {
+    signals: liveSignals,
+    isLoading: signalsLoading,
+    fetchError: signalsFetchError,
+  } = useSignals();
 
   const watchlist = useWatchlist();
   const {
@@ -70,6 +79,7 @@ export function ProjectionsPage() {
 
   return (
     <div className="layout-default grid">
+      <h1 className="sr-only">Projections</h1>
       <ChartPanel
         glow={glowNorm}
         projections={projections}
@@ -116,7 +126,7 @@ export function ProjectionsPage() {
         countdown={watchlistCountdown}
         onManage={() => setIsWatchlistManageOpen(true)}
       />
-      <SignalsPanel items={panelSignals} />
+      <SignalsPanel items={liveSignals} isLoading={signalsLoading} fetchError={signalsFetchError} />
       <WatchlistManageModal
         isOpen={isWatchlistManageOpen}
         onClose={() => setIsWatchlistManageOpen(false)}

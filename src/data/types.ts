@@ -34,16 +34,6 @@ export interface MarketAsset {
   sparkline: number[];
 }
 
-export interface Signal {
-  side: 'bullish' | 'bearish' | 'neutral';
-  tag: string;
-  src: string;
-  title: string;
-  body?: string;
-  meta: string;
-  conf?: number;
-}
-
 export interface KPIsProps {
   items: KpiItem[];
   isLoading: boolean;

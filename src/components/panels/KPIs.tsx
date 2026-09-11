@@ -15,8 +15,8 @@ export function KPIs({ items, isLoading, isStale, countdown }: KPIsProps) {
 
             {isLoading ? (
               <>
-                <div className="mb-1 h-6 w-24 animate-pulse rounded bg-gray-700" />
-                <div className="h-4 w-16 animate-pulse rounded bg-gray-600" />
+                <div className="mb-1 h-6 w-24 animate-pulse rounded-sm bg-surface-3" />
+                <div className="h-4 w-16 animate-pulse rounded-sm bg-surface-2" />
               </>
             ) : (
               <>
@@ -43,7 +43,10 @@ export function KPIs({ items, isLoading, isStale, countdown }: KPIsProps) {
       </div>
 
       {!isLoading && (
-        <div className="flex items-center gap-2 border-t border-(--line) px-4 py-2 text-xs text-(--text-3) tabular-nums">
+        <div
+          role="status"
+          className="flex items-center gap-2 border-t border-(--line) px-4 py-2 text-xs text-(--text-3) tabular-nums"
+        >
           {isStale && <span style={{ color: 'var(--warning)' }}>Data may be outdated</span>}
           <span className="ml-auto">Refreshes in {countdown}s</span>
         </div>

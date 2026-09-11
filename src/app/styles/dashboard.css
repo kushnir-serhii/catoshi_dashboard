@@ -13,6 +13,7 @@
   --text-2: var(--color-text-2);
   --text-3: var(--color-text-3);
   --violet: var(--color-violet);
+  --violet-light: var(--color-violet-light);
   --violet-2: var(--color-violet-2);
   --violet-soft: var(--color-violet-soft);
   --green: var(--color-green);
@@ -20,11 +21,9 @@
   --green-soft: var(--color-green-soft);
   --red: var(--color-red);
   --warning: var(--color-warning);
-  --glow: 1;
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --info: var(--color-info);
+  --amber: var(--color-amber);
+  --coral: var(--color-coral);
 
   font-family: var(--font-sans);
   font-feature-settings: 'ss01';
@@ -34,6 +33,11 @@
     radial-gradient(700px 500px at 95% 0%, oklch(0.7 0.18 145 / 0.06), transparent 60%), var(--bg);
   color: var(--text);
   min-height: 100vh;
+}
+
+/* Muted inline text (dropdown meta, helper copy). */
+.prowl .text-muted {
+  color: var(--text-3);
 }
 
 .prowl .mono {
@@ -46,7 +50,7 @@
 .prowl input,
 .prowl select,
 .prowl textarea {
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .prowl .tnum {
   font-variant-numeric: tabular-nums slashed-zero;
@@ -56,7 +60,7 @@
 .prowl .app {
   max-width: 1480px;
   margin: 0 auto;
-  padding: 22px 28px 40px;
+  padding: var(--sp-5) var(--sp-6) var(--sp-7);
   overflow-x: hidden;
 }
 .prowl .app > main {
@@ -64,33 +68,24 @@
   min-width: 0;
 }
 
-/* Non-grid page wrapper (Markets, Signals, Models) */
+/* Non-grid page wrapper (Markets, Signals, Models).
+   No side padding of its own — `.app` above owns the gutter for every page,
+   so putting it here too would double it. */
 .prowl .page-content {
-  margin-top: 16px;
+  margin-top: var(--sp-4);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--sp-4);
   width: 100%;
   min-width: 0;
-  padding: 0 28px 40px;
-}
-@media (max-width: 768px) {
-  .prowl .page-content {
-    padding: 0 16px 32px;
-  }
-}
-@media (max-width: 480px) {
-  .prowl .page-content {
-    padding: 0 12px 28px;
-  }
 }
 
 /* Top bar */
 .prowl .topbar {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 10px 14px;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), var(--surface);
@@ -99,25 +94,25 @@
 .prowl .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-right: 14px;
+  gap: var(--sp-2);
+  padding-right: var(--sp-4);
   border-right: 1px solid var(--line);
   cursor: pointer;
 }
 .prowl .nav {
   display: flex;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 .prowl .nav a {
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-sm);
   color: var(--text-2);
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  transition: color 0.15s;
+  gap: var(--sp-2);
+  transition: color var(--dur-fast);
 }
 .prowl .nav a.active {
   color: var(--text);
@@ -127,12 +122,12 @@
   color: var(--text);
 }
 .prowl .nav .pill-new {
-  font-size: var(--fs-3xs);
-  padding: 2px 6px;
-  border-radius: 999px;
+  font-size: var(--fs-xs);
+  padding: var(--sp-0) var(--sp-2);
+  border-radius: var(--radius-pill);
   background: var(--green-soft);
   color: var(--green-2);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--ls-label);
 }
 /* Burger button (mobile nav trigger) */
 .prowl .burger {
@@ -141,7 +136,7 @@
   flex-shrink: 0;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
@@ -156,12 +151,12 @@
   left: 8px;
   width: 18px;
   height: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--text-2);
   transition:
-    transform 0.25s ease,
-    opacity 0.2s ease,
-    top 0.25s ease;
+    transform var(--dur-base) ease,
+    opacity var(--dur-base) ease,
+    top var(--dur-base) ease;
 }
 .prowl .burger span:nth-child(1) {
   top: 12px;
@@ -184,6 +179,25 @@
   transform: rotate(-45deg);
 }
 
+/* Skip link — the first thing a keyboard user reaches, so they can jump the
+   nav instead of tabbing through it on every page. */
+.prowl .skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: var(--z-skip-link);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+}
+.prowl .skip-link:focus-visible {
+  left: 12px;
+  top: 12px;
+}
+
 /* Mobile nav dropdown (hidden on desktop, animated open/close) */
 .prowl .mobile-menu {
   display: none;
@@ -193,14 +207,14 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-3);
   height: 36px;
-  padding: 0 14px;
+  padding: 0 var(--sp-4);
   background: var(--bg-2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--text-3);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   max-width: 380px;
 }
 .prowl .search input {
@@ -209,24 +223,14 @@
   border: 0;
   outline: 0;
   color: var(--text);
-  font-size: 16px;
+  font-size: var(--fs-base);
   font-family: inherit;
 }
-.prowl .search kbd {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  color: var(--text-3);
-}
-
 /* Grid layouts */
 .prowl .grid {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
   min-width: 0;
 }
 .prowl .grid > * {
@@ -241,42 +245,42 @@
     'watch   watch'
     'signals signals';
 }
-/* Scenario always gets special gradient surface */
+/* Scenario always gets special gradient surface. Its radius matches every
+   other .card — it read as 4px only because that value was hand-written. */
 .prowl .area-scen.card {
   background:
     linear-gradient(135deg, oklch(0.55 0.2 295 / 0.18) 0%, transparent 45%),
     linear-gradient(225deg, oklch(0.7 0.18 145 / 0.12) 0%, transparent 50%), var(--surface);
-  border-radius: 4px;
+  border-radius: var(--radius-lg);
   border-color: oklch(0.55 0.2 295 / 0.3);
 }
 .prowl .area-scen .scen-row .val {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .prowl .area-scen .scen-row .lbl {
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--text-3);
 }
 .prowl .area-scen .scen-result .cell {
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: rgba(10, 10, 18, 0.55);
   backdrop-filter: blur(4px);
 }
 .prowl .area-scen .scen-result .cell .lbl {
-  letter-spacing: 0.22em;
+  letter-spacing: var(--ls-label);
 }
 .prowl .area-scen .scen-result .cell .val {
   font-family: var(--font-mono);
-  font-size: 16px;
-  letter-spacing: -0.01em;
+  font-size: var(--fs-base);
 }
 .prowl .area-scen .btn-ghost {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
 }
 
@@ -304,7 +308,7 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent), var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  padding: 18px;
+  padding: var(--sp-4);
   position: relative;
 }
 .prowl .card.padless {
@@ -313,50 +317,50 @@
 .prowl .card.glow-violet {
   box-shadow:
     inset 0 0 0 1px rgba(176, 139, 255, 0.06),
-    0 0 calc(40px * var(--glow)) oklch(0.55 0.22 295 / calc(0.1 * var(--glow)));
+    0 0 var(--glow-xl) oklch(0.55 0.22 295 / calc(0.1 * var(--glow)));
 }
 .prowl .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: var(--sp-4);
 }
 .prowl .card-title {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-xs);
   letter-spacing: var(--ls-label);
   color: var(--text-3);
   text-transform: uppercase;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .prowl .card-title .marker {
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--violet);
-  box-shadow: 0 0 calc(10px * var(--glow)) var(--violet);
+  box-shadow: 0 0 var(--glow-sm) var(--violet);
 }
 .prowl .card-title .marker.green {
   background: var(--green);
-  box-shadow: 0 0 calc(10px * var(--glow)) var(--green);
+  box-shadow: 0 0 var(--glow-sm) var(--green);
 }
 
 /* Forecast provider/model indicator — opens the settings modal */
 .prowl .forecast-mode-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  border-radius: 999px;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-pill);
   background: var(--surface-2);
   border: 1px solid var(--line-1);
   color: var(--text-2);
   cursor: pointer;
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    color 0.15s ease;
+    border-color var(--dur-fast) ease,
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease;
 }
 .prowl .forecast-mode-indicator:hover {
   background: var(--surface-3);
@@ -370,23 +374,24 @@
 .prowl .forecast-mode-indicator__dot {
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   flex-shrink: 0;
 }
 .prowl .forecast-mode-indicator__text {
   display: flex;
   flex-direction: column;
-  line-height: 1.25;
+  line-height: var(--lh-snug);
   text-align: left;
 }
 .prowl .forecast-mode-indicator__label {
-  font-size: 9px;
+  font-size: var(--fs-xs);
+  /* was 9px — below the scale's floor */
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--text-3);
 }
 .prowl .forecast-mode-indicator__value {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: inherit;
   white-space: nowrap;
@@ -407,24 +412,27 @@
   overflow: hidden;
 }
 .prowl .kpi {
-  padding: 18px 22px;
+  padding: var(--sp-4) var(--sp-5);
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-2);
   position: relative;
 }
 .prowl .kpi:last-child {
   border-right: 0;
 }
 .prowl .kpi .lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-xs);
   letter-spacing: var(--ls-label);
   color: var(--text-3);
   text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Wraps instead of truncating: "MODEL CONFIDENCE" clipped to "MODEL CONF…"
+     in the 2-column mobile grid, and a clipped label names nothing. */
+  line-height: var(--lh-snug);
+  /* Clears the absolutely-positioned `.micro` sparkline so a wrapped
+     second line cannot run underneath it. */
+  padding-right: 78px;
 }
 .prowl .kpi .val {
   font-size: var(--fs-xl);
@@ -436,10 +444,10 @@
   text-overflow: ellipsis;
 }
 .prowl .kpi .sub {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
   display: flex;
-  gap: 8px;
+  gap: var(--sp-2);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -464,14 +472,14 @@
 .prowl .card-header.chart-card-header {
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
+  gap: var(--sp-3);
 }
 .prowl .chart-head-row,
 .prowl .chart-legend-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px 12px;
+  gap: var(--sp-3) var(--sp-3);
 }
 .prowl .chart-head-row > .chart-head-coin,
 .prowl .chart-legend-row > .legend {
@@ -480,23 +488,22 @@
 .prowl .chart-range {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   min-width: 0;
 }
 .prowl .chart-range-target {
   font-family: inherit;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  padding: 6px 10px;
-  border-radius: 8px;
+  font-size: var(--fs-xs);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
   background: var(--bg-2);
   border: 1px solid var(--line);
   color: var(--text-2);
   cursor: pointer;
   white-space: nowrap;
   transition:
-    color 0.15s,
-    border-color 0.15s;
+    color var(--dur-fast),
+    border-color var(--dur-fast);
 }
 .prowl .chart-range-target:hover {
   color: var(--text);
@@ -509,25 +516,24 @@
 
 .prowl .chart-tabs {
   display: flex;
-  gap: 4px;
+  gap: var(--sp-1);
   background: var(--bg-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 3px;
+  border-radius: var(--radius);
+  padding: var(--sp-1);
 }
 .prowl .chart-tabs button {
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   background: transparent;
   border: 0;
   color: var(--text-3);
-  padding: 5px 10px;
-  border-radius: 6px;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  letter-spacing: 0.04em;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--dur-fast),
+    background var(--dur-fast);
 }
 .prowl .chart-tabs button.active {
   background: var(--surface-2);
@@ -535,9 +541,9 @@
 }
 .prowl .legend {
   display: flex;
-  gap: 14px;
+  gap: var(--sp-4);
   flex-wrap: wrap;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
 }
 .prowl .legend > span {
@@ -547,8 +553,8 @@
   display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
-  margin-right: 6px;
+  border-radius: var(--radius-sm);
+  margin-right: var(--sp-2);
   vertical-align: -1px;
 }
 .prowl .chart-stage {
@@ -563,28 +569,43 @@
 }
 .prowl .axis-text {
   fill: var(--text-3);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-family: var(--font-mono);
 }
 
-.prowl .scenario-tag {
+/* Desktop: the three badges float over the chart's right edge. Phone: the
+   wrapper stops being a positioning context (see the ≤640px block) and they
+   flow as a normal wrapped row underneath it. */
+.prowl .chart-stage-wrap {
+  position: relative;
+}
+.prowl .scenario-tags {
   position: absolute;
+  inset: 18px 56px auto auto;
+  display: flex;
+  flex-direction: column;
+  /* Geometric, not rhythm: this spaces the tags to sit on the bull/base/bear
+     chart lines, so it is deliberately off the --sp-* grid. */
+  gap: 94px;
+  pointer-events: none;
+}
+.prowl .scenario-tag {
   font-family: var(--font-mono);
-  font-size: 10px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  font-size: var(--fs-xs);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line-2);
   background: rgba(10, 10, 18, 0.85);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   white-space: nowrap;
 }
 .prowl .scenario-tag .dot {
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 /* AI panel */
@@ -592,7 +613,7 @@
   font-size: var(--fs-sm);
   color: var(--text-2);
   line-height: var(--lh-normal);
-  margin: 0 0 14px;
+  margin: 0 0 var(--sp-4);
 }
 .prowl .ai-headline strong {
   color: var(--text);
@@ -600,54 +621,52 @@
 }
 .prowl .ai-pred {
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px;
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
   background: var(--bg-2);
-  margin-bottom: 10px;
+  margin-bottom: var(--sp-3);
 }
 .prowl .ai-pred .pair {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
 }
 .prowl .ai-pred .sym {
   font-weight: 600;
-  letter-spacing: 0.04em;
 }
 .prowl .ai-pred .conf {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
-  letter-spacing: 0.14em;
+  letter-spacing: var(--ls-label);
 }
 .prowl .ai-pred .target {
-  font-size: 22px;
+  font-size: var(--fs-lg);
   font-feature-settings: 'tnum';
-  letter-spacing: -0.02em;
 }
 .prowl .ai-pred .target small {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 .prowl .ai-pred .gauge {
   height: 4px;
   background: var(--surface-3);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
-  margin-top: 12px;
+  margin-top: var(--sp-3);
   position: relative;
 }
 .prowl .ai-pred .gauge .fill {
   height: 100%;
   background: linear-gradient(90deg, var(--violet), var(--green));
-  border-radius: 999px;
-  box-shadow: 0 0 calc(10px * var(--glow)) var(--violet);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 var(--glow-sm) var(--violet);
 }
 .prowl .ai-pred .meta {
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
-  font-size: 10px;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
   color: var(--text-3);
   font-family: var(--font-mono);
 }
@@ -656,50 +675,50 @@
 .prowl .scen-coin-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 12px;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
 }
 .prowl .scen-coin-label {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .prowl .scen-coin-label .sym {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
 }
 .prowl .scen-coin-label .name {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 .prowl .scen-spot {
   margin-left: auto;
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .prowl .scen-spot .lbl {
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--text-3);
 }
 .prowl .scen-spot .val {
-  font-size: 15px;
+  font-size: var(--fs-base);
   font-weight: 500;
   font-feature-settings: 'tnum';
 }
 
 .prowl .scen-note {
-  margin-top: 10px;
-  font-size: var(--fs-xs);
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
   line-height: var(--lh-normal);
   color: var(--text-3);
 }
 .prowl .scen-result .cell .chg {
-  margin-top: 2px;
-  font-size: 11px;
+  margin-top: var(--sp-0);
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-family: var(--font-mono);
 }
@@ -711,29 +730,29 @@
 .prowl .coin-select-trigger {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   height: 34px;
-  padding: 0 12px;
+  padding: 0 var(--sp-3);
   background: var(--bg-2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--text);
   font-family: inherit;
   cursor: pointer;
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+    border-color var(--dur-fast) ease,
+    background var(--dur-fast) ease;
 }
 .prowl .coin-select-trigger:hover {
   border-color: oklch(0.55 0.2 295 / 0.5);
 }
 .prowl .coin-select-trigger .sym {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
 }
 .prowl .coin-select-trigger .name {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   max-width: 140px;
   overflow: hidden;
@@ -741,7 +760,7 @@
   white-space: nowrap;
 }
 .prowl .coin-select-trigger .caret {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 
@@ -749,23 +768,23 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 200;
+  z-index: var(--z-popover);
   width: 280px;
-  padding: 8px;
+  padding: var(--sp-2);
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
 }
 .prowl .coin-select-menu .search {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-3);
   height: 34px;
-  padding: 0 12px;
+  padding: 0 var(--sp-3);
   background: var(--bg-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--text-3);
 }
 .prowl .coin-select-menu .search input {
@@ -774,30 +793,30 @@
   border: 0;
   outline: 0;
   color: var(--text);
-  font-size: 16px;
+  font-size: var(--fs-base);
   font-family: inherit;
 }
 .prowl .coin-select-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: var(--sp-2) 0 0;
   padding: 0;
   max-height: 260px;
   overflow-y: auto;
 }
 .prowl .coin-select-list .empty {
-  padding: 10px 12px;
-  font-size: 12px;
+  padding: var(--sp-3) var(--sp-3);
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 .prowl .coin-select-list button {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--sp-2);
   width: 100%;
-  padding: 7px 12px;
+  padding: var(--sp-2) var(--sp-3);
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--text);
   font-family: inherit;
   text-align: left;
@@ -811,11 +830,11 @@
 }
 .prowl .coin-select-list button .sym {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   min-width: 52px;
 }
 .prowl .coin-select-list button .name {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -826,68 +845,95 @@
   display: grid;
   grid-template-columns: 110px 1fr 80px;
   align-items: center;
-  gap: 14px;
-  padding: 10px 0;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
   border-top: 1px solid var(--line);
 }
 .prowl .scen-row:first-of-type {
   border-top: 0;
 }
 .prowl .scen-row .lbl {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 .prowl .scen-row .val {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   text-align: right;
   font-feature-settings: 'tnum';
 }
+/* The visible track is 4px, but the input box is 28px (44px on touch) so
+   there is something to actually grab. The track stays vertically centred
+   in the box, so the thumb offset is unchanged. */
 .prowl .scen-row input[type='range'] {
   -webkit-appearance: none;
+  appearance: none;
   background: transparent;
   width: 100%;
+  height: 28px;
+  margin: 0;
 }
 .prowl .scen-row input[type='range']::-webkit-slider-runnable-track {
   height: 4px;
   background: linear-gradient(90deg, var(--violet) var(--p, 50%), var(--surface-3) var(--p, 50%));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .prowl .scen-row input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--text);
   margin-top: -5px;
   box-shadow:
-    0 0 0 3px rgba(176, 139, 255, 0.18),
-    0 0 calc(12px * var(--glow)) var(--violet);
+    var(--ring-soft),
+    0 0 var(--glow-md) var(--violet);
+  cursor: grab;
+}
+/* Firefox had no slider styling at all and fell back to the OS widget. */
+.prowl .scen-row input[type='range']::-moz-range-track {
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: var(--radius-pill);
+}
+.prowl .scen-row input[type='range']::-moz-range-progress {
+  height: 4px;
+  background: var(--violet);
+  border-radius: var(--radius-pill);
+}
+.prowl .scen-row input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  box-shadow:
+    var(--ring-soft),
+    0 0 var(--glow-md) var(--violet);
   cursor: grab;
 }
 
 .prowl .scen-result {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 14px;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
 }
 .prowl .scen-result .cell {
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: var(--radius);
+  padding: var(--sp-3);
   background: var(--bg-2);
 }
 .prowl .scen-result .cell .lbl {
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
   color: var(--text-3);
   text-transform: uppercase;
 }
 .prowl .scen-result .cell .val {
-  font-size: 18px;
-  margin-top: 4px;
+  font-size: var(--fs-base);
+  margin-top: var(--sp-1);
   font-feature-settings: 'tnum';
-  letter-spacing: -0.01em;
 }
 .prowl .scen-result .cell.bear .val {
   color: var(--red);
@@ -906,18 +952,18 @@
 }
 .prowl .watch-table th {
   text-align: left;
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
   color: var(--text-3);
   font-weight: 500;
   text-transform: uppercase;
-  padding: 0 10px 10px;
+  padding: 0 var(--sp-3) var(--sp-3);
   border-bottom: 1px solid var(--line);
 }
 .prowl .watch-table td {
-  padding: 10px;
+  padding: var(--sp-3);
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-feature-settings: 'tnum';
   vertical-align: middle;
 }
@@ -927,17 +973,16 @@
 .prowl .watch-table .sym {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 .prowl .coin-mark {
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 600;
-  letter-spacing: 0.04em;
   flex-shrink: 0;
 }
 .prowl .coin-mark.btc {
@@ -949,7 +994,7 @@
   color: #fff;
 }
 .prowl .coin-mark.sol {
-  background: linear-gradient(135deg, oklch(0.72 0.22 295), oklch(0.5 0.22 145));
+  background: linear-gradient(135deg, var(--violet), oklch(0.5 0.22 145));
   color: #fff;
 }
 .prowl .coin-mark.link {
@@ -965,7 +1010,7 @@
   color: #1a1a26;
 }
 .prowl .watch-table .name {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 .prowl .watch-table .delta {
@@ -981,19 +1026,19 @@
   position: relative;
   height: 6px;
   background: var(--surface-3);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   width: 110px;
 }
 .prowl .proj-bar .fill {
   position: absolute;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--violet);
-  box-shadow: 0 0 calc(8px * var(--glow)) var(--violet);
+  box-shadow: 0 0 var(--glow-sm) var(--violet);
 }
 .prowl .proj-bar .fill.green {
   background: var(--green);
-  box-shadow: 0 0 calc(8px * var(--glow)) var(--green);
+  box-shadow: 0 0 var(--glow-sm) var(--green);
 }
 .prowl .proj-bar .center {
   position: absolute;
@@ -1008,18 +1053,18 @@
 .prowl .signals {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: var(--sp-3);
   padding: 0;
   border: 0;
 }
 .prowl .signal {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  padding: 14px;
+  padding: var(--sp-4);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-2);
   position: relative;
   overflow: hidden;
 }
@@ -1028,7 +1073,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 .prowl .signal.bullish::after {
   box-shadow: inset 0 1px 0 rgba(110, 255, 163, 0.12);
@@ -1042,10 +1087,10 @@
   align-items: center;
 }
 .prowl .signal .tag {
-  font-size: var(--fs-3xs);
+  font-size: var(--fs-xs);
   letter-spacing: var(--ls-label);
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-pill);
 }
 .prowl .signal.bullish .tag {
   background: var(--green-soft);
@@ -1053,27 +1098,27 @@
 }
 .prowl .signal.bearish .tag {
   background: oklch(0.45 0.18 25 / 0.18);
-  color: oklch(0.78 0.18 25);
+  color: var(--coral);
 }
 .prowl .signal.neutral .tag {
   background: var(--surface-3);
   color: var(--text-2);
 }
 .prowl .signal .src {
-  font-size: 10px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   font-family: var(--font-mono);
 }
 .prowl .signal h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 .prowl .signal .foot {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   font-family: var(--font-mono);
 }
@@ -1084,16 +1129,16 @@
   background: linear-gradient(180deg, oklch(0.6 0.13 265 / 0.06), var(--surface) 60%);
 }
 .prowl .signal.news .news-pill {
-  font-size: var(--fs-3xs);
+  font-size: var(--fs-xs);
   letter-spacing: var(--ls-label);
   font-family: var(--font-mono);
-  padding: 3px 7px;
-  border-radius: 999px;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-pill);
   background: oklch(0.6 0.13 265 / 0.18);
-  color: oklch(0.8 0.1 265);
+  color: var(--info);
 }
 .prowl .signal.news .head {
-  gap: 6px;
+  gap: var(--sp-2);
   flex-wrap: wrap;
   justify-content: flex-start;
 }
@@ -1102,29 +1147,29 @@
 }
 .prowl .news-meta {
   display: flex;
-  gap: 6px;
+  gap: var(--sp-2);
   flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: var(--sp-2);
 }
 .prowl .news-badge {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-family: var(--font-mono);
-  padding: 2px 7px;
-  border-radius: 999px;
+  padding: var(--sp-0) var(--sp-2);
+  border-radius: var(--radius-pill);
   background: var(--surface-3);
   color: var(--text-2);
 }
 .prowl .news-badge.mag-HIGH {
   background: oklch(0.55 0.16 25 / 0.18);
-  color: oklch(0.8 0.14 40);
+  color: var(--coral);
 }
 .prowl .news-badge.mag-MEDIUM {
   background: oklch(0.6 0.12 85 / 0.16);
-  color: oklch(0.82 0.12 90);
+  color: var(--amber);
 }
 .prowl .news-link {
-  color: oklch(0.78 0.1 265);
+  color: var(--info);
   text-decoration: none;
 }
 .prowl .news-link:hover {
@@ -1132,21 +1177,21 @@
 }
 .prowl .news-section-head {
   display: flex;
-  gap: 12px;
+  gap: var(--sp-3);
   align-items: baseline;
   flex-wrap: wrap;
-  margin: 8px 4px 12px;
+  margin: var(--sp-2) var(--sp-1) var(--sp-3);
 }
 .prowl .news-filter {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--sp-1);
   flex-wrap: wrap;
 }
 .prowl .news-filter button {
   font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 999px;
+  font-size: var(--fs-xs);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: transparent;
   color: var(--text-2);
@@ -1155,7 +1200,7 @@
 .prowl .news-filter button[aria-pressed='true'] {
   background: oklch(0.6 0.13 265 / 0.18);
   border-color: oklch(0.6 0.13 265 / 0.5);
-  color: oklch(0.85 0.08 265);
+  color: var(--info);
 }
 
 /* Buttons */
@@ -1164,14 +1209,13 @@
   background: transparent;
   border: 1px solid var(--line);
   color: var(--text-2);
-  font-size: 11px;
-  padding: 6px 10px;
-  border-radius: 8px;
+  font-size: var(--fs-xs);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
   cursor: pointer;
-  letter-spacing: 0.04em;
   transition:
-    color 0.15s,
-    border-color 0.15s;
+    color var(--dur-fast),
+    border-color var(--dur-fast);
 }
 .prowl .btn-ghost:hover {
   color: var(--text);
@@ -1183,26 +1227,25 @@
   border: 0;
   color: #0b0517;
   font-weight: 600;
-  font-size: 12px;
-  padding: 8px 14px;
-  border-radius: 8px;
+  font-size: var(--fs-sm);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius);
   cursor: pointer;
-  letter-spacing: 0.06em;
-  box-shadow: 0 0 calc(18px * var(--glow)) oklch(0.6 0.22 295 / calc(0.45 * var(--glow)));
+  box-shadow: 0 0 var(--glow-lg) oklch(0.6 0.22 295 / calc(0.45 * var(--glow)));
 }
 
 .prowl .divider {
   height: 1px;
   background: var(--line);
-  margin: 14px 0;
+  margin: var(--sp-4) 0;
 }
 
 /* Glow utilities */
 .prowl .glow-text-violet {
-  text-shadow: 0 0 calc(12px * var(--glow)) oklch(0.6 0.22 295 / calc(0.55 * var(--glow)));
+  text-shadow: 0 0 var(--glow-md) oklch(0.6 0.22 295 / calc(0.55 * var(--glow)));
 }
 .prowl .glow-text-green {
-  text-shadow: 0 0 calc(12px * var(--glow)) oklch(0.7 0.22 145 / calc(0.55 * var(--glow)));
+  text-shadow: 0 0 var(--glow-md) oklch(0.7 0.22 145 / calc(0.55 * var(--glow)));
 }
 
 .prowl .cat-logo {
@@ -1216,137 +1259,23 @@
   color: var(--text-3);
 }
 .prowl .small {
-  font-size: 11px;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
 }
 .prowl .row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 .prowl .right {
   margin-left: auto;
-}
-
-/* Tweaks panel */
-.prowl .tweaks-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100vh;
-  width: 260px;
-  background: var(--surface-2);
-  border-left: 1px solid var(--line);
-  padding: 20px 16px;
-  z-index: 100;
-  transform: translateX(100%);
-  transition: transform 0.25s ease;
-  overflow-y: auto;
-}
-.prowl .tweaks-panel.open {
-  transform: translateX(0);
-}
-.prowl .tweaks-title {
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.prowl .tweaks-section {
-  margin-bottom: 20px;
-}
-.prowl .tweaks-section-label {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  margin-bottom: 10px;
-}
-.prowl .tweak-radio {
-  display: flex;
-  gap: 4px;
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 3px;
-}
-.prowl .tweak-radio button {
-  flex: 1;
-  font-family: inherit;
-  font-size: 11px;
-  background: transparent;
-  border: 0;
-  color: var(--text-3);
-  padding: 5px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.prowl .tweak-radio button.active {
-  background: var(--surface-3);
-  color: var(--text);
-}
-.prowl .tweak-slider-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.prowl .tweak-slider-wrap label {
-  font-size: 11px;
-  color: var(--text-2);
-  display: flex;
-  justify-content: space-between;
-}
-.prowl .tweak-slider-wrap input[type='range'] {
-  -webkit-appearance: none;
-  background: transparent;
-  width: 100%;
-}
-.prowl .tweak-slider-wrap input[type='range']::-webkit-slider-runnable-track {
-  height: 4px;
-  background: linear-gradient(90deg, var(--violet) var(--p, 50%), var(--surface-3) var(--p, 50%));
-  border-radius: 999px;
-}
-.prowl .tweak-slider-wrap input[type='range']::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  background: var(--text);
-  margin-top: -5px;
-  box-shadow: 0 0 0 3px rgba(176, 139, 255, 0.18);
-  cursor: grab;
-}
-
-/* Tweaks toggle button */
-.prowl .tweaks-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  color: var(--text-2);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-size: 14px;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-}
-.prowl .tweaks-btn:hover {
-  color: var(--text);
-  border-color: var(--line-2);
 }
 
 /* ── HeroUI Modal overlay structural CSS (no HeroUI theme import needed) ── */
 .modal__backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1354,10 +1283,10 @@
   width: 100%;
 }
 .modal__backdrop[data-entering='true'] {
-  animation: heroui-fade-in 150ms ease-out;
+  animation: heroui-fade-in var(--dur-fast) ease-out;
 }
 .modal__backdrop[data-exiting='true'] {
-  animation: heroui-fade-out 100ms ease-out;
+  animation: heroui-fade-out var(--dur-instant) ease-out;
 }
 @keyframes heroui-fade-in {
   from {
@@ -1381,14 +1310,14 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  padding: 16px;
+  padding: var(--sp-4);
   pointer-events: none;
 }
 .modal__container[data-entering='true'] {
-  animation: heroui-slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: heroui-slide-up var(--dur-base) cubic-bezier(0.16, 1, 0.3, 1);
 }
 .modal__container[data-exiting='true'] {
-  animation: heroui-slide-down 100ms ease-out;
+  animation: heroui-slide-down var(--dur-instant) ease-out;
 }
 @keyframes heroui-slide-up {
   from {
@@ -1422,7 +1351,7 @@
 .prowl .pg-split {
   display: grid;
   grid-template-columns: 1fr 360px;
-  gap: 14px;
+  gap: var(--sp-4);
   min-width: 0;
 }
 .prowl .pg-split > * {
@@ -1431,27 +1360,47 @@
 .prowl .pg-sectors {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
+  gap: var(--sp-3);
 }
 .prowl .pg-signals-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  gap: var(--sp-4);
 }
 .prowl .pg-thirds {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: var(--sp-3);
   min-width: 0;
 }
 .prowl .pg-thirds > * {
   min-width: 0;
 }
 
-/* Table scroll wrapper */
+/* Table scroll wrapper. The table inside is 580px wide, so on a phone this
+   scrolls sideways — it carries tabindex="0" in the markup so keyboard users
+   can reach that scroll (WCAG 2.1.1), which means it also needs a focus ring.
+   The right-edge fade is the affordance that says there is more to see. */
 .prowl .tbl-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.prowl .tbl-wrap:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+@media (max-width: 640px) {
+  .prowl .tbl-wrap {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+  }
+  .prowl .tbl-wrap:focus-visible,
+  .prowl .tbl-wrap:hover {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 .prowl .tbl-wrap .watch-table {
   min-width: 580px;
@@ -1465,23 +1414,20 @@
 /* ── Tablet ≤1024px ─────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .prowl .app {
-    padding: 14px 16px 32px;
+    padding: var(--sp-4) var(--sp-4) var(--sp-6);
   }
 
   .prowl .topbar {
-    gap: 10px;
+    gap: var(--sp-3);
     flex-wrap: nowrap;
     justify-content: space-between;
   }
   .prowl .nav {
     display: none;
   }
-  .prowl .search {
-    display: none;
-  }
-  .prowl .balance {
-    margin-left: auto;
-  }
+  /* The topbar search this hid was removed; the rule now only matched the
+     Markets filter field and the coin picker's own search box, so keeping it
+     would hide the asset filter on every tablet and phone. */
   .prowl .burger {
     display: inline-flex;
   }
@@ -1493,35 +1439,43 @@
     opacity: 0;
     transform: translateY(-6px);
     margin-top: 0;
+    /* `visibility` takes the collapsed links out of the tab order and the
+       accessibility tree — `max-height: 0` alone leaves them both focusable
+       and announced while the menu reads as closed. Delayed so the collapse
+       animation still plays. */
+    visibility: hidden;
     transition:
-      max-height 0.3s ease,
-      opacity 0.22s ease,
-      transform 0.22s ease,
-      margin-top 0.3s ease;
+      max-height var(--dur-slow) ease,
+      opacity var(--dur-base) ease,
+      transform var(--dur-base) ease,
+      margin-top var(--dur-slow) ease,
+      visibility 0s linear var(--dur-slow);
   }
   .prowl .mobile-menu.open {
     max-height: 480px;
     opacity: 1;
     transform: translateY(0);
-    margin-top: 10px;
+    margin-top: var(--sp-3);
+    visibility: visible;
+    transition-delay: 0s;
   }
 
   .prowl .mobile-nav {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 8px;
+    gap: var(--sp-0);
+    padding: var(--sp-2);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), var(--surface);
     backdrop-filter: blur(8px);
   }
   .prowl .mobile-nav a {
-    padding: 11px 12px;
+    padding: var(--sp-3) var(--sp-3);
     font-size: var(--fs-sm);
     color: var(--text-2);
     text-decoration: none;
-    border-radius: 8px;
+    border-radius: var(--radius);
     border: 1px solid transparent;
   }
   .prowl .mobile-nav a.active {
@@ -1533,13 +1487,13 @@
     color: var(--text);
   }
   .prowl .mobile-nav .pill-new {
-    font-size: var(--fs-3xs);
-    padding: 1px 5px;
-    border-radius: 999px;
+    font-size: var(--fs-xs);
+    padding: var(--sp-0) var(--sp-1);
+    border-radius: var(--radius-pill);
     background: var(--green-soft);
     color: var(--green-2);
-    letter-spacing: 0.12em;
-    margin-left: 4px;
+    letter-spacing: var(--ls-label);
+    margin-left: var(--sp-1);
   }
 
   .prowl .grid.layout-default {
@@ -1573,29 +1527,29 @@
   }
   .prowl .card-header {
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--sp-2);
   }
   .prowl .legend {
     flex-wrap: wrap;
   }
   .prowl .chart-tabs button {
-    padding: 4px 8px;
-    font-size: var(--fs-2xs);
+    padding: var(--sp-1) var(--sp-2);
+    font-size: var(--fs-xs);
   }
   .prowl .scen-row {
     grid-template-columns: 100px 1fr 65px;
-    gap: 10px;
+    gap: var(--sp-3);
   }
 
   /* Chart card header: let the coin selector drop to its own line instead
      of vertically centering inside a title row that's wrapped to 2 lines */
   .prowl .chart-head-row {
     flex-wrap: wrap;
-    row-gap: 8px;
+    row-gap: var(--sp-2);
   }
   .prowl .chart-legend-row {
     flex-wrap: wrap;
-    row-gap: 10px;
+    row-gap: var(--sp-3);
   }
   .prowl .chart-tabs {
     overflow-x: auto;
@@ -1610,11 +1564,11 @@
 /* ── Phablet ≤768px ─────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .prowl .app {
-    padding: 12px 12px 28px;
+    padding: var(--sp-3) var(--sp-3) var(--sp-6);
   }
   .prowl .topbar {
-    padding: 8px 12px;
-    gap: 8px;
+    padding: var(--sp-2) var(--sp-3);
+    gap: var(--sp-2);
   }
 
   /* Hide the "← Home" link — saves ~60px on narrow topbar */
@@ -1631,52 +1585,32 @@
 /* ── Mobile ≤640px ──────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .prowl .app {
-    padding: 8px 10px 24px;
+    padding: var(--sp-2) var(--sp-3) var(--sp-5);
   }
 
   /* Topbar */
   .prowl .topbar {
-    padding: 7px 10px;
-    gap: 7px;
+    padding: var(--sp-2) var(--sp-3);
+    gap: var(--sp-2);
   }
   .prowl .brand {
-    padding-right: 8px;
+    padding-right: var(--sp-2);
   }
-  .prowl .balance {
-    padding: 3px 3px 3px 10px;
-  }
-  .prowl .balance .lbl {
-    display: none;
-  }
-  .prowl .balance .delta {
-    display: none;
-  }
-  .prowl .balance .val {
-    font-size: 11px;
-    white-space: nowrap;
-  }
-  .prowl .avatar {
-    width: 26px;
-    height: 26px;
-    font-size: 10px;
-    border-radius: 6px;
-  }
-
   /* Mobile nav: keep links comfortably tappable (≥44px row) */
   .prowl .mobile-nav {
-    padding: 8px 0 0;
+    padding: var(--sp-2) 0 0;
   }
   .prowl .mobile-nav a {
-    padding: 11px 12px;
+    padding: var(--sp-3) var(--sp-3);
     font-size: var(--fs-sm);
   }
 
   /* Cards */
   .prowl .card {
-    padding: 12px;
+    padding: var(--sp-3);
   }
   .prowl .card-header {
-    margin-bottom: 10px;
+    margin-bottom: var(--sp-3);
   }
 
   /* Chart card header: every control gets its own full-width row */
@@ -1690,14 +1624,14 @@
   }
   .prowl .chart-head-row > .forecast-mode-indicator {
     width: 100%;
-    border-radius: 10px;
+    border-radius: var(--radius);
   }
   .prowl .chart-head-row > .forecast-mode-indicator .forecast-mode-indicator__chevron {
     margin-left: auto;
   }
   .prowl .chart-legend-row > .legend {
     flex-basis: 100%;
-    gap: 8px 12px;
+    gap: var(--sp-2) var(--sp-3);
   }
   .prowl .chart-range {
     width: 100%;
@@ -1713,7 +1647,7 @@
 
   /* KPIs: stay 2×2 but smaller */
   .prowl .kpi {
-    padding: 12px 14px;
+    padding: var(--sp-3) var(--sp-4);
   }
   .prowl .kpi .val {
     font-size: var(--fs-lg);
@@ -1727,18 +1661,30 @@
     height: 180px;
     overflow: hidden;
   }
+  /* The badges were `display: none` here, which cost the phone the forecast's
+     actual bull/base/bear numbers. They now sit under the chart as a wrapped
+     row — same information, no overlap with a 180px-tall plot. */
+  .prowl .scenario-tags {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin-top: var(--sp-3);
+    pointer-events: auto;
+  }
   .prowl .scenario-tag {
-    display: none;
+    flex: 1 1 auto;
+    justify-content: center;
   }
 
   /* Price row below chart header: wrap gracefully */
   .prowl .chart-price-row {
     flex-wrap: wrap !important;
-    gap: 4px 10px !important;
-    margin-bottom: 8px !important;
+    gap: var(--sp-1) var(--sp-3) !important;
+    margin-bottom: var(--sp-2) !important;
   }
   .prowl .chart-price-row > div:first-child {
-    font-size: 22px !important;
+    font-size: var(--fs-lg);
   }
   .prowl .chart-price-row .muted {
     display: none;
@@ -1755,23 +1701,23 @@
   /* Scenario: 3 equal narrow columns */
   .prowl .scen-result {
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin-top: 10px;
+    gap: var(--sp-2);
+    margin-top: var(--sp-3);
   }
   .prowl .scen-result .cell {
-    padding: 10px 8px;
+    padding: var(--sp-3) var(--sp-2);
   }
   .prowl .scen-result .cell .lbl {
-    font-size: var(--fs-3xs);
+    font-size: var(--fs-xs);
   }
   .prowl .scen-result .cell .val {
     font-size: var(--fs-sm);
-    margin-top: 3px;
+    margin-top: var(--sp-1);
   }
   .prowl .scen-row {
     grid-template-columns: 76px 1fr 50px;
-    gap: 8px;
-    font-size: 11px;
+    gap: var(--sp-2);
+    font-size: var(--fs-xs);
   }
 
   /* Page utilities */
@@ -1790,65 +1736,129 @@
 
   /* AI panel */
   .prowl .ai-pred {
-    padding: 10px;
+    padding: var(--sp-3);
   }
   .prowl .ai-pred .target {
-    font-size: 18px;
-  }
-
-  /* Tweaks panel full-width */
-  .prowl .tweaks-panel {
-    width: 100%;
-    border-left: 0;
-    border-top: 1px solid var(--line);
+    font-size: var(--fs-base);
   }
 }
 
 /* ── iPhone SE / very small ≤390px ────────────────────────────── */
 @media (max-width: 390px) {
   .prowl .app {
-    padding: 6px 8px 20px;
+    padding: var(--sp-2) var(--sp-2) var(--sp-5);
   }
   .prowl .topbar {
-    padding: 6px 8px;
-    gap: 6px;
-  }
-
-  /* Hide balance entirely at 375px — brand + tweaks is enough */
-  .prowl .balance {
-    display: none;
+    padding: var(--sp-2) var(--sp-2);
+    gap: var(--sp-2);
   }
 
   /* Font reductions */
   .prowl .kpi .val {
-    font-size: var(--fs-md);
+    font-size: var(--fs-base);
   }
+  /* The bear/base/bull price is this panel's answer — it stays the largest
+     thing in the cell even at 375px, where it previously dropped to 11px. */
   .prowl .scen-result .cell .val {
-    font-size: var(--fs-2xs);
+    font-size: var(--fs-sm);
   }
   .prowl .scen-row {
     grid-template-columns: 64px 1fr 48px;
-    gap: 6px;
-    font-size: var(--fs-2xs);
+    gap: var(--sp-2);
+    font-size: var(--fs-xs);
   }
   .prowl .card {
-    padding: 10px;
+    padding: var(--sp-3);
   }
 }
 
 /* ── Hover & focus effects ──────────────────────────────────────── */
 
+/* Every interactive control gets the same visible keyboard focus ring.
+   Before this only `.forecast-mode-indicator` and `.chart-range-target`
+   had one, so keyboard and switch-control users lost their place
+   everywhere else (WCAG 2.4.7). `:focus-visible` keeps it off mouse taps. */
+.prowl a:focus-visible,
+.prowl button:focus-visible,
+.prowl input:focus-visible,
+.prowl select:focus-visible,
+.prowl textarea:focus-visible,
+.prowl [tabindex]:focus-visible {
+  outline: 2px solid var(--violet-light, var(--violet));
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* Range thumbs draw their own ring — the outline sits on the track otherwise. */
+.prowl input[type='range']:focus-visible {
+  outline: none;
+}
+.prowl input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    var(--ring-focus),
+    0 0 var(--glow-md) var(--violet);
+}
+
+/* ── Touch targets ───────────────────────────────────────────────
+   On a touch pointer every control clears ~44px, the smallest reliably
+   tappable size. Padding does the work so nothing shifts on a mouse. */
+@media (pointer: coarse) {
+  .prowl .btn-ghost,
+  .prowl .btn-primary,
+  .prowl .chart-range-target,
+  .prowl .news-filter button,
+  .prowl .chart-tabs button,
+  .prowl .coin-select-list button,
+  .prowl .mobile-nav a,
+  .prowl .forecast-mode-indicator {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .prowl .coin-select-list button,
+  .prowl .mobile-nav a {
+    justify-content: flex-start;
+  }
+  .prowl .coin-select-trigger,
+  .prowl .burger {
+    min-height: 44px;
+    min-width: 44px;
+    height: auto;
+  }
+  .prowl .search {
+    height: auto;
+    min-height: 44px;
+  }
+  .prowl .chart-tabs {
+    padding: var(--sp-0);
+  }
+  .prowl .watch-table th button {
+    min-height: 44px;
+  }
+  /* The scenario sliders are a 4px track — without this the grabbable box is
+     4px tall on a phone. */
+  .prowl .scen-row input[type='range'] {
+    height: 44px;
+  }
+  /* Brand lockup and any remaining inline control clear the 24px WCAG 2.2
+     minimum with room to spare. */
+  .prowl .brand,
+  .prowl .news-badge-btn {
+    min-height: 44px;
+  }
+}
+
 /* Primary button */
 .prowl .btn-primary {
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    filter 0.15s ease;
+    transform var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease,
+    filter var(--dur-fast) ease;
 }
 .prowl .btn-primary:hover {
   filter: brightness(1.12);
   transform: scale(1.02);
-  box-shadow: 0 0 calc(26px * var(--glow)) oklch(0.6 0.22 295 / calc(0.65 * var(--glow)));
+  box-shadow: 0 0 var(--glow-lg) oklch(0.6 0.22 295 / calc(0.65 * var(--glow)));
 }
 .prowl .btn-primary:active {
   transform: scale(0.98);
@@ -1857,9 +1867,9 @@
 /* Ghost button — strengthen existing rule */
 .prowl .btn-ghost {
   transition:
-    color 0.15s ease,
-    border-color 0.15s ease,
-    background 0.15s ease;
+    color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    background var(--dur-fast) ease;
 }
 .prowl .btn-ghost:hover {
   color: var(--text);
@@ -1879,62 +1889,38 @@
 /* Nav links in topbar — strengthen active + hover */
 .prowl .nav a {
   transition:
-    color 0.15s ease,
-    background 0.15s ease;
+    color var(--dur-fast) ease,
+    background var(--dur-fast) ease;
 }
 .prowl .nav a:hover:not(.active) {
   color: var(--text);
   background: var(--surface-2);
 }
 
-/* Table rows */
-.prowl .watch-table tbody tr {
-  transition: background 0.12s ease;
-}
-.prowl .watch-table tbody tr:hover td {
-  background: var(--surface-2);
-}
+/* Watchlist and Markets rows are read-only — no row-level action exists, so
+   they get no hover treatment that would suggest one. */
 
-/* Signal cards */
+/* Signal cards are read-only summaries, not links. Only the news card's
+   outbound `.news-link` inside them is interactive. */
 .prowl .signal {
-  transition:
-    border-color 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
   cursor: default;
-}
-.prowl .signal:hover {
-  transform: translateY(-2px);
-}
-.prowl .signal.bullish:hover {
-  border-color: oklch(0.7 0.18 145 / 0.45);
-  box-shadow: 0 4px 20px oklch(0.7 0.18 145 / calc(0.08 * var(--glow)));
-}
-.prowl .signal.bearish:hover {
-  border-color: oklch(0.65 0.18 25 / 0.45);
-  box-shadow: 0 4px 20px oklch(0.65 0.18 25 / calc(0.08 * var(--glow)));
-}
-.prowl .signal.neutral:hover {
-  border-color: var(--line-2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
-/* AI prediction cards */
-.prowl .ai-pred {
+/* AI prediction cards ARE buttons (they select a coin to forecast) — hover
+   and press feedback are earned here. On the landing page's static showcase
+   the same markup is a plain div and correctly gets neither. */
+.prowl button.ai-pred {
   transition:
-    border-color 0.15s ease,
-    transform 0.15s ease;
-  cursor: default;
+    border-color var(--dur-fast) ease,
+    transform var(--dur-fast) ease;
+  cursor: pointer;
 }
-.prowl .ai-pred:hover {
+.prowl button.ai-pred:hover {
   border-color: oklch(0.55 0.2 295 / 0.45);
   transform: translateY(-1px);
 }
-
-/* Tweak radio buttons */
-.prowl .tweak-radio button:not(.active):hover {
-  background: var(--surface-2);
-  color: var(--text-2);
+.prowl button.ai-pred:active {
+  transform: translateY(0);
 }
 
 /* ── Custom scrollbar ───────────────────────────────────────────── */
@@ -1946,12 +1932,12 @@
 }
 .prowl ::-webkit-scrollbar-track {
   background: transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .prowl ::-webkit-scrollbar-thumb {
   background: oklch(0.55 0.18 295 / 0.35);
-  border-radius: 999px;
-  transition: background 0.2s ease;
+  border-radius: var(--radius-pill);
+  transition: background var(--dur-base) ease;
 }
 .prowl ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.65 0.2 295 / 0.6);
@@ -1972,14 +1958,18 @@
   .prowl .btn-ghost,
   .prowl .chart-tabs button,
   .prowl .nav a,
-  .prowl .watch-table tbody tr,
-  .prowl .signal,
-  .prowl .ai-pred {
+  .prowl button.ai-pred,
+  .prowl .mobile-menu,
+  .prowl .burger span,
+  .prowl .forecast-mode-indicator,
+  .prowl .coin-select-trigger {
     transition: none;
   }
   .prowl .btn-primary:hover,
-  .prowl .signal:hover,
-  .prowl .ai-pred:hover {
+  .prowl button.ai-pred:hover {
     transform: none;
+  }
+  .prowl .animate-pulse {
+    animation: none;
   }
 }

@@ -153,11 +153,11 @@ function sortMockAssets(items: MarketAsset[], sort: SortState): MarketAsset[] {
 
 // Skeleton cell used in the markets table during live-data loading
 function SkeletonCell() {
-  return <div className="h-4 w-16 animate-pulse rounded bg-gray-700" />;
+  return <div className="h-4 w-16 animate-pulse rounded-sm bg-surface-3" />;
 }
 
 function Row({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ display: 'flex', alignItems: 'center', gap: 12, ...style }}>{children}</div>;
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', ...style }}>{children}</div>;
 }
 
 // ------------------------------------------------------------------
@@ -226,6 +226,7 @@ function MarketsTableContent({
   isStale,
 }: MarketsTableContentProps) {
   const [sort, setSort] = useState<SortState>({ key: 'market_cap', dir: 'desc' });
+  const [filter, setFilter] = useState('');
 
   const liveMap = buildLiveAssetMap(liveAssets);
 
@@ -256,17 +257,34 @@ function MarketsTableContent({
     const indicator = isActive ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
     return (
       <th
+        aria-sort={isActive ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
         style={{
           textAlign: align,
-          cursor: 'pointer',
-          userSelect: 'none',
           color: isActive ? 'var(--text)' : undefined,
           borderBottom: isActive ? '1px solid var(--text)' : undefined,
         }}
-        onClick={() => handleSortClick(sortKey)}
       >
-        {label}
-        {indicator}
+        <button
+          type="button"
+          onClick={() => handleSortClick(sortKey)}
+          title={`Sort by ${label}`}
+          style={{
+            font: 'inherit',
+            color: 'inherit',
+            letterSpacing: 'inherit',
+            textTransform: 'inherit',
+            background: 'none',
+            border: 0,
+            padding: 0,
+            cursor: 'pointer',
+            userSelect: 'none',
+            width: '100%',
+            textAlign: align,
+          }}
+        >
+          {label}
+          <span aria-hidden="true">{indicator}</span>
+        </button>
       </th>
     );
   }
@@ -283,6 +301,16 @@ function MarketsTableContent({
         live: liveMap.get(a.sym),
       }));
 
+  // Client-side filter over the already-fetched rows — matches symbol or name.
+  const query = filter.trim().toLowerCase();
+  const visibleRows = query
+    ? rows.filter(({ mockAsset: a, live }) => {
+        const sym = (live?.symbol ?? a.sym).toLowerCase();
+        const name = (live?.name ?? a.name).toLowerCase();
+        return sym.includes(query) || name.includes(query);
+      })
+    : rows;
+
   // suppress unused-var hint — liveMap is retained for the mock path via the rows helper above
   void sortedLiveMap;
 
@@ -293,13 +321,26 @@ function MarketsTableContent({
           <span className="marker green"></span>All markets
         </div>
         <Row>
-          <div className="search" style={{ maxWidth: 220, height: 32 }}>
-            <span style={{ opacity: 0.5 }}>⌕</span>
-            <input placeholder="Filter assets…" />
+          <div className="search" style={{ maxWidth: 220 }}>
+            <span aria-hidden="true" style={{ opacity: 0.5 }}>
+              ⌕
+            </span>
+            <input
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter assets…"
+              aria-label="Filter assets by symbol or name"
+            />
           </div>
         </Row>
       </div>
-      <div className="tbl-wrap">
+      <div
+        className="tbl-wrap"
+        role="region"
+        aria-label="Markets table, scrolls sideways"
+        tabIndex={0}
+      >
         <table className="watch-table">
           <thead>
             <tr>
@@ -314,7 +355,14 @@ function MarketsTableContent({
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ mockAsset: a, live }, i) => {
+            {visibleRows.length === 0 && (
+              <tr>
+                <td colSpan={8} className="muted" style={{ padding: 'var(--sp-5) var(--sp-3)' }}>
+                  No asset matches &ldquo;{filter.trim()}&rdquo;.
+                </td>
+              </tr>
+            )}
+            {visibleRows.map(({ mockAsset: a, live }, i) => {
               const coinId = SYM_TO_COIN_ID[a.sym];
               const priceEntry = prices && coinId ? prices[coinId] : null;
               const px = live
@@ -402,22 +450,22 @@ function MarketsTableContent({
                     </span>
                   </td>
                   <td>
-                    <Row style={{ gap: 8 }}>
+                    <Row style={{ gap: 'var(--sp-2)' }}>
                       <div
                         style={{
                           flex: 1,
                           height: 4,
                           background: 'var(--surface-3)',
-                          borderRadius: 999,
+                          borderRadius: 'var(--radius-pill)',
                         }}
                       >
                         <div
                           style={{
                             height: '100%',
                             width: `${a.conf}%`,
-                            borderRadius: 999,
+                            borderRadius: 'var(--radius-pill)',
                             background: 'linear-gradient(90deg, var(--violet), var(--green))',
-                            boxShadow: '0 0 calc(8px * var(--glow)) var(--violet)',
+                            boxShadow: '0 0 var(--glow-sm) var(--color-violet)',
                           }}
                         ></div>
                       </div>
@@ -433,7 +481,7 @@ function MarketsTableContent({
         </table>
       </div>
       {isStale && (
-        <div className="border-t border-(--line) px-4 py-2 text-xs">
+        <div role="status" className="border-t border-(--line) px-4 py-2 text-xs">
           <span style={{ color: 'var(--warning)' }}>Data may be outdated</span>
         </div>
       )}
@@ -447,6 +495,7 @@ function MarketsTableContent({
 export function MarketsPage() {
   return (
     <div className="page-content">
+      <h1 className="sr-only">Markets</h1>
       <HistoricalPriceChart />
 
       {/* Sectors */}
@@ -455,32 +504,35 @@ export function MarketsPage() {
           <div className="card-title">
             <span className="marker"></span>Sectors · 24h
           </div>
-          <button className="btn-ghost">All sectors →</button>
         </div>
-        <div className="pg-sectors" style={{ gap: 10 }}>
+        <div className="pg-sectors" style={{ gap: 'var(--sp-3)' }}>
           {sectors.map((s, i) => (
             <div
               key={i}
               style={{
                 border: '1px solid var(--line)',
-                borderRadius: 12,
-                padding: 14,
+                borderRadius: 'var(--radius-lg)',
+                padding: 'var(--sp-4)',
                 background: 'var(--bg-2)',
               }}
             >
               <div
                 className="small muted"
-                style={{ letterSpacing: '0.12em', textTransform: 'uppercase', fontSize: 10 }}
+                style={{
+                  letterSpacing: 'var(--ls-label)',
+                  textTransform: 'uppercase',
+                  fontSize: 'var(--fs-xs)',
+                }}
               >
                 {s.name}
               </div>
               <div
                 className={`tnum ${s.up ? 'delta-up' : 'delta-dn'}`}
-                style={{ fontSize: 22, marginTop: 6, letterSpacing: '-0.01em' }}
+                style={{ fontSize: 'var(--fs-lg)', marginTop: 'var(--sp-2)', letterSpacing: 'var(--ls-tight)' }}
               >
                 {s.change}
               </div>
-              <div className="small mono" style={{ color: 'var(--text-3)', marginTop: 4 }}>
+              <div className="small mono" style={{ color: 'var(--text-3)', marginTop: 'var(--sp-1)' }}>
                 {s.count} assets
               </div>
             </div>

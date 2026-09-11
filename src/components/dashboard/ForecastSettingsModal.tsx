@@ -104,13 +104,13 @@ export function ForecastSettingsModal({
           <div className="prowl" style={{ minHeight: 0, background: 'transparent' }}>
             <div
               className="card"
-              style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}
+              style={{ padding: 'var(--sp-5)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}
             >
               {/* Header */}
               <div
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
               >
-                <span className="card-title" style={{ fontSize: 15, fontWeight: 600 }}>
+                <span className="card-title" style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
                   <span className="marker" />
                   AI forecast settings
                 </span>
@@ -118,9 +118,9 @@ export function ForecastSettingsModal({
                   className="btn-ghost"
                   aria-label="Close settings"
                   style={{
-                    fontSize: 18,
+                    fontSize: 'var(--fs-lg)',
                     lineHeight: 1,
-                    padding: '2px 8px',
+                    padding: 'var(--sp-0) var(--sp-2)',
                     opacity: isApplying ? 0.4 : 1,
                     pointerEvents: isApplying ? 'none' : 'auto',
                   }}
@@ -128,31 +128,35 @@ export function ForecastSettingsModal({
               </div>
 
               {/* Section 1: AI Provider */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
                 <span
                   className="muted small"
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: 'var(--ls-label)',
+                    fontSize: 'var(--fs-xs)',
+                  }}
                 >
                   AI provider
                 </span>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
                   {(['claude', 'openai'] as const).map((s) => (
                     <button
                       key={s}
                       onClick={() => handleServiceChange(s)}
                       style={{
                         flex: 1,
-                        padding: '12px 16px',
+                        padding: 'var(--sp-3) var(--sp-4)',
                         borderRadius: 'var(--radius)',
                         border:
                           localService === s
-                            ? '1.5px solid oklch(0.78 0.22 295)'
+                            ? '1.5px solid var(--color-selected)'
                             : '1.5px solid var(--surface-3)',
                         background:
-                          localService === s ? 'oklch(0.78 0.22 295 / 0.12)' : 'var(--surface-2)',
-                        color: localService === s ? 'oklch(0.78 0.22 295)' : 'var(--text-2)',
+                          localService === s ? 'var(--color-selected-softer)' : 'var(--surface-2)',
+                        color: localService === s ? 'var(--color-selected)' : 'var(--text-2)',
                         fontWeight: localService === s ? 600 : 400,
-                        fontSize: 14,
+                        fontSize: 'var(--fs-sm)',
                         cursor: 'pointer',
                         transition: 'border-color 0.15s, background 0.15s, color 0.15s',
                       }}
@@ -164,30 +168,34 @@ export function ForecastSettingsModal({
               </div>
 
               {/* Section 2: Model */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
                 <span
                   className="muted small"
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: 'var(--ls-label)',
+                    fontSize: 'var(--fs-xs)',
+                  }}
                 >
                   Model
                 </span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)' }}>
                   {activeModels.map((m) => (
                     <button
                       key={m.id}
                       onClick={() => handleModelChange(m.id)}
                       style={{
-                        padding: '6px 14px',
-                        borderRadius: 100,
+                        padding: 'var(--sp-2) var(--sp-4)',
+                        borderRadius: 'var(--radius-pill)',
                         border:
                           localModel === m.id
-                            ? '1.5px solid oklch(0.78 0.22 295)'
+                            ? '1.5px solid var(--color-selected)'
                             : '1.5px solid var(--surface-3)',
                         background:
-                          localModel === m.id ? 'oklch(0.78 0.22 295 / 0.12)' : 'var(--surface-2)',
-                        color: localModel === m.id ? 'oklch(0.78 0.22 295)' : 'var(--text-2)',
+                          localModel === m.id ? 'var(--color-selected-softer)' : 'var(--surface-2)',
+                        color: localModel === m.id ? 'var(--color-selected)' : 'var(--text-2)',
                         fontWeight: localModel === m.id ? 600 : 400,
-                        fontSize: 13,
+                        fontSize: 'var(--fs-sm)',
                         cursor: 'pointer',
                         transition: 'border-color 0.15s, background 0.15s, color 0.15s',
                       }}
@@ -205,13 +213,13 @@ export function ForecastSettingsModal({
                 className="btn-ghost"
                 style={{
                   width: '100%',
-                  padding: '10px 0',
+                  padding: 'var(--sp-3) 0',
                   borderRadius: 'var(--radius)',
-                  background: isApplying ? 'var(--surface-3)' : 'oklch(0.78 0.22 295 / 0.15)',
-                  border: '1.5px solid oklch(0.78 0.22 295)',
-                  color: 'oklch(0.78 0.22 295)',
+                  background: isApplying ? 'var(--surface-3)' : 'var(--color-selected-soft)',
+                  border: '1.5px solid var(--color-selected)',
+                  color: 'var(--color-selected)',
                   fontWeight: 600,
-                  fontSize: 14,
+                  fontSize: 'var(--fs-sm)',
                   cursor: isApplying ? 'not-allowed' : 'pointer',
                   opacity: isApplying ? 0.7 : 1,
                   transition: 'opacity 0.15s',
@@ -221,26 +229,35 @@ export function ForecastSettingsModal({
               </button>
               {applyError && (
                 <span
-                  style={{ fontSize: 12, color: 'var(--red)', textAlign: 'center', marginTop: -8 }}
+                  style={{
+                    fontSize: 'var(--fs-sm)',
+                    color: 'var(--red)',
+                    textAlign: 'center',
+                    marginTop: -8,
+                  }}
                 >
                   {applyError}
                 </span>
               )}
 
               {/* Section 3: Saved Forecasts */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
                 <span
                   className="muted small"
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: 'var(--ls-label)',
+                    fontSize: 'var(--fs-xs)',
+                  }}
                 >
                   Saved forecasts
                 </span>
                 {snapshots.length === 0 ? (
-                  <span className="muted small" style={{ fontSize: 12 }}>
+                  <span className="muted small" style={{ fontSize: 'var(--fs-sm)' }}>
                     No saved forecasts yet
                   </span>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
                     {snapshots.map((snap) => (
                       <div
                         key={snap.id}
@@ -248,10 +265,10 @@ export function ForecastSettingsModal({
                           background: 'var(--surface-2)',
                           border: '1px solid var(--surface-3)',
                           borderRadius: 'var(--radius)',
-                          padding: '10px 12px',
+                          padding: 'var(--sp-3) var(--sp-3)',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 10,
+                          gap: 'var(--sp-3)',
                         }}
                       >
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -275,11 +292,11 @@ export function ForecastSettingsModal({
                               style={{
                                 width: '100%',
                                 background: 'var(--surface-3)',
-                                border: '1px solid oklch(0.78 0.22 295)',
-                                borderRadius: 4,
+                                border: '1px solid var(--color-selected)',
+                                borderRadius: 'var(--radius-sm)',
                                 color: 'var(--text)',
-                                fontSize: 16,
-                                padding: '4px 6px',
+                                fontSize: 'var(--fs-lg)',
+                                padding: 'var(--sp-1) var(--sp-2)',
                                 outline: 'none',
                               }}
                             />
@@ -291,7 +308,7 @@ export function ForecastSettingsModal({
                               }}
                               title="Click to rename"
                               style={{
-                                fontSize: 13,
+                                fontSize: 'var(--fs-sm)',
                                 fontWeight: 500,
                                 cursor: 'text',
                                 whiteSpace: 'nowrap',
@@ -303,17 +320,17 @@ export function ForecastSettingsModal({
                               {snap.name}
                             </span>
                           )}
-                          <span className="muted small" style={{ fontSize: 11 }}>
+                          <span className="muted small" style={{ fontSize: 'var(--fs-xs)' }}>
                             {snap.service} · {snap.model} ·{' '}
                             {new Date(snap.savedAt).toLocaleDateString()}
                           </span>
                         </div>
                         <span
                           style={{
-                            fontSize: 11,
+                            fontSize: 'var(--fs-xs)',
                             fontWeight: 600,
-                            padding: '2px 8px',
-                            borderRadius: 100,
+                            padding: 'var(--sp-0) var(--sp-2)',
+                            borderRadius: 'var(--radius-pill)',
                             background: 'var(--surface-3)',
                             color: 'var(--text-2)',
                             flexShrink: 0,
@@ -327,7 +344,7 @@ export function ForecastSettingsModal({
                             onLoadSnapshot(snap.id);
                             onClose();
                           }}
-                          style={{ fontSize: 12, padding: '4px 10px', flexShrink: 0 }}
+                          style={{ fontSize: 'var(--fs-sm)', padding: 'var(--sp-1) var(--sp-3)', flexShrink: 0 }}
                         >
                           Load
                         </button>
@@ -336,8 +353,8 @@ export function ForecastSettingsModal({
                           onClick={() => void onRemoveSnapshot(snap.id)}
                           aria-label={`Delete snapshot ${snap.name}`}
                           style={{
-                            fontSize: 14,
-                            padding: '2px 8px',
+                            fontSize: 'var(--fs-sm)',
+                            padding: 'var(--sp-0) var(--sp-2)',
                             flexShrink: 0,
                             color: 'var(--text-2)',
                           }}

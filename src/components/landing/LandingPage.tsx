@@ -32,12 +32,12 @@ function Showcase({ glow }: { glow: number }) {
         <div className="url">catoshi · projections (sample)</div>
       </div>
       <div className="showcase-body">
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
           <div
             className="kpis"
             style={{
               border: '1px solid var(--line)',
-              borderRadius: 14,
+              borderRadius: 'var(--radius-lg)',
               overflow: 'hidden',
               background: 'var(--surface)',
             }}
@@ -56,21 +56,21 @@ function Showcase({ glow }: { glow: number }) {
             ))}
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 14 }}>
-          <div className="card glow-violet" style={{ padding: 16 }}>
-            <div className="card-header" style={{ marginBottom: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 'var(--sp-4)' }}>
+          <div className="card glow-violet" style={{ padding: 'var(--sp-4)' }}>
+            <div className="card-header" style={{ marginBottom: 'var(--sp-2)' }}>
               <div className="card-title">
                 <span className="marker"></span>BTC · base case · 60d
               </div>
               <div className="legend">
                 <span>
-                  <span className="sw" style={{ background: 'oklch(0.86 0.20 145)' }}></span>Bull
+                  <span className="sw" style={{ background: 'var(--color-chart-bull)' }}></span>Bull
                 </span>
                 <span>
-                  <span className="sw" style={{ background: 'oklch(0.78 0.22 295)' }}></span>Base
+                  <span className="sw" style={{ background: 'var(--color-chart-base)' }}></span>Base
                 </span>
                 <span>
-                  <span className="sw" style={{ background: 'oklch(0.65 0.18 25)' }}></span>Bear
+                  <span className="sw" style={{ background: 'var(--color-chart-bear)' }}></span>Bear
                 </span>
               </div>
             </div>
@@ -78,36 +78,36 @@ function Showcase({ glow }: { glow: number }) {
               <ProjectionChart width={680} height={240} glow={glow} interactive={false} />
             </div>
           </div>
-          <div className="card" style={{ padding: 16 }}>
-            <div className="card-header" style={{ marginBottom: 10 }}>
+          <div className="card" style={{ padding: 'var(--sp-4)' }}>
+            <div className="card-header" style={{ marginBottom: 'var(--sp-3)' }}>
               <div className="card-title">
                 <span className="marker green"></span>Model predictions
               </div>
             </div>
             {preds.map((p, i) => (
-              <div className="ai-pred" key={i} style={{ padding: 10, marginBottom: 8 }}>
-                <div className="pair" style={{ marginBottom: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="ai-pred" key={i} style={{ padding: 'var(--sp-3)', marginBottom: 'var(--sp-2)' }}>
+                <div className="pair" style={{ marginBottom: 'var(--sp-2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
                     <div
                       className={`coin-mark ${p.sym.toLowerCase()}`}
-                      style={{ width: 22, height: 22, fontSize: 9 }}
+                      style={{ width: 22, height: 22, fontSize: 'var(--fs-xs)' }}
                     >
                       {p.sym.slice(0, 1)}
                     </div>
                     <div
                       style={{
                         fontFamily: 'var(--font-mono)',
-                        fontSize: 12,
+                        fontSize: 'var(--fs-sm)',
                       }}
                     >
                       {p.sym}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div className="tnum mono" style={{ fontSize: 14 }}>
+                    <div className="tnum mono" style={{ fontSize: 'var(--fs-sm)' }}>
                       {p.target}
                     </div>
-                    <div className="delta-up mono" style={{ fontSize: 10 }}>
+                    <div className="delta-up mono" style={{ fontSize: 'var(--fs-xs)' }}>
                       {p.delta}
                     </div>
                   </div>
@@ -187,31 +187,31 @@ function MiniProjection({ glow = 1 }: { glow?: number }) {
         filter: `drop-shadow(0 0 ${6 * glow}px oklch(0.6 0.22 295 / ${0.25 * glow}))`,
       }}
     >
-      <path d={bandPath} fill="oklch(0.78 0.22 295 / 0.10)" stroke="none" />
+      <path d={bandPath} fill="var(--color-chart-base-fill)" stroke="none" />
       <line
         x1={MID}
         y1={4}
         x2={MID}
         y2={H - 4}
-        stroke="oklch(0.78 0.22 295)"
+        stroke="var(--color-chart-base)"
         strokeWidth={1}
         strokeDasharray="3 3"
         opacity={0.6}
       />
-      <path d={toPath(hist)} fill="none" stroke="oklch(0.86 0.20 145)" strokeWidth={1.6} />
+      <path d={toPath(hist)} fill="none" stroke="var(--color-chart-bull)" strokeWidth={1.6} />
       <path
         d={toPath(bull)}
         fill="none"
-        stroke="oklch(0.86 0.20 145)"
+        stroke="var(--color-chart-bull)"
         strokeWidth={1.2}
         strokeDasharray="4 3"
         opacity={0.9}
       />
-      <path d={toPath(base)} fill="none" stroke="oklch(0.78 0.22 295)" strokeWidth={1.6} />
+      <path d={toPath(base)} fill="none" stroke="var(--color-chart-base)" strokeWidth={1.6} />
       <path
         d={toPath(bear)}
         fill="none"
-        stroke="oklch(0.65 0.18 25)"
+        stroke="var(--color-chart-bear)"
         strokeWidth={1.2}
         strokeDasharray="4 3"
         opacity={0.9}
@@ -229,7 +229,7 @@ function StepPreview({
 }) {
   if (kind === 'collect') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', padding: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', width: '100%', padding: 'var(--sp-4)' }}>
         {[
           ['RSI · 15m / 1h / 4h / 1d', 'ok'],
           ['Funding · open interest', 'ok'],
@@ -243,9 +243,9 @@ function StepPreview({
               justifyContent: 'space-between',
               alignItems: 'center',
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
+              fontSize: 'var(--fs-xs)',
               color: 'var(--text-2)',
-              padding: '4px 0',
+              padding: 'var(--sp-1) 0',
             }}
           >
             <span>{label}</span>
@@ -259,7 +259,7 @@ function StepPreview({
     return <MiniProjection glow={glow} />;
   }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', padding: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', width: '100%', padding: 'var(--sp-4)' }}>
       {[
         { l: 'Horizon elapsed', v: '60d' },
         { l: 'Realized scenario', v: 'base' },
@@ -271,7 +271,7 @@ function StepPreview({
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            fontSize: 11,
+            fontSize: 'var(--fs-xs)',
             fontFamily: 'var(--font-mono)',
             color: 'var(--text-2)',
           }}
@@ -373,7 +373,11 @@ export function LandingPage() {
           <a href="#faq">FAQ</a>
         </div>
         <div className="land-nav-cta">
-          <Link href={APP_HREF} className="btn-cta" style={{ padding: '10px 16px', fontSize: 13 }}>
+          <Link
+            href={APP_HREF}
+            className="btn-cta"
+            style={{ padding: 'var(--sp-3) var(--sp-4)', fontSize: 'var(--fs-sm)' }}
+          >
             Open dashboard →
           </Link>
         </div>
@@ -490,11 +494,11 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="footer">
         <div style={{ flex: '0 0 240px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
             <Cat variant={LOGO_VARIANT} size={26} glow={glow} />
             <CatoshiWordmark size={16} />
           </div>
-          <p className="small muted" style={{ lineHeight: 1.6, margin: 0 }}>
+          <p className="small muted" style={{ lineHeight: 'var(--lh-normal)', margin: 0 }}>
             Forecasting and signals that show their work.
           </p>
         </div>

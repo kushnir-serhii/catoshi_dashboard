@@ -18,11 +18,11 @@
     }
 
     .custom-scrollbar::-webkit-scrollbar-track {
-        border-radius: 9999px;
+        border-radius: var(--radius-pill);
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        border-radius: 9999px;
+        border-radius: var(--radius-pill);
         background-color: var(--color-gray-300);
     }
 

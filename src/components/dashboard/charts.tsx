@@ -185,7 +185,7 @@ function YAxisOverlay({ yDomain, height }: { yDomain: [number, number]; height: 
               top,
               left: 6,
               transform: 'translateY(-50%)',
-              fontSize: 12,
+              fontSize: 'var(--fs-sm)',
               fontFamily: 'var(--font-mono)',
               color: 'var(--text-3)',
               whiteSpace: 'nowrap',
@@ -217,36 +217,36 @@ function ChartTooltip({
       style={{
         background: 'var(--surface-2)',
         border: '1px solid var(--line-2)',
-        borderRadius: 8,
-        padding: '8px 12px',
-        fontSize: 11,
+        borderRadius: 'var(--radius)',
+        padding: 'var(--sp-2) var(--sp-3)',
+        fontSize: 'var(--fs-xs)',
         fontFamily: 'var(--font-mono)',
         color: 'var(--text)',
         lineHeight: 1.9,
         pointerEvents: 'none',
       }}
     >
-      <div style={{ color: 'var(--text-3)', marginBottom: 2 }}>
+      <div style={{ color: 'var(--text-3)', marginBottom: 'var(--sp-0)' }}>
         {new Date(d.t).toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
           year: 'numeric',
         })}
       </div>
-      {d.hist != null && <div style={{ color: 'oklch(0.86 0.20 145)' }}>{formatPrice(d.hist)}</div>}
+      {d.hist != null && <div style={{ color: 'var(--color-chart-bull)' }}>{formatPrice(d.hist)}</div>}
       {isForecast && (
         <>
-          <div style={{ color: 'oklch(0.86 0.20 145)', opacity: 0.9 }}>
+          <div style={{ color: 'var(--color-chart-bull)', opacity: 0.9 }}>
             Bull {formatPrice(d.bull!)}
           </div>
-          <div style={{ color: 'oklch(0.78 0.22 295)' }}>Base {formatPrice(d.base!)}</div>
-          <div style={{ color: 'oklch(0.65 0.18 25)', opacity: 0.9 }}>
+          <div style={{ color: 'var(--color-chart-base)' }}>Base {formatPrice(d.base!)}</div>
+          <div style={{ color: 'var(--color-chart-bear)', opacity: 0.9 }}>
             Bear {formatPrice(d.bear!)}
           </div>
         </>
       )}
       {d.scenario != null && (
-        <div style={{ color: 'oklch(0.80 0.18 85)' }}>Your scenario {formatPrice(d.scenario)}</div>
+        <div style={{ color: 'var(--color-chart-scenario)' }}>Your scenario {formatPrice(d.scenario)}</div>
       )}
     </div>
   );
@@ -285,7 +285,7 @@ function ConfidenceBand({ rows }: { rows: ChartRow[] }) {
     .join(' L ');
   const d = `M ${topPath} L ${bottomPath} Z`;
 
-  return <path d={d} fill="oklch(0.78 0.22 295 / 0.10)" stroke="none" />;
+  return <path d={d} fill="var(--color-chart-base-fill)" stroke="none" />;
 }
 
 // ─── Main chart component ─────────────────────────────────────────────────────
@@ -386,8 +386,8 @@ export function ProjectionChart({
         >
           <defs>
             <linearGradient id="rc-hist-fill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="oklch(0.86 0.20 145)" stopOpacity={0.16} />
-              <stop offset="100%" stopColor="oklch(0.86 0.20 145)" stopOpacity={0} />
+              <stop offset="0%" stopColor="var(--color-chart-bull)" stopOpacity={0.16} />
+              <stop offset="100%" stopColor="var(--color-chart-bull)" stopOpacity={0} />
             </linearGradient>
           </defs>
 
@@ -405,7 +405,7 @@ export function ProjectionChart({
             height={28}
             tick={{
               fill: 'var(--text-3)',
-              fontSize: 12,
+              fontSize: 'var(--fs-sm)',
               fontFamily: 'var(--font-mono)',
             }}
           />
@@ -421,11 +421,11 @@ export function ProjectionChart({
           <Area
             dataKey="hist"
             type="linear"
-            stroke="oklch(0.86 0.20 145)"
+            stroke="var(--color-chart-bull)"
             strokeWidth={1.8}
             fill="url(#rc-hist-fill)"
             dot={false}
-            activeDot={{ r: 4, fill: 'oklch(0.86 0.20 145)', stroke: '#0a0a12', strokeWidth: 2 }}
+            activeDot={{ r: 4, fill: 'var(--color-chart-bull)', stroke: 'var(--color-bg)', strokeWidth: 2 }}
             connectNulls={false}
             isAnimationActive={false}
             legendType="none"
@@ -435,14 +435,14 @@ export function ProjectionChart({
 
           <ReferenceLine
             x={todayMs}
-            stroke="oklch(0.78 0.22 295)"
+            stroke="var(--color-chart-base)"
             strokeDasharray="3 3"
             strokeWidth={1}
             label={{
               value: 'Today',
               position: 'insideTopLeft',
-              fill: 'oklch(0.78 0.22 295)',
-              fontSize: 11,
+              fill: 'var(--color-chart-base)',
+              fontSize: 'var(--fs-xs)',
               fontFamily: 'var(--font-mono)',
             }}
           />
@@ -451,11 +451,11 @@ export function ProjectionChart({
             dataKey="bull"
             name="Bull case"
             type="linear"
-            stroke="oklch(0.86 0.20 145)"
+            stroke="var(--color-chart-bull)"
             strokeWidth={1.4}
             strokeDasharray="5 3"
             dot={false}
-            activeDot={{ r: 3, fill: 'oklch(0.86 0.20 145)', strokeWidth: 0 }}
+            activeDot={{ r: 3, fill: 'var(--color-chart-bull)', strokeWidth: 0 }}
             connectNulls={false}
             isAnimationActive={false}
           />
@@ -464,10 +464,10 @@ export function ProjectionChart({
             dataKey="base"
             name="Base case"
             type="linear"
-            stroke="oklch(0.78 0.22 295)"
+            stroke="var(--color-chart-base)"
             strokeWidth={1.8}
             dot={false}
-            activeDot={{ r: 4, fill: 'oklch(0.78 0.22 295)', stroke: '#0a0a12', strokeWidth: 2 }}
+            activeDot={{ r: 4, fill: 'var(--color-chart-base)', stroke: 'var(--color-bg)', strokeWidth: 2 }}
             connectNulls={false}
             isAnimationActive={false}
           />
@@ -476,11 +476,11 @@ export function ProjectionChart({
             dataKey="bear"
             name="Bear case"
             type="linear"
-            stroke="oklch(0.65 0.18 25)"
+            stroke="var(--color-chart-bear)"
             strokeWidth={1.4}
             strokeDasharray="5 3"
             dot={false}
-            activeDot={{ r: 3, fill: 'oklch(0.65 0.18 25)', strokeWidth: 0 }}
+            activeDot={{ r: 3, fill: 'var(--color-chart-bear)', strokeWidth: 0 }}
             connectNulls={false}
             isAnimationActive={false}
           />
@@ -489,11 +489,11 @@ export function ProjectionChart({
             dataKey="scenario"
             name="Your scenario"
             type="linear"
-            stroke="oklch(0.80 0.18 85)"
+            stroke="var(--color-chart-scenario)"
             strokeWidth={1.6}
             strokeDasharray="2 3"
             dot={false}
-            activeDot={{ r: 3, fill: 'oklch(0.80 0.18 85)', strokeWidth: 0 }}
+            activeDot={{ r: 3, fill: 'var(--color-chart-scenario)', strokeWidth: 0 }}
             connectNulls={false}
             isAnimationActive={false}
           />
@@ -535,10 +535,10 @@ export function Sparkline({
     .join(' ');
   const stroke =
     color === 'violet'
-      ? 'oklch(0.78 0.22 295)'
+      ? 'var(--color-chart-base)'
       : color === 'red'
-        ? 'oklch(0.7 0.20 25)'
-        : 'oklch(0.86 0.20 145)';
+        ? 'var(--color-red)'
+        : 'var(--color-chart-bull)';
   const fillId = `sparkFill_${seed}_${color}`;
   return (
     <svg

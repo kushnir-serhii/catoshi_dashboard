@@ -2,7 +2,7 @@
 
 export type LogoVariant = 'tail' | 'ears' | 'mono';
 
-const COLOR = 'oklch(0.78 0.22 295)';
+const COLOR = 'var(--color-violet-light)';
 
 function CatC_Tail({ size = 32, glow = 1 }: { size?: number; glow?: number }) {
   return (
@@ -58,7 +58,7 @@ function CatC_Mono({ size = 32, glow = 1 }: { size?: number; glow?: number }) {
           d="M27 11 A 10 10 0 1 0 27 21 L 24 21 A 7 7 0 1 1 24 11 L 25.2 11 L 26.6 7.4 L 28 11 Z"
           fill={COLOR}
         />
-        <circle cx="14" cy="16" r="1" fill="oklch(0.86 0.20 145)" />
+        <circle cx="14" cy="16" r="1" fill="var(--color-green)" />
       </svg>
     </span>
   );

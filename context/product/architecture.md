@@ -1,9 +1,11 @@
 # System Architecture Overview: Catoshi
 
 _Revised 02.09.2026. Reflects the narrowed scope in `product-definition.md` §3.2 —
-forecasting and signals only, no portfolio, wallet, account or personal data. Sections
-marked **planned** describe systems a spec exists for but which are not yet built; they are
-labelled so nobody reads them as a description of shipped code._
+forecasting and signals only, no portfolio or wallet. Spec 022 later added a bounded
+identity layer (Google sign-in, an admin role, a per-person Reforecast allowance) — see §9;
+the product stays fully readable by guests. Sections marked **planned** describe systems a
+spec exists for but which are not yet built; they are labelled so nobody reads them as a
+description of shipped code._
 
 ---
 
@@ -42,21 +44,25 @@ labelled so nobody reads them as a description of shipped code._
 
 ### 3.1 Route Handlers
 
-| Route | Purpose | Auth |
-|---|---|---|
-| `/api/prices`, `/api/prices/history`, `/api/coins/list` | CoinGecko proxies | none |
-| `/api/markets` | CoinGecko `/coins/markets` proxy. Optional `?ids=` (comma-separated CoinGecko ids) narrows the response to the watchlist (spec 021) — see §8.1 | none |
-| `/api/projections`, `/api/projections/refresh` | Forecast generation, 6 h `unstable_cache`, tag `projections` | none |
-| `/api/signals` | Reads stored signal rows only — never computes, never calls an external API. Optional `?scope=market\|BTC\|ETH\|SOL` filters both kinds; live news is `kind = 'news' AND expires_at > now()` (spec 015) | none |
-| `/api/collect` | Hourly collection: snapshot build + upsert, then market-state signal generation, then forecast resolution + scoring (spec 011), then news ingest → classify → publish (spec 015) — every stage isolated and non-fatal | `Authorization: Bearer CRON_SECRET` |
-| `/api/models` | Serves measured calibration aggregates, read straight from the `calibration_*` views — no computation (spec 011) | none |
+| Route                                                                                                                 | Purpose                                                                                                                                                                                                               | Auth                                |
+| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `/api/prices`, `/api/prices/history`, `/api/coins/list`                                                               | CoinGecko proxies                                                                                                                                                                                                     | none                                |
+| `/api/markets`                                                                                                        | CoinGecko `/coins/markets` proxy. Optional `?ids=` (comma-separated CoinGecko ids) narrows the response to the watchlist (spec 021) — see §8.1                                                                        | none                                |
+| `/api/projections`                                                                                                    | Serves the stored forecast, 6 h `unstable_cache`, tag `projections`                                                                                                                                                   | none                                |
+| `/api/projections/refresh`                                                                                            | Produces a fresh forecast. Guest → 401 `signin-required`; signed-in user → metered against the per-person 3/day allowance (429 `allowance-exhausted` at zero); admin → never metered (spec 022)                       | session (user)                      |
+| `/api/signals`                                                                                                        | Reads stored signal rows only — never computes, never calls an external API. Optional `?scope=market\|BTC\|ETH\|SOL` filters both kinds; live news is `kind = 'news' AND expires_at > now()` (spec 015)               | none                                |
+| `/api/collect`                                                                                                        | Hourly collection: snapshot build + upsert, then market-state signal generation, then forecast resolution + scoring (spec 011), then news ingest → classify → publish (spec 015) — every stage isolated and non-fatal | `Authorization: Bearer CRON_SECRET` |
+| `/api/models`                                                                                                         | Serves measured calibration aggregates, read straight from the `calibration_*` views — no computation (spec 011)                                                                                                      | none                                |
+| `/api/auth/[...nextauth]`                                                                                             | Auth.js v5 catch-all: Google sign-in, OAuth callback, sign-out, session (spec 022)                                                                                                                                    | none                                |
+| `/api/me`                                                                                                             | The client's single identity read — `role` (`guest`/`user`/`admin`), name, email, image, `remaining`, `resetsAt`. Always HTTP 200; `force-dynamic` (spec 022)                                                         | none                                |
+| `/api/admin/users`, `/api/admin/users/[id]/role`, `/api/admin/users/[id]/allowance`, `/api/admin/settings/news-pause` | The administration surface — list people, change role (409 on admin self-demotion), restore a person's daily allowance, toggle the news-classification pause. `requireAdmin()` in every handler (spec 022)            | session (admin)                     |
 
 ---
 
 ## 4. Infrastructure & Deployment
 
 - **Hosting:** Vercel — zero-config Next.js deployment with automatic preview environments per branch, edge caching for Route Handlers, and instant rollbacks.
-- **Environment Variables:** Managed via Vercel project settings (production/preview/development). Sensitive keys (e.g. `DATABASE_URL`, `CRON_SECRET`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) stored as server-only env vars; public flags (e.g. `NEXT_PUBLIC_USE_MOCK_DATA`) stored as public env vars.
+- **Environment Variables:** Managed via Vercel project settings (production/preview/development). Sensitive keys (e.g. `DATABASE_URL`, `CRON_SECRET`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and the spec 022 auth trio `AUTH_SECRET` / `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` plus `AUTH_URL`) stored as server-only env vars; public flags (e.g. `NEXT_PUBLIC_USE_MOCK_DATA`) stored as public env vars. `ADMIN_SECRET` was removed by spec 022 — the operator controls moved behind the admin role (§9).
 - **CI/CD:** Vercel Git integration — every push to `main` triggers a production deploy; every PR gets a preview URL.
 - **Scheduled Collection:** GitHub Actions (`.github/workflows/collect.yml`) calls `/api/collect` hourly with a bearer-token secret (spec 010) — the primary scheduler, since Vercel Hobby cron is daily-only. A daily `vercel.json` cron hits the same endpoint as a fallback if the Actions schedule ever lapses (GitHub disables scheduled workflows after 60 days of repo inactivity).
 
@@ -148,10 +154,11 @@ all / market-wide / per-asset filter and a "no live news signals" empty state; m
 signals are unchanged.
 
 **Cost controls.** Batch (one call per `NEWS_CLASSIFY_BATCH_SIZE` items) + hard per-run cap
-+ interval gate keep most collection runs a no-op here, and every call's `cost_usd` is
-persisted so the steady-state figure is measured, not estimated. The twenty-item prompt
-calibration read and the real-run cost check against the ~$1/month allowance (spec 015
-Slice 7) are pending the first run against a deployed collector.
+
+- interval gate keep most collection runs a no-op here, and every call's `cost_usd` is
+  persisted so the steady-state figure is measured, not estimated. The twenty-item prompt
+  calibration read and the real-run cost check against the ~$1/month allowance (spec 015
+  Slice 7) are pending the first run against a deployed collector.
 
 **Scoring.** Each `news_classifications` row stores the asserted `direction`,
 `horizon_hours`, `scope` / `asset_id`, `prompt_version` and `model` — the columns a
@@ -231,3 +238,54 @@ market-cap page. The pure helpers live in `src/app/api/markets/marketIds.ts`
 
 The mock-data path (`NEXT_PUBLIC_USE_MOCK_DATA=true`) applies the same
 parse/re-order logic against `MOCK_MARKETS`.
+
+---
+
+## 9. Identity & Authorization (spec 022)
+
+An identity layer sits between the Route Handlers and the database. It gates exactly three
+things — producing a forecast, the administration area, and the operator controls that
+previously sat behind `ADMIN_SECRET`. Everything a guest can read stays unauthenticated.
+
+- **Auth provider:** Auth.js v5 (`next-auth@5`), **Google provider only** — no email/password,
+  no credentials provider, no magic link. Session is a **JWT cookie** (30-day rolling), not a
+  database session table; the token carries only the internal user id. Role and remaining
+  allowance are read fresh from Postgres on every guarded call, so a promotion or demotion
+  takes effect on the person's next request without a sign-out.
+- **Tables** (`db/migrations/0010_accounts.sql`):
+  - `public.users` — one row per person who has ever signed in: `google_sub` (identity key,
+    not email), `email`, `name`, `image_url`, `role` (`'user'` | `'admin'`),
+    `allowance_reset_at`, `created_at`, `last_seen_at`. Written directly by the `signIn`
+    callback — no Auth.js adapter, no `accounts`/`sessions`/`verification_token` tables.
+  - `public.forecast_usage` — append-only ledger, one row per forecast **actually produced**.
+    Remaining allowance is a query (`DAILY_FORECAST_ALLOWANCE = 3` minus rows since the window
+    start), never a stored counter. An admin "restoring" an allowance is one write of
+    `allowance_reset_at = now()`.
+  - `public.app_settings` — key/value/`updated_at`/`updated_by`. Holds the news-classification
+    pause flag, moved off the `NEWS_CLASSIFY_ENABLED` env var so a signed-in admin can toggle
+    it (`isNewsClassificationPaused()` falls back to the env var when the row is absent).
+- **Server helpers** (`src/lib/auth/`, server-only, mirroring `src/lib/db/`):
+  `session.ts` `getCurrentUser()` resolves the session to the user row; `authorize.ts`
+  `requireUser()` / `requireAdmin()` return a **typed refusal** rather than throwing, matching
+  the `IngestAuthResult` pattern; `allowance.ts` holds the pure UTC-midnight boundary maths
+  (`remainingAllowance`, `allowanceWindowStart`, `nextResetAt`), with the impure reads/writes
+  in `src/lib/db/allowance.ts`. Unit tests: `src/scripts/allowance.test.ts` (`npx tsx`).
+- **`middleware.ts`** (project root) matches `/admin/:path*` only and does a cheap
+  cookie-presence redirect to sign-in. **It is not the authorization boundary** — it cannot
+  read Postgres, so it cannot know a role. The real check is `requireAdmin()` in the page's
+  server component and in every `/api/admin/*` handler.
+- **Client:** `src/hooks/useSession.ts` — a thin SWR hook over `GET /api/me`, the single
+  client-side source of who the viewer is. No component imports Auth.js directly. The Header
+  renders `SignInButton` (guest) or `AccountMenu` (signed in); `src/consts/nav.ts` gains an
+  admin-only "Admin" entry; `src/consts/auth.ts` holds `DAILY_FORECAST_ALLOWANCE`, the `Role`
+  union, `SESSION_MAX_AGE_SECONDS` and `ADMIN_PATH`.
+- **First admin** is granted once by a direct SQL update against Neon — deliberately not
+  automated, to avoid recreating a shared-secret escalation path. The self-demotion refusal
+  (409) guarantees the product can never be left with no admin.
+- **`GET /api/health` stays unauthenticated and unchanged** — it is spec 017's uptime-checker
+  contract. What becomes admin-only is the operator _view_ of that payload on the admin page.
+
+Supersedes spec 019's shared-credential / product-ceiling design (`ADMIN_SECRET`,
+`/api/admin/unlock`, the `catoshi_admin` cookie, and `FORECAST_DAILY_CALL_LIMIT` on the paid
+path are all removed). `matchesAdminSecret` survives only for `checkIngestAuth`
+(`FORECAST_INGEST_SECRET`, machine-to-machine). `CRON_SECRET` is untouched.

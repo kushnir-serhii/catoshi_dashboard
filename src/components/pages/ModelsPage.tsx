@@ -5,8 +5,8 @@ import type { ModelCalibrationGroup, ModelsExclusionSummary, ModelTrendPoint } f
 import { useModels } from '@/hooks/useModels';
 
 const CARD_BOX: React.CSSProperties = {
-  padding: '20px',
-  borderRadius: 12,
+  padding: 'var(--sp-5)',
+  borderRadius: 'var(--radius-lg)',
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-3)',
 };
@@ -15,24 +15,24 @@ function Notice({ tone, title, body }: { tone: 'error' | 'quiet'; title: string;
   return (
     <div
       style={{
-        padding: '48px 24px',
+        padding: 'var(--sp-7) var(--sp-5)',
         textAlign: 'center',
-        borderRadius: 12,
+        borderRadius: 'var(--radius-lg)',
         background: 'var(--surface-2)',
         border:
-          tone === 'error' ? '1px solid oklch(0.6 0.18 20 / 0.45)' : '1px solid var(--surface-3)',
+          tone === 'error' ? '1px solid var(--color-error-border)' : '1px solid var(--surface-3)',
       }}
     >
       <h4
         style={{
-          fontSize: 15,
-          marginBottom: 8,
+          fontSize: 'var(--fs-base)',
+          marginBottom: 'var(--sp-2)',
           color: tone === 'error' ? 'var(--red)' : 'var(--text)',
         }}
       >
         {title}
       </h4>
-      <p className="small muted" style={{ margin: '0 auto', maxWidth: 460, lineHeight: 1.6 }}>
+      <p className="small muted" style={{ margin: '0 auto', maxWidth: 460, lineHeight: 'var(--lh-normal)' }}>
         {body}
       </p>
     </div>
@@ -53,8 +53,8 @@ function PageSkeleton() {
             height: 14,
             width: 160,
             background: 'var(--surface-3)',
-            borderRadius: 4,
-            marginBottom: 16,
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: 'var(--sp-4)',
           }}
         />
         <div
@@ -62,12 +62,12 @@ function PageSkeleton() {
             height: 40,
             width: 220,
             background: 'var(--surface-3)',
-            borderRadius: 4,
-            marginBottom: 12,
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: 'var(--sp-3)',
           }}
         />
         <div
-          style={{ height: 60, width: '100%', background: 'var(--surface-3)', borderRadius: 4 }}
+          style={{ height: 60, width: '100%', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)' }}
         />
       </div>
     </div>
@@ -116,14 +116,14 @@ function BrierTrend({ points }: { points: ModelTrendPoint[] }) {
       <text
         x={padX}
         y={baselineY - 4}
-        fontSize="10"
+        fontSize="11"
         fill="var(--text-3)"
         fontFamily="var(--font-mono)"
       >
         baseline {NO_SKILL_BRIER_BASELINE}
       </text>
       {points.length > 1 && (
-        <path d={linePath} fill="none" stroke="oklch(0.78 0.22 295)" strokeWidth="1.6" />
+        <path d={linePath} fill="none" stroke="var(--color-chart-base)" strokeWidth="1.6" />
       )}
       {points.map((p, i) => (
         <circle
@@ -148,7 +148,7 @@ function formatMonth(iso: string): string {
 function GroupExclusionLine({ group }: { group: ModelCalibrationGroup }) {
   if (group.excludedCount === 0) {
     return (
-      <p className="small muted" style={{ margin: '10px 0 0' }}>
+      <p className="small muted" style={{ margin: 'var(--sp-3) 0 0' }}>
         No resolved outcomes were set aside for this series.
       </p>
     );
@@ -159,7 +159,7 @@ function GroupExclusionLine({ group }: { group: ModelCalibrationGroup }) {
     parts.push(`${group.excludedBackfilled} on a back-filled snapshot`);
   if (group.excludedUnscoreable > 0) parts.push(`${group.excludedUnscoreable} unscoreable`);
   return (
-    <p className="small muted" style={{ margin: '10px 0 0', lineHeight: 1.6 }}>
+    <p className="small muted" style={{ margin: 'var(--sp-3) 0 0', lineHeight: 'var(--lh-normal)' }}>
       {group.excludedCount} of {group.totalOutcomes} resolved outcomes set aside
       {parts.length > 0 ? `: ${parts.join(', ')}` : ''}.
     </p>
@@ -172,20 +172,22 @@ function GroupCard({ group }: { group: ModelCalibrationGroup }) {
       style={{
         display: 'flex',
         alignItems: 'baseline',
-        gap: 8,
+        gap: 'var(--sp-2)',
         flexWrap: 'wrap',
-        marginBottom: 14,
+        marginBottom: 'var(--sp-4)',
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{group.model}</span>
+      <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text)' }}>
+        {group.model}
+      </span>
       <span
         className="small"
         style={{
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-3)',
           background: 'var(--surface-3)',
-          borderRadius: 999,
-          padding: '2px 8px',
+          borderRadius: 'var(--radius-pill)',
+          padding: 'var(--sp-0) var(--sp-2)',
         }}
       >
         prompt {group.promptVersion}
@@ -199,7 +201,7 @@ function GroupCard({ group }: { group: ModelCalibrationGroup }) {
     return (
       <div style={CARD_BOX}>
         {header}
-        <p className="small" style={{ margin: 0, color: 'var(--text)', lineHeight: 1.6 }}>
+        <p className="small" style={{ margin: 0, color: 'var(--text)', lineHeight: 'var(--lh-normal)' }}>
           {group.scoredCount} forecast{group.scoredCount === 1 ? '' : 's'} resolved, too few to
           report accuracy — {MIN_SCORED_SAMPLE_SIZE} scored outcomes are needed before a mean Brier
           score is more signal than noise.
@@ -215,14 +217,14 @@ function GroupCard({ group }: { group: ModelCalibrationGroup }) {
   return (
     <div style={CARD_BOX}>
       {header}
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--sp-5)', flexWrap: 'wrap' }}>
         <div>
-          <div className="small muted" style={{ marginBottom: 2 }}>
+          <div className="small muted" style={{ marginBottom: 'var(--sp-0)' }}>
             Mean Brier score
           </div>
           <div
             style={{
-              fontSize: 34,
+              fontSize: 'var(--fs-xl)',
               fontWeight: 500,
               fontFeatureSettings: '"tnum"',
               color: beating ? 'var(--green)' : 'var(--red)',
@@ -233,12 +235,12 @@ function GroupCard({ group }: { group: ModelCalibrationGroup }) {
           </div>
         </div>
         <div>
-          <div className="small muted" style={{ marginBottom: 2 }}>
+          <div className="small muted" style={{ marginBottom: 'var(--sp-0)' }}>
             No-skill baseline
           </div>
           <div
             style={{
-              fontSize: 34,
+              fontSize: 'var(--fs-xl)',
               fontWeight: 400,
               fontFeatureSettings: '"tnum"',
               color: 'var(--text-3)',
@@ -251,21 +253,21 @@ function GroupCard({ group }: { group: ModelCalibrationGroup }) {
       </div>
       <p
         className="small"
-        style={{ margin: '10px 0 0', color: beating ? 'var(--green)' : 'var(--red)' }}
+        style={{ margin: 'var(--sp-3) 0 0', color: beating ? 'var(--green)' : 'var(--red)' }}
       >
         {beating ? 'Beating' : 'Below'} the no-skill baseline by {delta.toFixed(3)}
       </p>
-      <p className="small muted" style={{ margin: '4px 0 0' }}>
+      <p className="small muted" style={{ margin: 'var(--sp-1) 0 0' }}>
         Based on {group.scoredCount} scored outcome{group.scoredCount === 1 ? '' : 's'}.
       </p>
 
       {group.trend.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <div className="small muted" style={{ marginBottom: 6 }}>
+        <div style={{ marginTop: 'var(--sp-4)' }}>
+          <div className="small muted" style={{ marginBottom: 'var(--sp-2)' }}>
             Trend by month (lower is better; goal is a score that falls)
           </div>
           <BrierTrend points={group.trend} />
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6 }}>
+          <div style={{ display: 'flex', gap: 'var(--sp-4)', flexWrap: 'wrap', marginTop: 'var(--sp-2)' }}>
             {group.trend.map((p) => (
               <span
                 key={p.month}
@@ -293,7 +295,7 @@ function ExclusionsSummary({ exclusions }: { exclusions: ModelsExclusionSummary 
         </div>
       </div>
       <div style={CARD_BOX}>
-        <p className="small muted" style={{ margin: 0, lineHeight: 1.6 }}>
+        <p className="small muted" style={{ margin: 0, lineHeight: 'var(--lh-normal)' }}>
           {exclusions.totalOutcomes} resolved outcome{exclusions.totalOutcomes === 1 ? '' : 's'} in
           total. {exclusions.scoredCount} counted toward a score; {exclusions.excludedCount}{' '}
           excluded — {exclusions.excludedUnlinked} with no linked snapshot,{' '}
@@ -312,16 +314,18 @@ export function ModelsPage() {
 
   return (
     <div className="page-content">
+      <h1 className="sr-only">Forecast accuracy</h1>
       {isStale && (
         <div
+          role="status"
           className="small"
           style={{
-            marginBottom: 12,
-            padding: '8px 14px',
-            borderRadius: 8,
+            marginBottom: 'var(--sp-3)',
+            padding: 'var(--sp-2) var(--sp-4)',
+            borderRadius: 'var(--radius)',
             background: 'var(--surface-3)',
-            border: '1px solid oklch(0.65 0.15 55 / 0.4)',
-            color: 'oklch(0.75 0.12 55)',
+            border: '1px solid var(--color-notice-border)',
+            color: 'var(--color-notice)',
           }}
         >
           Data may be outdated
@@ -364,7 +368,7 @@ export function ModelsPage() {
                 <span className="marker"></span>Forecast accuracy, by model and prompt version
               </div>
             </div>
-            <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
               {groups.map((group) => (
                 <GroupCard key={`${group.model}::${group.promptVersion}`} group={group} />
               ))}

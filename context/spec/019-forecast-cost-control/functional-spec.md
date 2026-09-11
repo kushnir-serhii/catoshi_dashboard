@@ -13,11 +13,11 @@ every model call the product makes on its own buys nothing, and three defects ma
 more of them than anyone asked for. All three were measured in the working tree on
 05.09.2026.
 
-| # | Defect | Cost |
-|---|---|---|
-| 1 | `GET /api/projections` puts the raw `?service` / `?model` query values into the `unstable_cache` key **before** validating them. `generateForecast` validates internally and falls back to the default model, but the key is already different | Unbounded. `?model=a1`, `a2`, … is one paid model call per unique string, from a browser address bar |
-| 2 | `POST /api/projections/refresh` is public — no authentication, no rate limit — and calls `revalidateTag('projections', { expire: 0 })` **before** generating | One request = one model call, plus a second one on the next `GET`, because the shared cache entry was emptied first. A failed generation leaves no forecast at all |
-| 3 | The refresh route never calls `persistForecasts` | Every Reforecast result — and every forecast for a coin outside `DEFAULT_FORECAST_TARGETS`, which is the *only* way to get one — is absent from `public.forecasts`. Spec 011 calibration cannot see it, and its `cost_usd` is never recorded |
+| #   | Defect                                                                                                                                                                                                                                         | Cost                                                                                                                                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `GET /api/projections` puts the raw `?service` / `?model` query values into the `unstable_cache` key **before** validating them. `generateForecast` validates internally and falls back to the default model, but the key is already different | Unbounded. `?model=a1`, `a2`, … is one paid model call per unique string, from a browser address bar                                                                                                                                         |
+| 2   | `POST /api/projections/refresh` is public — no authentication, no rate limit — and calls `revalidateTag('projections', { expire: 0 })` **before** generating                                                                                   | One request = one model call, plus a second one on the next `GET`, because the shared cache entry was emptied first. A failed generation leaves no forecast at all                                                                           |
+| 3   | The refresh route never calls `persistForecasts`                                                                                                                                                                                               | Every Reforecast result — and every forecast for a coin outside `DEFAULT_FORECAST_TARGETS`, which is the _only_ way to get one — is absent from `public.forecasts`. Spec 011 calibration cannot see it, and its `cost_usd` is never recorded |
 
 The reason all three exist is one structural fact: `route.ts` and `refresh/route.ts`
 implement the same sequence twice, and have drifted. Roughly 200 duplicated lines,
@@ -130,6 +130,16 @@ switch here is a shared secret, not a user system), and does not build quota or 
 
 ## 3. Out of Scope
 
+> **SUPERSEDED IN PART by spec 022** (`context/spec/022-google-auth-roles-reforecast-allowance/`).
+> The daily product-wide generation ceiling (`FORECAST_DAILY_CALL_LIMIT`, §2.3) and the
+> single shared operator credential (`ADMIN_SECRET` / `/api/admin/unlock`, "the operator
+> unlock is one shared secret" below) are **retired**. Reforecast is now gated by Google
+> sign-in with a per-person allowance of three forecasts per UTC day; the operator controls
+> moved behind an `admin` role. The rest of this spec — route consolidation, on-demand
+> generation once per 6-hour window, no scheduled job touching `/api/projections`, and
+> pre-cache-key validation of `service`/`model` — still stands. The text below is kept
+> as-written for history.
+
 - Changing the 6-hour window, the batched prompt, or the model defaults.
 - User accounts, sessions or roles. The operator unlock is one shared secret.
 - Streaming, per-coin scheduling, or precomputing forecasts for coins nobody opened.
@@ -140,7 +150,7 @@ switch here is a shared secret, not a user system), and does not build quota or 
 ## 4. How This Is Verified
 
 1. `select as_of, count(*), max(cost_usd) from forecasts where created_at >= current_date
-   group by as_of order by as_of;` — one `as_of` group per generation. The count of groups is
+group by as_of order by as_of;` — one `as_of` group per generation. The count of groups is
    the count of model calls that day.
 2. Fifty `GET` requests with distinct invalid `?model=` values, then the query above: the
    group count must not have increased by fifty.
@@ -152,4 +162,4 @@ switch here is a shared secret, not a user system), and does not build quota or 
 
 ---
 
-*This is a technical specification, not financial advice.*
+_This is a technical specification, not financial advice._

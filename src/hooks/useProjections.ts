@@ -1,48 +1,64 @@
 'use client';
 
-import useSWR from 'swr';
+import useSWR, { mutate as globalMutate } from 'swr';
 
 import { DEFAULT_FORECAST_MODEL, DEFAULT_FORECAST_SERVICE } from '@/consts/projections';
 import type { CoinListItem, ProjectionsResponse } from '@/data/types';
 
 interface ForecastRefreshErrorBody {
   error?: string;
-  count?: number;
-  limit?: number;
+  reason?: string;
+  /** Next 00:00 UTC as an ISO string (429 `allowance-exhausted`). */
+  resetsAt?: string;
+  remaining?: number;
 }
 
 /** Structured error thrown by `refresh`/`refreshCoin` on any non-2xx response
  * from `POST /api/projections/refresh`, so UI callers can branch on `status`
- * (401 operator unlock, 429 daily limit with `count`/`limit`, 503 disabled)
- * instead of parsing a generic error message. */
+ * instead of parsing a generic error message (spec 022 §2.6): 401 →
+ * sign-in required, 429 → allowance exhausted (with `resetsAt`), 503 →
+ * temporarily unavailable. */
 export class ForecastRefreshError extends Error {
   readonly status: number;
-  readonly count?: number;
-  readonly limit?: number;
+  readonly reason?: string;
+  readonly resetsAt?: string;
+  readonly remaining?: number;
 
   constructor(status: number, body: ForecastRefreshErrorBody | null) {
     super(body?.error ?? `refresh failed: ${status}`);
     this.name = 'ForecastRefreshError';
     this.status = status;
-    this.count = body?.count;
-    this.limit = body?.limit;
+    this.reason = body?.reason;
+    this.resetsAt = body?.resetsAt;
+    this.remaining = body?.remaining;
   }
 }
 
-/** Maps a refresh failure to a short, user-facing message. Named states per
- * spec 019 slice 3: 401 → operator unlock, 429 → daily limit (with the real
- * count/limit from the response body), 503 → refresh disabled. Anything else
- * (500, network error, non-ForecastRefreshError) falls back to a generic
- * message — the point is simply that nothing is ever silently swallowed. */
+/** Formats an ISO instant as "HH:MM UTC". */
+export function formatUtcTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'midnight UTC';
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm} UTC`;
+}
+
+/** The exhausted-allowance message, naming the reset time. Shared by the 429
+ * mapping and the client-side courtesy refusal on the Reforecast button. */
+export function exhaustedAllowanceMessage(resetsAt: string | null): string {
+  const when = resetsAt ? formatUtcTime(resetsAt) : 'midnight UTC';
+  return `You've used all 3 forecasts today. They reset at ${when}.`;
+}
+
+/** Maps a refresh failure to a short, user-facing message (spec 022 §2.6).
+ * 401 → sign in, 429 → allowance exhausted naming the reset time, 503 →
+ * temporarily unavailable. Anything else (500, network error) falls back to a
+ * generic message — nothing is ever silently swallowed. */
 export function describeRefreshError(err: unknown): string {
   if (err instanceof ForecastRefreshError) {
-    if (err.status === 401) return 'Operator unlock required';
-    if (err.status === 429) {
-      return err.count !== undefined && err.limit !== undefined
-        ? `Daily limit reached (${err.count}/${err.limit})`
-        : 'Daily limit reached';
-    }
-    if (err.status === 503) return 'Refresh disabled';
+    if (err.status === 401) return 'Sign in to reforecast';
+    if (err.status === 429) return exhaustedAllowanceMessage(err.resetsAt ?? null);
+    if (err.status === 503) return 'Reforecast is temporarily unavailable — please try again.';
   }
   return 'Reforecast failed';
 }
@@ -98,6 +114,9 @@ export function useProjections(
     if (!res.ok) throw new ForecastRefreshError(res.status, await readErrorBody(res));
     const fresh = (await res.json()) as ProjectionsResponse;
     await mutate(fresh, { revalidate: false });
+    // Refresh `/api/me` so the button's remaining count updates from the same
+    // interaction that redrew the chart (spec 022 §2.8).
+    void globalMutate('me');
   }
 
   /** Generates a real AI forecast for a single coin — the only way to get AI
@@ -129,6 +148,7 @@ export function useProjections(
       },
       { revalidate: false },
     );
+    void globalMutate('me');
   }
 
   return {

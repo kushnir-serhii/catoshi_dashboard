@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { ChartSkeleton } from '@/components/dashboard/ChartSkeleton';
 import type { HistoricalPrice } from '@/data/types';
 import { useHistoricalPrices } from '@/hooks/useHistoricalPrices';
 import { useCoinSearch } from '@/hooks/useCoinSearch';
@@ -17,7 +18,7 @@ import { HISTORY_DAYS_OPTIONS } from '@/consts/prices';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const GREEN = 'oklch(0.86 0.20 145)';
+const GREEN = 'var(--color-chart-bull)';
 
 const RANGE_LABELS: Record<number, string> = {
   7: '7D',
@@ -67,13 +68,7 @@ function fmtYAxis(value: number): string {
 
 type TooltipPayloadEntry = { payload: ChartPoint };
 
-function PriceTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: TooltipPayloadEntry[];
-}) {
+function PriceTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayloadEntry[] }) {
   if (!active || !payload?.length) return null;
   const point = payload[0]?.payload;
   if (!point) return null;
@@ -90,9 +85,9 @@ function PriceTooltip({
       style={{
         background: 'var(--surface-2)',
         border: '1px solid var(--line-2)',
-        borderRadius: 8,
-        padding: '8px 12px',
-        fontSize: 11,
+        borderRadius: 'var(--radius)',
+        padding: 'var(--sp-2) var(--sp-3)',
+        fontSize: 'var(--fs-xs)',
         fontFamily: 'var(--font-mono)',
         color: 'var(--text)',
         lineHeight: 1.9,
@@ -107,15 +102,7 @@ function PriceTooltip({
 
 // ─── Y-axis custom tick ───────────────────────────────────────────────────────
 
-function YTick({
-  x,
-  y,
-  payload,
-}: {
-  x?: number;
-  y?: number;
-  payload?: { value: number };
-}) {
+function YTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: number } }) {
   if (!payload) return null;
   return (
     <text
@@ -123,7 +110,7 @@ function YTick({
       y={(y ?? 0) + 4}
       fill="var(--text-3)"
       style={{
-        fontSize: 11,
+        fontSize: 'var(--fs-xs)',
         fontFamily: 'var(--font-mono)',
       }}
     >
@@ -134,15 +121,7 @@ function YTick({
 
 // ─── X-axis custom tick ───────────────────────────────────────────────────────
 
-function XTick({
-  x,
-  y,
-  payload,
-}: {
-  x?: number;
-  y?: number;
-  payload?: { value: string };
-}) {
+function XTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) {
   if (!payload?.value) return null;
   return (
     <text
@@ -151,7 +130,7 @@ function XTick({
       textAnchor="middle"
       fill="var(--text-3)"
       style={{
-        fontSize: 11,
+        fontSize: 'var(--fs-xs)',
         fontFamily: 'var(--font-mono)',
       }}
     >
@@ -191,7 +170,7 @@ export function HistoricalPriceChart() {
   const searchResults = useMemo(() => search(searchQuery), [search, searchQuery]);
 
   function updatePrefs(next: Partial<ChartPrefs>) {
-    setPrefs(prev => {
+    setPrefs((prev) => {
       const updated = { ...prev, ...next };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -230,42 +209,47 @@ export function HistoricalPriceChart() {
         </div>
 
         {/* Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
           {/* Coin search */}
           <div style={{ position: 'relative' }}>
             <input
               type="text"
               value={searchQuery}
               placeholder={coinId}
-              onChange={(e) => { setSearchQuery(e.target.value); setShowDropdown(true); }}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowDropdown(true);
+              }}
               onFocus={() => setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
               style={{
                 background: 'var(--bg-2)',
                 border: '1px solid var(--line)',
-                borderRadius: 8,
+                borderRadius: 'var(--radius)',
                 color: 'var(--text)',
-                fontSize: 16,
+                fontSize: 'var(--fs-base)',
                 fontFamily: 'inherit',
-                padding: '5px 10px',
+                padding: 'var(--sp-1) var(--sp-3)',
                 outline: 'none',
                 width: 120,
               }}
             />
             {showDropdown && searchResults.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                zIndex: 100,
-                background: 'var(--surface-2)',
-                border: '1px solid var(--line-2)',
-                borderRadius: 8,
-                minWidth: 180,
-                maxHeight: 200,
-                overflowY: 'auto',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
-              }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  left: 0,
+                  zIndex: 'var(--z-dropdown)',
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--line-2)',
+                  borderRadius: 'var(--radius)',
+                  minWidth: 180,
+                  maxHeight: 200,
+                  overflowY: 'auto',
+                  boxShadow: 'var(--shadow-raised)',
+                }}
+              >
                 {searchResults.map((coin) => (
                   <button
                     key={coin.id}
@@ -278,18 +262,29 @@ export function HistoricalPriceChart() {
                       display: 'block',
                       width: '100%',
                       textAlign: 'left',
-                      padding: '7px 12px',
+                      padding: 'var(--sp-2) var(--sp-3)',
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer',
                       color: 'var(--text)',
-                      fontSize: 12,
+                      fontSize: 'var(--fs-sm)',
                       fontFamily: 'inherit',
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-3)'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'none';
+                    }}
                   >
-                    <span style={{ color: 'var(--text-2)', marginRight: 8, textTransform: 'uppercase', fontSize: 10 }}>
+                    <span
+                      style={{
+                        color: 'var(--text-2)',
+                        marginRight: 'var(--sp-2)',
+                        textTransform: 'uppercase',
+                        fontSize: 'var(--fs-xs)',
+                      }}
+                    >
                       {coin.symbol}
                     </span>
                     {coin.name}
@@ -315,17 +310,7 @@ export function HistoricalPriceChart() {
       </div>
 
       {/* Skeleton loading state */}
-      {isLoading && (
-        <div
-          style={{
-            height: 320,
-            borderRadius: 'var(--radius)',
-            background: 'var(--surface-3)',
-            animation: 'pulse 1.5s ease-in-out infinite',
-          }}
-          className="animate-pulse"
-        />
-      )}
+      {isLoading && <ChartSkeleton />}
 
       {/* Error state — only when no prior data available */}
       {!isLoading && error && !rawPrices && (
@@ -336,9 +321,9 @@ export function HistoricalPriceChart() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 12,
+            gap: 'var(--sp-3)',
             color: 'var(--text-2)',
-            fontSize: 13,
+            fontSize: 'var(--fs-sm)',
           }}
         >
           <span>Failed to load price history.</span>
@@ -352,10 +337,7 @@ export function HistoricalPriceChart() {
       {!isLoading && rawPrices && (
         <div style={{ height: 320 }}>
           <ResponsiveContainer width="100%" height={320}>
-            <AreaChart
-              data={chartData}
-              margin={{ top: 16, right: 48, bottom: 26, left: 0 }}
-            >
+            <AreaChart data={chartData} margin={{ top: 16, right: 48, bottom: 26, left: 0 }}>
               <defs>
                 <linearGradient id="hist-area-fill" x1="0" x2="0" y1="0" y2="1">
                   <stop offset="0%" stopColor={GREEN} stopOpacity={0.16} />
@@ -404,7 +386,7 @@ export function HistoricalPriceChart() {
                 activeDot={{
                   r: 4,
                   fill: GREEN,
-                  stroke: '#0a0a12',
+                  stroke: 'var(--color-bg)',
                   strokeWidth: 2,
                 }}
                 connectNulls={false}

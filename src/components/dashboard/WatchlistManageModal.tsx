@@ -63,33 +63,37 @@ export function WatchlistManageModal({
           <div className="prowl" style={{ minHeight: 0, background: 'transparent' }}>
             <div
               className="card"
-              style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}
+              style={{ padding: 'var(--sp-5)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}
             >
               {/* Header */}
               <div
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
               >
-                <span className="card-title" style={{ fontSize: 15, fontWeight: 600 }}>
+                <span className="card-title" style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
                   <span className="marker" />
                   Manage watchlist
                 </span>
                 <Modal.CloseTrigger
                   className="btn-ghost"
                   aria-label="Close watchlist manager"
-                  style={{ fontSize: 18, lineHeight: 1, padding: '2px 8px' }}
+                  style={{ fontSize: 'var(--fs-lg)', lineHeight: 1, padding: 'var(--sp-0) var(--sp-2)' }}
                 />
               </div>
 
               {/* Add a coin */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
                 <span
                   className="muted small"
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: 'var(--ls-label)',
+                    fontSize: 'var(--fs-xs)',
+                  }}
                 >
                   Add a coin
                 </span>
                 {isFull ? (
-                  <span className="muted small" style={{ fontSize: 12 }}>
+                  <span className="muted small" style={{ fontSize: 'var(--fs-sm)' }}>
                     Watchlist is full ({WATCHLIST_MAX_COINS} coins max). Remove one to add another.
                   </span>
                 ) : (
@@ -100,26 +104,30 @@ export function WatchlistManageModal({
                   />
                 )}
                 {note && (
-                  <span className="muted small" style={{ fontSize: 12 }}>
+                  <span className="muted small" style={{ fontSize: 'var(--fs-sm)' }}>
                     {note}
                   </span>
                 )}
               </div>
 
               {/* Current coins */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
                 <span
                   className="muted small"
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11 }}
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: 'var(--ls-label)',
+                    fontSize: 'var(--fs-xs)',
+                  }}
                 >
                   On your watchlist ({coins.length})
                 </span>
                 {coins.length === 0 ? (
-                  <span className="muted small" style={{ fontSize: 12 }}>
+                  <span className="muted small" style={{ fontSize: 'var(--fs-sm)' }}>
                     No coins yet — add one above.
                   </span>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
                     {coins.map((coin) => (
                       <div
                         key={coin.id}
@@ -127,18 +135,18 @@ export function WatchlistManageModal({
                           background: 'var(--surface-2)',
                           border: '1px solid var(--surface-3)',
                           borderRadius: 'var(--radius)',
-                          padding: '10px 12px',
+                          padding: 'var(--sp-3) var(--sp-3)',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 10,
+                          gap: 'var(--sp-3)',
                         }}
                       >
                         <span
                           style={{
-                            fontSize: 11,
+                            fontSize: 'var(--fs-xs)',
                             fontWeight: 600,
-                            padding: '2px 8px',
-                            borderRadius: 100,
+                            padding: 'var(--sp-0) var(--sp-2)',
+                            borderRadius: 'var(--radius-pill)',
                             background: 'var(--surface-3)',
                             color: 'var(--text-2)',
                             flexShrink: 0,
@@ -150,7 +158,7 @@ export function WatchlistManageModal({
                           style={{
                             flex: 1,
                             minWidth: 0,
-                            fontSize: 13,
+                            fontSize: 'var(--fs-sm)',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -166,8 +174,8 @@ export function WatchlistManageModal({
                           }}
                           aria-label={`Remove ${coin.name} from watchlist`}
                           style={{
-                            fontSize: 14,
-                            padding: '2px 8px',
+                            fontSize: 'var(--fs-sm)',
+                            padding: 'var(--sp-0) var(--sp-2)',
                             flexShrink: 0,
                             color: 'var(--text-2)',
                           }}

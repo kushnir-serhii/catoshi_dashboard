@@ -1,6 +1,6 @@
 import { BACKFILL_CHUNK } from '@/consts/collect';
 import { FORECAST_MODEL_PRICING } from '@/consts/forecastPricing';
-import { PROJECTION_SCHEMA_VERSION, ROUTINE_SOURCE } from '@/consts/projections';
+import { PROJECTION_SCHEMA_VERSION } from '@/consts/projections';
 import type {
   ForecastUsage,
   MarketSnapshot,
@@ -632,45 +632,13 @@ export async function getAssetIdsBySymbol(
 }
 
 /**
- * Daily **paid** forecast-generation ceiling read (spec 019 §2.5, tightened by
- * spec 020 §2.7). Counts distinct `as_of` values on `public.forecasts` created
- * since the start of the current UTC day — `as_of` is shared by every row of
- * one batch generation, so distinct `as_of` counts generations, not rows.
- *
- * `source <> 'routine'` excludes scheduled-task ingests (spec 020): those cost
- * nothing, so they must not consume the operator's Reforecast budget. The
- * `source` predicate is used rather than `cost_usd > 0` so a paid generation
- * whose model is absent from `FORECAST_MODEL_PRICING` (null `cost_usd`) still
- * counts.
- *
- * Returns `null` on any query failure: a count that cannot be read is not zero,
- * and the caller (the refresh route) must treat `null` as "fail closed".
- */
-export async function getDailyForecastGenerationCount(
-  queryFn: typeof query = query,
-): Promise<number | null> {
-  try {
-    const rows = await queryFn<{ count: string }>(
-      `select count(distinct as_of) as count
-         from public.forecasts
-        where created_at >= date_trunc('day', now() at time zone 'utc')
-          and source <> $1`,
-      [ROUTINE_SOURCE],
-    );
-    return Number(rows[0].count);
-  } catch (error: unknown) {
-    console.error('[analytics] getDailyForecastGenerationCount failed:', error);
-    return null;
-  }
-}
-
-/**
  * Daily scheduled-ingest ceiling read (spec 020 §2.2). Counts distinct `as_of`
  * groups written with `source = 'routine'` since the start of the current UTC
- * day, so a scheduler stuck in a loop cannot fill `public.forecasts`. Separate
- * from `getDailyForecastGenerationCount` (that one guards the operator's paid
- * budget; this one guards the table). Returns `null` on any query failure —
- * the caller must fail closed, never treat it as "no ingests yet".
+ * day, so a scheduler stuck in a loop cannot fill `public.forecasts`. This
+ * guards the table itself; the paid on-demand path is now metered per person by
+ * the spec 022 forecast-usage ledger, not by a product-wide count here. Returns
+ * `null` on any query failure — the caller must fail closed, never treat it as
+ * "no ingests yet".
  */
 export async function getDailyIngestCount(
   source: string,

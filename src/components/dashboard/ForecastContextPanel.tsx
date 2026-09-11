@@ -28,26 +28,26 @@ interface ForecastContextPanelProps {
 export function ForecastContextPanel({ projData, isStale }: ForecastContextPanelProps) {
   if (!projData) {
     return (
-      <div className="forecast-context animate-pulse" style={{ marginTop: 12 }}>
+      <div className="forecast-context animate-pulse" style={{ marginTop: 'var(--sp-3)' }}>
         <div
-          style={{ height: 14, width: '30%', borderRadius: 4, background: 'var(--surface-3)' }}
+          style={{ height: 14, width: '30%', borderRadius: 'var(--radius-sm)', background: 'var(--surface-3)' }}
         />
         <div
           style={{
             height: 12,
             width: '60%',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
             background: 'var(--surface-3)',
-            marginTop: 8,
+            marginTop: 'var(--sp-2)',
           }}
         />
         <div
           style={{
             height: 12,
             width: '80%',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
             background: 'var(--surface-3)',
-            marginTop: 6,
+            marginTop: 'var(--sp-2)',
           }}
         />
       </div>
@@ -66,17 +66,17 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
   const reasoningText = projData.reasoning.join(' · ');
 
   return (
-    <div className="forecast-context" style={{ marginTop: 12 }}>
+    <div className="forecast-context" style={{ marginTop: 'var(--sp-3)' }}>
       {isStale && (
         <div
           style={{
-            padding: '6px 12px',
+            padding: 'var(--sp-2) var(--sp-3)',
             borderRadius: 'var(--radius-sm)',
-            background: 'oklch(0.65 0.18 60 / 0.15)',
-            border: '1px solid oklch(0.65 0.18 60 / 0.35)',
-            color: 'oklch(0.85 0.15 60)',
-            fontSize: 12,
-            marginBottom: 10,
+            background: 'var(--color-notice-bg)',
+            border: '1px solid var(--color-notice-border)',
+            color: 'var(--color-notice)',
+            fontSize: 'var(--fs-sm)',
+            marginBottom: 'var(--sp-3)',
           }}
         >
           Forecast may be outdated
@@ -86,18 +86,18 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
+          gap: 'var(--sp-4)',
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)' }}>
           <span
             style={{
-              fontSize: 22,
+              fontSize: 'var(--fs-lg)',
               fontWeight: 600,
               fontVariantNumeric: 'tabular-nums',
               color: 'var(--green)',
-              letterSpacing: '-0.02em',
+              letterSpacing: 'var(--ls-tight)',
             }}
           >
             {projData.confidence}%
@@ -110,18 +110,18 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              fontSize: 12,
+              gap: 'var(--sp-3)',
+              fontSize: 'var(--fs-sm)',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            <span style={{ color: 'oklch(0.86 0.20 145)' }}>
+            <span style={{ color: 'var(--color-chart-bull)' }}>
               Bull {projData.scenarioProbabilities.bull}%
             </span>
-            <span style={{ color: 'oklch(0.78 0.22 295)' }}>
+            <span style={{ color: 'var(--color-chart-base)' }}>
               Base {projData.scenarioProbabilities.base}%
             </span>
-            <span style={{ color: 'oklch(0.65 0.18 25)' }}>
+            <span style={{ color: 'var(--color-chart-bear)' }}>
               Bear {projData.scenarioProbabilities.bear}%
             </span>
           </div>
@@ -132,8 +132,8 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
 
         <span
           style={{
-            fontSize: 11,
-            padding: '2px 8px',
+            fontSize: 'var(--fs-xs)',
+            padding: 'var(--sp-0) var(--sp-2)',
             borderRadius: 'var(--radius-sm)',
             background: 'var(--surface-3)',
             color: 'var(--text-2)',
@@ -146,7 +146,7 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
       </div>
 
       {reasoningText && (
-        <p className="muted small" style={{ marginTop: 6, lineHeight: 1.5, marginBottom: 0 }}>
+        <p className="muted small" style={{ marginTop: 'var(--sp-2)', lineHeight: 'var(--lh-normal)', marginBottom: 0 }}>
           {reasoningText}
         </p>
       )}

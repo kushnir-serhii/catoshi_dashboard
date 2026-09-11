@@ -13,7 +13,7 @@
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
+    border-color: var(--color-line, currentColor);
   }
 
   button:not(:disabled),
@@ -21,23 +21,28 @@
     cursor: pointer;
   }
 
+  /* The app is dark only — there is no light palette, so the page ground is
+     unconditionally --bg. Do not reintroduce a `dark:` variant here: every
+     text token in theme.css is tuned for a dark ground and is unreadable on
+     white (--text on #fff is 1.22:1). */
   html,
   body {
-    @apply bg-white relative z-1 min-h-screen font-sans dark:bg-bg;
+    @apply bg-bg relative z-1 min-h-screen font-sans;
+    color: var(--color-text);
   }
 
-  /* Dark-theme page-level scrollbar (html element) — matches .prowl palette */
+  /* Page-level scrollbar (html element) — matches .prowl palette */
   html::-webkit-scrollbar {
     width: 5px;
   }
 
   html::-webkit-scrollbar-track {
-    background: #0a0a12;
+    background: var(--color-bg);
   }
 
   html::-webkit-scrollbar-thumb {
     background: oklch(0.55 0.18 295 / 0.35);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
   }
 
   html::-webkit-scrollbar-thumb:hover {
@@ -46,8 +51,12 @@
 
   /* Firefox */
   html {
+    /* iOS Safari otherwise inflates body text when the phone is rotated,
+       which breaks the type scale (WCAG 1.4.4 is about user zoom, not this). */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     scrollbar-width: thin;
-    scrollbar-color: oklch(0.55 0.18 295 / 0.35) #0a0a12;
+    scrollbar-color: oklch(0.55 0.18 295 / 0.35) var(--color-bg);
   }
 
 }

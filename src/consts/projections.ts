@@ -45,17 +45,6 @@ export const DEFAULT_FORECAST_MODEL = 'gpt-4o-mini';
  * next request triggers a fresh generation (spec 019). */
 export const FORECAST_TTL_SECONDS = 21600; // 6 hours
 
-/** Ceiling on forecast generations (distinct `as_of` groups in
- * `public.forecasts`) per UTC day, enforced by the reforecast route
- * (spec 019, Slice 3). */
-export const FORECAST_DAILY_CALL_LIMIT = 20;
-
-/** Name of the HttpOnly cookie that carries the admin credential, set by
- * `GET /api/admin/unlock` and read by `POST /api/projections/refresh`
- * (spec 019, Slice 3). Shared here per the constants rule — it's used in
- * both routes. */
-export const ADMIN_COOKIE_NAME = 'catoshi_admin';
-
 /** Spec 020 — scheduled forecast ingestion.
  *
  * `ROUTINE_SOURCE` is the `public.forecasts.source` value for a batch produced
@@ -115,6 +104,10 @@ export const FORECAST_MAX_OUTPUT_TOKENS = 16384;
 
 /** Number of popular coins shown in the "Model predictions" panel. */
 export const AI_PANEL_ROW_COUNT = 5;
+
+/** Signal cards shown in the Projections page's "Signals · last 24h" strip.
+ * Four fills the 4-column grid exactly; the Signals page shows the full feed. */
+export const PROJECTIONS_SIGNALS_COUNT = 4;
 
 // Non-uniform forecast day grid: daily (1-30), weekly (37-177), monthly (210-365).
 // Single source of truth — never re-derive this grid at a call site.

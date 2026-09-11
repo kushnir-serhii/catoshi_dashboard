@@ -3,7 +3,6 @@ import './styles/globals.css';
 import { Geist, Geist_Mono } from 'next/font/google';
 
 import { DashboardProvider } from '@/components/dashboard/context';
-import { ThemeProvider } from '@/context/ThemeContext';
 
 const geist = Geist({
   subsets: ['latin'],
@@ -22,6 +21,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The app is dark only. `dark` / data-theme are static here so Tailwind's
+  // `dark:` variant stays valid; there is no theme provider and no toggle.
   return (
     <html
       lang="en"
@@ -29,9 +30,7 @@ export default function RootLayout({
       data-theme="dark"
     >
       <body className={`${geist.className} antialiased`}>
-        <ThemeProvider>
-          <DashboardProvider>{children}</DashboardProvider>
-        </ThemeProvider>
+        <DashboardProvider>{children}</DashboardProvider>
       </body>
     </html>
   );

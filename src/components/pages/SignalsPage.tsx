@@ -8,20 +8,20 @@ import { formatSnapshotAge, isSnapshotStale } from '@/lib/freshness';
 import { filterNewsByScope, newestNewsPublishedAt, type NewsScopeFilter } from '@/lib/news/feed';
 
 function Row({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ display: 'flex', alignItems: 'center', gap: 12, ...style }}>{children}</div>;
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', ...style }}>{children}</div>;
 }
 
 function SignalCardSkeleton() {
   return (
-    <div className="signal animate-pulse" style={{ padding: 18 }}>
-      <div className="head" style={{ marginBottom: 10 }}>
+    <div className="signal animate-pulse" style={{ padding: 'var(--sp-4)' }}>
+      <div className="head" style={{ marginBottom: 'var(--sp-3)' }}>
         <span
           style={{
             display: 'inline-block',
             width: 60,
             height: 14,
             background: 'var(--surface-3)',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
           }}
         />
         <span
@@ -30,8 +30,8 @@ function SignalCardSkeleton() {
             width: 80,
             height: 12,
             background: 'var(--surface-3)',
-            borderRadius: 4,
-            marginLeft: 8,
+            borderRadius: 'var(--radius-sm)',
+            marginLeft: 'var(--sp-2)',
           }}
         />
       </div>
@@ -39,8 +39,8 @@ function SignalCardSkeleton() {
         style={{
           height: 15,
           background: 'var(--surface-3)',
-          borderRadius: 4,
-          marginBottom: 8,
+          borderRadius: 'var(--radius-sm)',
+          marginBottom: 'var(--sp-2)',
           width: '80%',
         }}
       />
@@ -48,8 +48,8 @@ function SignalCardSkeleton() {
         style={{
           height: 12,
           background: 'var(--surface-3)',
-          borderRadius: 4,
-          marginBottom: 5,
+          borderRadius: 'var(--radius-sm)',
+          marginBottom: 'var(--sp-1)',
           width: '95%',
         }}
       />
@@ -57,8 +57,8 @@ function SignalCardSkeleton() {
         style={{
           height: 12,
           background: 'var(--surface-3)',
-          borderRadius: 4,
-          marginBottom: 12,
+          borderRadius: 'var(--radius-sm)',
+          marginBottom: 'var(--sp-3)',
           width: '70%',
         }}
       />
@@ -69,7 +69,7 @@ function SignalCardSkeleton() {
             width: 100,
             height: 11,
             background: 'var(--surface-3)',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
           }}
         />
       </div>
@@ -101,28 +101,28 @@ function SignalCard({ s }: { s: SignalItem }) {
   });
 
   return (
-    <div className={`signal ${tagClass}`} style={{ padding: 18 }}>
+    <div className={`signal ${tagClass}`} style={{ padding: 'var(--sp-4)' }}>
       <div className="head">
         <span className="tag">{s.tag}</span>
         <span className="src">{s.source}</span>
       </div>
-      <h4 style={{ fontSize: 15 }}>{s.title}</h4>
+      <h4 style={{ fontSize: 'var(--fs-base)' }}>{s.title}</h4>
       {s.body && (
-        <p className="small muted" style={{ margin: '4px 0 8px', lineHeight: 1.6 }}>
+        <p className="small muted" style={{ margin: 'var(--sp-1) 0 var(--sp-2)', lineHeight: 'var(--lh-normal)' }}>
           {s.body}
         </p>
       )}
       {s.coins.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)', marginBottom: 'var(--sp-2)' }}>
           {s.coins.map((coin) => (
             <span
               key={coin}
               className="coin-chip"
               style={{
                 background: 'var(--surface-3)',
-                borderRadius: 999,
-                padding: '2px 7px',
-                fontSize: 11,
+                borderRadius: 'var(--radius-pill)',
+                padding: 'var(--sp-0) var(--sp-2)',
+                fontSize: 'var(--fs-xs)',
               }}
             >
               {coin}
@@ -130,7 +130,7 @@ function SignalCard({ s }: { s: SignalItem }) {
           ))}
         </div>
       )}
-      <div className="foot" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="foot" style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
         <span className="small">
           {formatDuration(s.since) === 'just now'
             ? 'flagged just now'
@@ -155,24 +155,24 @@ function FeedNotice({
     <div
       style={{
         gridColumn: '1 / -1',
-        padding: '32px 20px',
+        padding: 'var(--sp-6) var(--sp-5)',
         textAlign: 'center',
-        borderRadius: 12,
+        borderRadius: 'var(--radius-lg)',
         background: 'var(--surface-2)',
         border:
-          tone === 'error' ? '1px solid oklch(0.6 0.18 20 / 0.45)' : '1px solid var(--surface-3)',
+          tone === 'error' ? '1px solid var(--color-error-border)' : '1px solid var(--surface-3)',
       }}
     >
       <h4
         style={{
-          fontSize: 15,
-          marginBottom: 6,
+          fontSize: 'var(--fs-base)',
+          marginBottom: 'var(--sp-2)',
           color: tone === 'error' ? 'var(--red)' : 'var(--text)',
         }}
       >
         {title}
       </h4>
-      <p className="small muted" style={{ margin: 0, lineHeight: 1.6 }}>
+      <p className="small muted" style={{ margin: 0, lineHeight: 'var(--lh-normal)' }}>
         {body}
       </p>
     </div>
@@ -192,9 +192,9 @@ function StaleCollectionNotice({ lastUpdated }: { lastUpdated: string }) {
   return (
     <div
       style={{
-        marginBottom: 12,
-        padding: '8px 14px',
-        borderRadius: 8,
+        marginBottom: 'var(--sp-3)',
+        padding: 'var(--sp-2) var(--sp-4)',
+        borderRadius: 'var(--radius)',
         background: 'var(--surface-2)',
         border: '1px solid var(--surface-3)',
         color: 'var(--text-2)',
@@ -231,7 +231,7 @@ function NewsCard({ n }: { n: NewsSignalItem }) {
   const age = formatSnapshotAge(n.publishedAt) ?? 'recently';
 
   return (
-    <div className={`signal news ${tagClass}`} style={{ padding: 18 }}>
+    <div className={`signal news ${tagClass}`} style={{ padding: 'var(--sp-4)' }}>
       <div className="head">
         <span className="news-pill">NEWS</span>
         <span className="tag">{n.tag}</span>
@@ -241,13 +241,13 @@ function NewsCard({ n }: { n: NewsSignalItem }) {
         <span className="news-badge">{scopeBadgeLabel(n.scope)}</span>
         <span className={`news-badge mag-${n.magnitude}`}>{n.magnitude} impact</span>
       </div>
-      <h4 style={{ fontSize: 15 }}>{n.title}</h4>
+      <h4 style={{ fontSize: 'var(--fs-base)' }}>{n.title}</h4>
       {n.body && (
-        <p className="small muted" style={{ margin: '4px 0 8px', lineHeight: 1.6 }}>
+        <p className="small muted" style={{ margin: 'var(--sp-1) 0 var(--sp-2)', lineHeight: 'var(--lh-normal)' }}>
           {n.body}
         </p>
       )}
-      <div className="foot" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="foot" style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
         <a className="news-link small" href={n.sourceUrl} target="_blank" rel="noopener noreferrer">
           Read on {n.source} ↗
         </a>
@@ -276,9 +276,9 @@ function NewsFeedSection({
   const newestAge = newestAll ? formatSnapshotAge(newestAll) : null;
 
   return (
-    <div style={{ marginTop: 8 }}>
+    <div style={{ marginTop: 'var(--sp-2)' }}>
       <div className="news-section-head">
-        <h3 style={{ fontSize: 15, margin: 0 }}>News signals</h3>
+        <h2 style={{ fontSize: 'var(--fs-lg)', margin: 0 }}>News signals</h2>
         {newestAge && <span className="small muted">Newest news item: {newestAge}</span>}
         <div className="news-filter" style={{ marginLeft: 'auto' }}>
           {SCOPE_ORDER.map((s) => (
@@ -307,7 +307,7 @@ function NewsFeedSection({
           />
         )
       ) : (
-        <div className="pg-signals-2" style={{ gap: 14 }}>
+        <div className="pg-signals-2" style={{ gap: 'var(--sp-4)' }}>
           {visible.map((n) => (
             <NewsCard key={n.id} n={n} />
           ))}
@@ -337,15 +337,17 @@ export function SignalsPage() {
 
   return (
     <div className="page-content">
+      <h1 className="sr-only">Signals</h1>
       {isStale && (
         <div
+          role="status"
           style={{
-            marginBottom: 12,
-            padding: '8px 14px',
-            borderRadius: 8,
+            marginBottom: 'var(--sp-3)',
+            padding: 'var(--sp-2) var(--sp-4)',
+            borderRadius: 'var(--radius)',
             background: 'var(--surface-3)',
-            border: '1px solid oklch(0.65 0.15 55 / 0.4)',
-            color: 'oklch(0.75 0.12 55)',
+            border: '1px solid var(--color-notice-border)',
+            color: 'var(--color-notice)',
           }}
           className="small"
         >
@@ -355,7 +357,7 @@ export function SignalsPage() {
 
       {showStaleCollection && lastUpdated && <StaleCollectionNotice lastUpdated={lastUpdated} />}
 
-      <div className="pg-signals-2" style={{ gap: 14 }}>
+      <div className="pg-signals-2" style={{ gap: 'var(--sp-4)' }}>
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => <SignalCardSkeleton key={i} />)
         ) : showError ? (
@@ -383,7 +385,7 @@ export function SignalsPage() {
       )}
 
       {lastUpdated && (
-        <Row style={{ gap: 16, padding: '12px 4px 0', flexWrap: 'wrap' }}>
+        <Row style={{ gap: 'var(--sp-4)', padding: 'var(--sp-3) var(--sp-1) 0', flexWrap: 'wrap' }}>
           <span className="small muted">
             Last updated: {new Date(lastUpdated).toLocaleString()}
           </span>

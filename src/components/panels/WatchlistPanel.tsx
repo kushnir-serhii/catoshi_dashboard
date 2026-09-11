@@ -30,10 +30,10 @@ interface WatchlistPanelProps {
 const NOT_FORECAST_TITLE =
   'This coin has no AI forecast yet — pick it on the chart to forecast it.';
 
-/** Pulse block using the same `animate-pulse rounded bg-gray-{600,700}`
+/** Pulse block using the same `animate-pulse rounded-sm bg-surface-{2,3}`
  * classes `KPIs` renders for its first-load skeleton. */
 function Pulse({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded ${className}`} />;
+  return <div className={`animate-pulse rounded-sm ${className}`} />;
 }
 
 function formatPrice(usd: number): string {
@@ -81,7 +81,7 @@ export function WatchlistPanel({
         <div className="card-title">
           <span className="marker green"></span>Watchlist
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
           {!isLoading && coins.length > 0 && (
             <span className="text-xs text-(--text-3) tabular-nums">Refreshes in {countdown}s</span>
           )}
@@ -92,11 +92,16 @@ export function WatchlistPanel({
       </div>
 
       {coins.length === 0 ? (
-        <div className="muted" style={{ padding: '1rem' }}>
+        <div className="muted" style={{ padding: 'var(--sp-4)' }}>
           Your watchlist is empty. Add a coin to track its price and forecast.
         </div>
       ) : (
-        <div className="tbl-wrap">
+        <div
+          className="tbl-wrap"
+          role="region"
+          aria-label="Watchlist, scrolls sideways"
+          tabIndex={0}
+        >
           <table className="watch-table">
             <thead>
               <tr>
@@ -132,19 +137,19 @@ export function WatchlistPanel({
                     {pending ? (
                       <>
                         <td style={{ textAlign: 'right' }}>
-                          <Pulse className="ml-auto h-6 w-24 bg-gray-700" />
+                          <Pulse className="ml-auto h-6 w-24 bg-surface-3" />
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <Pulse className="ml-auto h-4 w-16 bg-gray-600" />
+                          <Pulse className="ml-auto h-4 w-16 bg-surface-2" />
                         </td>
                         <td>
-                          <Pulse className="h-6 w-22.5 bg-gray-700" />
+                          <Pulse className="h-6 w-22.5 bg-surface-3" />
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <Pulse className="ml-auto h-4 w-12 bg-gray-600" />
+                          <Pulse className="ml-auto h-4 w-12 bg-surface-2" />
                         </td>
                         <td>
-                          <Pulse className="h-4 w-20 bg-gray-700" />
+                          <Pulse className="h-4 w-20 bg-surface-3" />
                         </td>
                       </>
                     ) : (
@@ -210,7 +215,10 @@ export function WatchlistPanel({
       )}
 
       {!isLoading && isStale && coins.length > 0 && (
-        <div className="flex items-center gap-2 border-t border-(--line) px-4 py-2 text-xs text-(--text-3) tabular-nums">
+        <div
+          role="status"
+          className="flex items-center gap-2 border-t border-(--line) px-4 py-2 text-xs text-(--text-3) tabular-nums"
+        >
           <span style={{ color: 'var(--warning)' }}>Data may be outdated</span>
         </div>
       )}

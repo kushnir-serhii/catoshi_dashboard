@@ -8,6 +8,7 @@ import { upsertSnapshot } from '@/lib/db/analytics';
 import { persistCollectorStatus, reduceSourceStatuses } from '@/lib/db/collectorStatus';
 import { persistNewsItems } from '@/lib/db/news';
 import { classifyNews } from '@/lib/news/classify';
+import { isNewsClassificationPaused } from '@/lib/news/pause';
 import { publishNews } from '@/lib/news/publish';
 import { resolveForecasts } from '@/lib/scoring/resolve';
 import { generateSignals } from '@/lib/signals/generate';
@@ -201,7 +202,7 @@ async function handleCollect(request: Request): Promise<NextResponse> {
   // no placeholder) and surfaces `{ source: 'news:classify', ok: false }`. In
   // mock mode it never calls the model. `NEWS_CLASSIFY_ENABLED=false` (spec
   // 019, Slice 4) skips the call entirely, reporting `disabled: true` instead.
-  if (process.env.NEWS_CLASSIFY_ENABLED === 'false') {
+  if (await isNewsClassificationPaused()) {
     sourcesBySymbol.news = [
       ...(sourcesBySymbol.news ?? []),
       { source: 'news:classify', ok: true, disabled: true },

@@ -14,6 +14,7 @@
  */
 
 import { SNAPSHOT_STALE_MINUTES } from '@/consts/collect';
+import { NEWS_CLASSIFY_ENABLED } from '@/consts/news';
 import { SCHEDULED_FORECAST_LATE_AFTER_SECONDS } from '@/consts/projections';
 
 /** Parses an ISO string or Date to epoch ms; returns `NaN` for anything unusable. */
@@ -72,13 +73,17 @@ export function newestTimestamp(
 
 /**
  * Whether the product's one background model call (news classification,
- * spec 019 Slice 4) is currently paused via `NEWS_CLASSIFY_ENABLED`. Shared so
- * `/api/health` and the Signals page agree on the same definition rather than
- * each re-checking the env var inline — the same reasoning as the rest of this
- * module: one pure source of truth so callers can never disagree.
+ * spec 015) is paused *according to the environment variable alone*
+ * (`NEWS_CLASSIFY_ENABLED=false`). This is the cheap, synchronous view used by
+ * `/api/health`, which stays an unauthenticated no-DB read (spec 022 §2.9).
+ *
+ * The admin-toggleable view — the `public.app_settings` row taking precedence,
+ * with this env value as the fallback when the row is absent — lives in
+ * `src/lib/news/pause.ts` (async, reads Postgres) and is what `/api/collect`
+ * consults before each classification pass.
  */
 export function isNewsClassificationPaused(): boolean {
-  return process.env.NEWS_CLASSIFY_ENABLED === 'false';
+  return !NEWS_CLASSIFY_ENABLED;
 }
 
 /** State of the spec 020 scheduled forecast producer, as reported by `/api/health`. */

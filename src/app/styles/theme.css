@@ -1,77 +1,217 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-    --font-*: initial;
-    /* The two families the app actually renders with. Backed by next/font
+  /* ── Tailwind namespace resets ───────────────────────────────────
+     * `*: initial` deletes Tailwind's own scale for that namespace, so the
+     * only utilities that exist are the ones our tokens below generate.
+     * Without these, `bg-gray-700`, `text-sm` and `rounded-md` keep working
+     * and silently pull in a second, parallel design system — which is
+     * exactly how Tailwind's greys ended up in the skeletons and Tailwind's
+     * green/red in the sparklines.
+     *
+     * --spacing is deliberately NOT reset: Tailwind's scale is 0.25rem,
+     * i.e. the same 4px grid as --sp-*, so `p-4` and var(--sp-4) are the
+     * same 16px. It is restated below in px to make that explicit. */
+  --font-*: initial;
+  --color-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --spacing: 4px;
+  /* The two families the app actually renders with. Backed by next/font
      * CSS vars set on <html> in app/layout.tsx. */
-    --font-sans: var(--font-geist), "Geist", "Inter", system-ui, sans-serif;
-    --font-mono: var(--font-geist-mono), "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
-    /* Tailwind's `font-sans` utility resolves to --font-sans above. */
-    --font-family: var(--font-sans);
+  --font-sans: var(--font-geist), 'Geist', 'Inter', system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+  /* Tailwind's `font-sans` utility resolves to --font-sans above. */
+  --font-family: var(--font-sans);
 
-    --breakpoint-*: initial;
-    --breakpoint-2xs: 375px;
-    --breakpoint-xs: 480px;
-    --breakpoint-sm: 640px;
-    --breakpoint-md: 768px;
-    --breakpoint-lg: 1024px;
-    --breakpoint-xl: 1280px;
-    --breakpoint-2xl: 1440px;
-    --breakpoint-4xl: 1600px;
+  --breakpoint-*: initial;
+  --breakpoint-2xs: 375px;
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1440px;
+  --breakpoint-4xl: 1600px;
 
-    /*
+  /*
      * Prowl — the dashboard's design-system palette. This is the only color
      * system the app renders with; every token here backs a real Tailwind
      * utility (bg-violet, text-text-2, border-line, etc.) and is also read
      * directly as a CSS var by dashboard.css / landing.css.
+     *
+     * The app is DARK ONLY. There is no light palette and no theme toggle.
+     * `.dark` is set statically on <html> in app/layout.tsx purely so
+     * Tailwind's `dark:` variant and @custom-variant above stay valid.
      */
-    --color-bg: #0a0a12;
-    --color-bg-2: #0e0e1a;
-    --color-surface: #12121e;
-    --color-surface-2: #181826;
-    --color-surface-3: #1f1f30;
-    --color-line: rgba(255, 255, 255, 0.06);
-    --color-line-2: rgba(255, 255, 255, 0.10);
-    --color-text: #e8e8f2;
-    --color-text-2: #a4a4b8;
-    --color-text-3: #6b6b80;
-    --color-violet: oklch(0.72 0.22 295);
-    --color-violet-light: oklch(0.78 0.22 295);
-    --color-violet-2: oklch(0.62 0.22 295);
-    --color-violet-soft: oklch(0.55 0.18 295 / 0.18);
-    --color-green: oklch(0.86 0.20 145);
-    --color-green-2: oklch(0.76 0.20 145);
-    --color-green-soft: oklch(0.70 0.18 145 / 0.18);
-    --color-red: oklch(0.70 0.20 25);
-    --color-warning: #f59e0b;
+  --color-bg: #0a0a12;
+  --color-bg-2: #0e0e1a;
+  --color-surface: #12121e;
+  --color-surface-2: #181826;
+  --color-surface-3: #1f1f30;
+  --color-line: rgba(255, 255, 255, 0.06);
+  --color-line-2: rgba(255, 255, 255, 0.1);
+  --color-text: #e8e8f2;
+  --color-text-2: #a4a4b8;
+  /* Raised from #8a8aa3, which cleared WCAG AA on --surface-3 by only 7%
+     * (4.82:1) — any lightening of a card surface broke it. Now 5.79:1.
+     * This is the most-used text color in the app and is almost always set
+     * at --fs-xs or --fs-sm, so it needs the headroom. */
+  --color-text-3: #9a9ab2;
+  --color-violet: oklch(0.72 0.22 295);
+  --color-violet-light: oklch(0.78 0.22 295);
+  --color-violet-2: oklch(0.62 0.22 295);
+  --color-violet-soft: oklch(0.55 0.18 295 / 0.18);
+  --color-green: oklch(0.86 0.2 145);
+  --color-green-2: oklch(0.76 0.2 145);
+  --color-green-soft: oklch(0.7 0.18 145 / 0.18);
+  --color-red: oklch(0.7 0.2 25);
+  --color-warning: #f59e0b;
+  /* Accent text colors. These replace eight one-off oklch() literals that
+     * were scattered through dashboard.css / landing.css. All clear WCAG AA
+     * on every surface token. */
+  --color-info: oklch(0.82 0.1 265);
+  --color-amber: oklch(0.82 0.12 90);
+  --color-coral: oklch(0.79 0.16 32);
+
+  /* ── Semantic colours ────────────────────────────────────────────
+     * Everything below was hand-typed as an oklch() literal at the call
+     * site — 108 of them across 12 components. Naming them is what makes
+     * the palette changeable in one place.
+     *
+     * Chart series. Bull and base are the palette colours; bear and the
+     * user's own scenario line are their own, so they read as data rather
+     * than as brand. */
+  --color-chart-bull: var(--color-green);
+  --color-chart-base: var(--color-violet-light);
+  --color-chart-bear: oklch(0.65 0.18 25);
+  --color-chart-scenario: oklch(0.8 0.18 85);
+  --color-chart-base-fill: oklch(0.78 0.22 295 / 0.1);
+
+  /* Selected / active state in modals, pickers and toggles. */
+  --color-selected: var(--color-violet-light);
+  --color-selected-soft: oklch(0.78 0.22 295 / 0.15);
+  --color-selected-softer: oklch(0.78 0.22 295 / 0.12);
+
+  /* Notice banner — stale data, disclaimers, "read this" strips. */
+  --color-notice: oklch(0.85 0.15 60);
+  --color-notice-bg: oklch(0.65 0.18 60 / 0.15);
+  --color-notice-border: oklch(0.65 0.18 60 / 0.35);
+
+  /* Error state. */
+  --color-error-border: oklch(0.6 0.18 20 / 0.45);
+
+  /* Forecast provider accents (ForecastModeIndicator). */
+  --color-accent-claude: oklch(0.72 0.14 55);
+  --color-accent-openai: oklch(0.74 0.13 165);
+  --color-accent-neutral: oklch(0.72 0.05 280);
+
+  /* ── Type scale, as Tailwind utilities ───────────────────────────
+     * Mirrors --fs-* below, so `text-sm` in markup and var(--fs-sm) in
+     * CSS are guaranteed to be the same 14px. */
+  --text-xs: var(--fs-xs);
+  --text-sm: var(--fs-sm);
+  --text-base: var(--fs-base);
+  --text-lg: var(--fs-lg);
+  --text-xl: var(--fs-xl);
+
+  /* ── Radius and elevation, as Tailwind utilities ─────────────────
+     * Moved up from :root so `rounded-sm` / `shadow-overlay` exist and
+     * resolve to the same values the stylesheets use. */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  --shadow-raised: 0 4px 16px rgb(0 0 0 / 0.35);
+  --shadow-overlay: 0 8px 32px rgb(0 0 0 / 0.45);
 }
 
 :root {
-    --index: calc(1vw + 1vh);
-    --index-ratio: 25;
-    /*16:9*/
+  --index: calc(1vw + 1vh);
+  --index-ratio: 25;
+  /*16:9*/
 
-    /* ── Type scale ──────────────────────────────────────────────────
-     * The only font sizes the app should use. Every call site maps to
-     * one of these; no raw px. Role notes are the intended usage. */
-    --fs-3xs: 0.625rem;   /* 10px — pills / status tags (documented floor) */
-    --fs-2xs: 0.6875rem;  /* 11px — all-caps micro-labels, table meta */
-    --fs-xs: 0.75rem;     /* 12px — secondary / caption text */
-    --fs-sm: 0.8125rem;   /* 13px — dense UI: table cells, compact controls, meta */
-    --fs-base: 1rem;      /* 16px — default body / reading copy (mobile-safe) */
-    --fs-md: 1.125rem;    /* 18px — lede, card sub-headings, feature titles */
-    --fs-lg: 1.375rem;    /* 22px — primary numerals, small headings */
-    --fs-xl: 1.75rem;     /* 28px — KPI values */
-    --fs-2xl: 2.25rem;    /* 36px — stat band, plan price */
-    --fs-display: clamp(2.25rem, 5vw, 4.75rem); /* hero / final-CTA headings */
+  /* ── Type scale ──────────────────────────────────────────────────
+     * Six sizes. Nothing below 12px. Every call site maps to one of
+     * these — no raw px, no Tailwind text-* utilities.
+     *
+     * Steps run 12 → 14 → 16 → 20 → 28: tight at the bottom, where a
+     * data-dense dashboard needs the density, opening up at the top. */
+  --fs-xs: 0.75rem; /* 12px — caps micro-labels, table th, tags and pills,
+                     * chart axis ticks. Never a sentence. */
+  --fs-sm: 0.875rem; /* 14px — dense UI: table cells, meta, captions,
+                      * secondary copy, compact controls */
+  --fs-base: 1rem; /* 16px — body, lede, and every input/select/textarea
+                    * (16px keeps iOS Safari from auto-zooming on focus) */
+  --fs-lg: 1.25rem; /* 20px — card and section headings, primary numerals */
+  --fs-xl: 1.75rem; /* 28px — KPI values, landing section headings */
+  --fs-display: clamp(2rem, 5vw, 4rem); /* 32→64px — hero, final CTA */
 
-    /* ── Line height ─────────────────────────────────────────────── */
-    --lh-tight: 1.1;   /* display headings */
-    --lh-snug: 1.35;   /* section headings, short labels */
-    --lh-normal: 1.6;  /* body copy */
+  /* ── Line height ─────────────────────────────────────────────── */
+  --lh-tight: 1.15; /* display headings, KPI numerals */
+  --lh-snug: 1.35; /* section headings, short labels */
+  --lh-normal: 1.6; /* body copy */
 
-    /* ── Letter spacing ─────────────────────────────────────────── */
-    --ls-tight: -0.02em; /* numerals + display headings */
-    --ls-normal: 0;
-    --ls-label: 0.14em;  /* all-caps micro-labels */
+  /* ── Letter spacing ─────────────────────────────────────────────
+     * Three values. --ls-label is the only positive tracking in the
+     * app: at 12px anything wider than ~0.08em pulls uppercase text
+     * apart into unrelated glyphs. */
+  --ls-tight: -0.02em; /* numerals + display headings */
+  --ls-normal: 0;
+  --ls-label: 0.08em; /* all-caps micro-labels */
+
+  /* Focus / selection rings. */
+  --ring-soft: 0 0 0 3px oklch(0.72 0.22 295 / 0.18);
+  --ring-focus: 0 0 0 3px var(--color-violet);
+
+  /* ── Glow ────────────────────────────────────────────────────────
+     * The brand's light bloom, used as `0 0 var(--glow-md) <colour>`.
+     * Every radius scales with --glow, so setting --glow: 0 turns the
+     * whole effect off in one place. */
+  --glow: 1;
+  --glow-sm: calc(8px * var(--glow));
+  --glow-md: calc(12px * var(--glow));
+  --glow-lg: calc(24px * var(--glow));
+  --glow-xl: calc(40px * var(--glow));
+  --glow-2xl: calc(80px * var(--glow));
+
+  /* ── Motion ──────────────────────────────────────────────────────
+     * Replaced seven hand-picked durations. Exits are deliberately
+     * quicker than entrances. All of it is disabled under
+     * prefers-reduced-motion further down dashboard.css. */
+  --dur-instant: 0.1s; /* exits, dismissals */
+  --dur-fast: 0.15s; /* colour and border on hover */
+  --dur-base: 0.25s; /* transforms, small layout moves */
+  --dur-slow: 0.35s; /* menus and accordions opening */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Stacking ────────────────────────────────────────────────────
+     * A z-index is just "who covers whom" when elements overlap. These
+     * are the only layers the app has; using a number that is not one
+     * of these is how things end up hidden behind a card. */
+  --z-sticky: 50; /* landing top nav */
+  --z-dropdown: 100; /* chart tooltips, profile menu */
+  --z-popover: 200; /* coin picker, chart popovers */
+  --z-skip-link: 500; /* keyboard skip link, above all page chrome */
+  --z-modal: 1000; /* dialog overlay */
+
+  /* ── Spacing ─────────────────────────────────────────────────────
+     * A 4px grid. Every padding, margin and gap in the app resolves to
+     * one of these — no raw px. --sp-0 is the one deliberate half-step,
+     * for pill and tag padding where 4px is already too much.
+     *
+     * Replaced 34 distinct hand-picked values across ~518 declarations. */
+  --sp-0: 2px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+  --sp-9: 96px;
+
 }

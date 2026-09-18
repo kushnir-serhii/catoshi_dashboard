@@ -7,6 +7,7 @@
 
 import { NEWS_MAGNITUDE_SEVERITY } from '@/consts/news';
 import type { NewsScope } from '@/data/types';
+import type { EmptyStateCopy } from '@/lib/freshness';
 
 export type NewsMagnitude = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -71,4 +72,22 @@ export function newestNewsPublishedAt(items: readonly { publishedAt: string }[])
     if (!Number.isNaN(ms) && ms > bestMs) bestMs = ms;
   }
   return bestMs === Number.NEGATIVE_INFINITY ? null : new Date(bestMs).toISOString();
+}
+
+/**
+ * Copy for the "No live news signals" empty state (spec 023, Slice 4). Same
+ * rule as `marketEmptyStateCopy`: when the newest snapshot is stale, the page
+ * must not imply the feed is current. `quietBody` is the normal (fresh) copy,
+ * already scope-aware, supplied by the caller.
+ */
+export function newsEmptyStateCopy(
+  showStaleCollection: boolean,
+  quietBody: string,
+): EmptyStateCopy {
+  return {
+    title: 'No live news signals',
+    body: showStaleCollection
+      ? 'Collection may be stalled, so this may not reflect current headlines.'
+      : quietBody,
+  };
 }

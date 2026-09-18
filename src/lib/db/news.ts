@@ -8,7 +8,7 @@
 
 import { NEWS_MAGNITUDE_SEVERITY, NEWS_PROMPT_VERSION } from '@/consts/news';
 import type { IngestedNewsItem } from '@/lib/collectors/newsFeed';
-import { pool, query } from '@/lib/db/client';
+import { getPool, query } from '@/lib/db/client';
 
 export interface PersistNewsResult {
   /** Rows actually inserted (a duplicate `url_hash` is a no-op). */
@@ -106,7 +106,7 @@ export async function persistClassifications(
   inserts: readonly ClassificationInsert[],
   terminalItemIds: readonly number[],
 ): Promise<void> {
-  const client = await pool.connect();
+  const client = await getPool().connect();
   try {
     await client.query('begin');
 

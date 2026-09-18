@@ -25,10 +25,33 @@ function createPool(): Pool {
   return new Pool({ connectionString });
 }
 
-export const pool: Pool = globalThis.__dbPool ?? createPool();
+/**
+ * Returns the shared pool, creating it on first use.
+ *
+ * Deliberately lazy. This used to be `export const pool = createPool()`, which
+ * ran at **import** time — so merely importing any module that transitively
+ * reached this file threw `DATABASE_URL is not set` when the variable was
+ * absent, even if no query was ever issued. That made
+ * `snapshot-builder.test.ts` unrunnable without a database despite testing
+ * only the pure `assembleSnapshot` (its header says "No database, no
+ * network" — with an eager pool that claim was false, because
+ * `snapshotBuilder.ts` imports `query` for `resolveAssetId`).
+ *
+ * Connecting is a side effect; an import is not the place for it.
+ */
+let cachedPool: Pool | undefined;
 
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__dbPool = pool;
+export function getPool(): Pool {
+  // Module-level cache first: in production nothing is written to
+  // `globalThis`, so without this every call would build a new Pool and
+  // exhaust the connection limit. The global is only the dev/HMR mirror, so
+  // a module reload reuses the same pool instead of leaking one per reload.
+  cachedPool ??= globalThis.__dbPool ?? createPool();
+
+  if (process.env.NODE_ENV !== 'production') {
+    globalThis.__dbPool = cachedPool;
+  }
+  return cachedPool;
 }
 
 /**
@@ -41,6 +64,6 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: readonly unknown[],
 ): Promise<T[]> {
-  const result = await pool.query<T>(text, params as unknown[] | undefined);
+  const result = await getPool().query<T>(text, params as unknown[] | undefined);
   return result.rows;
 }

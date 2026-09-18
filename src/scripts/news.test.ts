@@ -34,6 +34,12 @@ function section(title: string): void {
 const HOUR_MS = 3_600_000;
 const NOW = new Date('2026-09-02T12:00:00.000Z');
 
+/** RFC-822, as real RSS `<pubDate>` feeds emit it (rss2json's normalised
+ *  space-separated format is gone along with the bridge — spec 023 Slice 5). */
+function rfc822(iso: string): string {
+  return new Date(iso).toUTCString();
+}
+
 // ---------------------------------------------------------------------------
 section('URL normalisation');
 // ---------------------------------------------------------------------------
@@ -126,7 +132,7 @@ const FEED = 'https://www.coindesk.com/arc/outboundfeeds/rss/';
     {
       title: '  BTC ETF sees record inflows  ',
       link: 'https://www.coindesk.com/markets/btc-etf?utm_source=rss#hero',
-      pubDate: '2026-09-02 09:30:00',
+      pubDate: rfc822('2026-09-02T09:30:00.000Z'),
     },
     FEED,
     NOW,
@@ -152,7 +158,11 @@ const FEED = 'https://www.coindesk.com/arc/outboundfeeds/rss/';
 check(
   'an item older than the window is dropped',
   toIngestedItem(
-    { title: 'Old news', link: 'https://decrypt.co/old', pubDate: '2026-08-01 00:00:00' },
+    {
+      title: 'Old news',
+      link: 'https://decrypt.co/old',
+      pubDate: rfc822('2026-08-01T00:00:00.000Z'),
+    },
     FEED,
     NOW,
   ) === null,
@@ -164,7 +174,7 @@ check(
     // not "now". The stored timestamp must be the article's, not the run's.
     const lateNow = new Date(NOW.getTime() + 40 * HOUR_MS);
     const item = toIngestedItem(
-      { title: 'x', link: 'https://decrypt.co/x', pubDate: '2026-09-02 12:00:00' },
+      { title: 'x', link: 'https://decrypt.co/x', pubDate: rfc822('2026-09-02T12:00:00.000Z') },
       FEED,
       lateNow,
     );
@@ -173,12 +183,15 @@ check(
 );
 check(
   'missing link → dropped',
-  toIngestedItem({ title: 'x', pubDate: '2026-09-02 09:00:00' }, FEED, NOW) === null,
+  toIngestedItem({ title: 'x', pubDate: rfc822('2026-09-02T09:00:00.000Z') }, FEED, NOW) === null,
 );
 check(
   'missing title → dropped',
-  toIngestedItem({ link: 'https://decrypt.co/x', pubDate: '2026-09-02 09:00:00' }, FEED, NOW) ===
-    null,
+  toIngestedItem(
+    { link: 'https://decrypt.co/x', pubDate: rfc822('2026-09-02T09:00:00.000Z') },
+    FEED,
+    NOW,
+  ) === null,
 );
 check(
   'missing pubDate → dropped',
@@ -186,7 +199,15 @@ check(
 );
 check(
   'unparseable URL → dropped, not thrown',
-  toIngestedItem({ title: 'x', link: 'not a url', pubDate: '2026-09-02 09:00:00' }, FEED, NOW) ===
+  toIngestedItem(
+    { title: 'x', link: 'not a url', pubDate: rfc822('2026-09-02T09:00:00.000Z') },
+    FEED,
+    NOW,
+  ) === null,
+);
+check(
+  'an unparsable date rejects the item — never falls back to now()',
+  toIngestedItem({ title: 'x', link: 'https://decrypt.co/x', pubDate: 'not a date' }, FEED, NOW) ===
     null,
 );
 

@@ -149,3 +149,35 @@ export function formatSnapshotAge(
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 }
+
+/** Title + body for a Signals-page "nothing to show" panel. */
+export interface EmptyStateCopy {
+  title: string;
+  body: string;
+}
+
+/**
+ * Copy for the market-state empty state (spec 023, Slice 4). The page's own
+ * `StaleCollectionNotice` banner already says collection may be stalled when
+ * the newest snapshot is past `SNAPSHOT_STALE_MINUTES` — the empty state below
+ * it used to say "Collection is healthy and up to date" regardless, so the
+ * page contradicted itself on the same screen (`decisions.md` §3). The stale
+ * variant drops the health claim and states the age instead.
+ */
+export function marketEmptyStateCopy(
+  showStaleCollection: boolean,
+  lastUpdated: string | Date | null | undefined,
+  now: number | Date = Date.now(),
+): EmptyStateCopy {
+  if (showStaleCollection) {
+    const age = formatSnapshotAge(lastUpdated, now) ?? 'a while ago';
+    return {
+      title: 'No signals right now',
+      body: `Data last updated ${age} — collection may be stalled, so this may not reflect current market conditions.`,
+    };
+  }
+  return {
+    title: 'No signals right now',
+    body: 'Collection is healthy and up to date — no tracked market condition has crossed a threshold worth flagging.',
+  };
+}

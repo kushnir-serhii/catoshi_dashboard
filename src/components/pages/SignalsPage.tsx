@@ -4,11 +4,20 @@ import { useState } from 'react';
 
 import type { NewsScope, NewsSignalItem, SignalItem } from '@/data/types';
 import { useSignals } from '@/hooks/useSignals';
-import { formatSnapshotAge, isSnapshotStale } from '@/lib/freshness';
-import { filterNewsByScope, newestNewsPublishedAt, type NewsScopeFilter } from '@/lib/news/feed';
+import { formatSnapshotAge, isSnapshotStale, marketEmptyStateCopy } from '@/lib/freshness';
+import {
+  filterNewsByScope,
+  newestNewsPublishedAt,
+  newsEmptyStateCopy,
+  type NewsScopeFilter,
+} from '@/lib/news/feed';
 
 function Row({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', ...style }}>{children}</div>;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', ...style }}>
+      {children}
+    </div>
+  );
 }
 
 function SignalCardSkeleton() {
@@ -108,12 +117,22 @@ function SignalCard({ s }: { s: SignalItem }) {
       </div>
       <h4 style={{ fontSize: 'var(--fs-base)' }}>{s.title}</h4>
       {s.body && (
-        <p className="small muted" style={{ margin: 'var(--sp-1) 0 var(--sp-2)', lineHeight: 'var(--lh-normal)' }}>
+        <p
+          className="small muted"
+          style={{ margin: 'var(--sp-1) 0 var(--sp-2)', lineHeight: 'var(--lh-normal)' }}
+        >
           {s.body}
         </p>
       )}
       {s.coins.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)', marginBottom: 'var(--sp-2)' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 'var(--sp-1)',
+            marginBottom: 'var(--sp-2)',
+          }}
+        >
           {s.coins.map((coin) => (
             <span
               key={coin}
@@ -243,7 +262,10 @@ function NewsCard({ n }: { n: NewsSignalItem }) {
       </div>
       <h4 style={{ fontSize: 'var(--fs-base)' }}>{n.title}</h4>
       {n.body && (
-        <p className="small muted" style={{ margin: 'var(--sp-1) 0 var(--sp-2)', lineHeight: 'var(--lh-normal)' }}>
+        <p
+          className="small muted"
+          style={{ margin: 'var(--sp-1) 0 var(--sp-2)', lineHeight: 'var(--lh-normal)' }}
+        >
           {n.body}
         </p>
       )}
@@ -266,14 +288,22 @@ function NewsCard({ n }: { n: NewsSignalItem }) {
 function NewsFeedSection({
   newsSignals,
   newsClassificationPaused,
+  showStaleCollection,
 }: {
   newsSignals: NewsSignalItem[];
   newsClassificationPaused: boolean;
+  showStaleCollection: boolean;
 }) {
   const [filter, setFilter] = useState<NewsScopeFilter>('all');
   const visible = filterNewsByScope(newsSignals, filter);
   const newestAll = newestNewsPublishedAt(newsSignals);
   const newestAge = newestAll ? formatSnapshotAge(newestAll) : null;
+  const emptyCopy = newsEmptyStateCopy(
+    showStaleCollection,
+    filter === 'all'
+      ? 'No classified headline is currently within its impact horizon.'
+      : `No live news signals for ${SCOPE_LABELS[filter]}.`,
+  );
 
   return (
     <div style={{ marginTop: 'var(--sp-2)' }}>
@@ -296,15 +326,7 @@ function NewsFeedSection({
             body="NEWS_CLASSIFY_ENABLED is off — no new headlines are being classified. Already-classified items above are unaffected; ingest and publishing continue."
           />
         ) : (
-          <FeedNotice
-            tone="quiet"
-            title="No live news signals"
-            body={
-              filter === 'all'
-                ? 'No classified headline is currently within its impact horizon.'
-                : `No live news signals for ${SCOPE_LABELS[filter]}.`
-            }
-          />
+          <FeedNotice tone="quiet" title={emptyCopy.title} body={emptyCopy.body} />
         )
       ) : (
         <div className="pg-signals-2" style={{ gap: 'var(--sp-4)' }}>
@@ -334,6 +356,7 @@ export function SignalsPage() {
   const hasSignals = (signals?.length ?? 0) > 0;
   const showError = !isLoading && (fetchError || (!hasSignals && !collectionHealthy));
   const showEmpty = !isLoading && !showError && !hasSignals;
+  const marketEmptyCopy = marketEmptyStateCopy(showStaleCollection, lastUpdated);
 
   return (
     <div className="page-content">
@@ -367,11 +390,7 @@ export function SignalsPage() {
             body="The market snapshot store could not be read, so no current signals are available. This does not mean the market is quiet — check back shortly."
           />
         ) : showEmpty ? (
-          <FeedNotice
-            tone="quiet"
-            title="No signals right now"
-            body="Collection is healthy and up to date — no tracked market condition has crossed a threshold worth flagging."
-          />
+          <FeedNotice tone="quiet" title={marketEmptyCopy.title} body={marketEmptyCopy.body} />
         ) : (
           (signals ?? []).map((s) => <SignalCard key={s.id} s={s} />)
         )}
@@ -381,6 +400,7 @@ export function SignalsPage() {
         <NewsFeedSection
           newsSignals={newsSignals}
           newsClassificationPaused={newsClassificationPaused}
+          showStaleCollection={showStaleCollection}
         />
       )}
 

@@ -36,11 +36,16 @@ Every slice is done when its behaviour exists and is verified, not when it compi
       confirmed on prod 2026-09-18, `/api/health` shows no `klines:*` row at all. Attach the
       sources to the error (or return a failure result) and merge them in the catch. Without
       this, everything added above is thrown away exactly when it matters.
-- [ ] Deploy. Run `/api/collect` manually (Vercel → Settings → Cron Jobs → Run, or POST with
+- [x] Deploy. Run `/api/collect` manually (Vercel → Settings → Cron Jobs → Run, or POST with
       `Authorization: Bearer $CRON_SECRET`). **PENDING — operator** (no deploy access from
       this environment).
-- [ ] Record in `docs/runbook.md`: the exact status for each of the 12 (asset × timeframe)
-      fetches. State whether all timeframes failed or only some. **PENDING — operator**, blocked
+- [ ] ~~Record the exact status for each of the 12 (asset × timeframe) fetches~~ — **superseded**.
+      The `fra1` region shipped in the same deploy, so by the first run on the new build every
+      fetch succeeded and there was no failure status left to capture. The cause was identified
+      from the Vercel routing log instead (`iad1` → 502, `fra1` → 200). Slice 1's instrumentation
+      stands for the next failure, unexercised by this one.
+- [ ] ~~Record in `docs/runbook.md`: the exact status for each of the 12 (asset × timeframe)
+      fetches. State whether all timeframes failed or only some.~~ **PENDING — operator**, blocked
       on the deploy above.
 
 **Done when:** you can name the reason `1d` is missing, with a status code. **Do not start
@@ -72,17 +77,27 @@ Slice 3 before this.**
 
 ---
 
-## Slice 3 — Fix the cause Slice 1 found
+## Slice 3 — Fix the cause Slice 1 found — **DONE 2026-09-18, cause was the geo block**
 
-Do exactly one of these, chosen by the recorded status.
+Resolved before Slice 1's per-timeframe statuses were ever read: the region change fixed it on
+its own. Evidence, from production:
 
-- [ ] **451 / geo block:** set the function region in `vercel.json`. Weigh it against the Neon
-      region from Slice 0 — functions in `fra1` against a US database adds a round trip to
-      every query. If that trade is bad, use the spot fallback below instead. Record which and
-      why.
-- [ ] **429 / 418:** give `fetchKlines` the retry + `Retry-After` backoff that
-      `fetchKlinesPage` already has. Stagger the four timeframe requests instead of firing them
-      as one `Promise.all` burst alongside funding / OI / long-short.
+- Failing run 09:26 UTC — Vercel log says `Routed to Washington, D.C., USA (iad1)`, 502.
+- After `"regions": ["fra1"]` — run at 11:55 UTC returns
+  `{"ok":true,"written":3}`, `X-Vercel-Id: fra1::fra1`, every asset's `klines` `ok: true`.
+- **`price:fallback` never fired**, so the price came from `1d` — the klines fetch itself
+  started working. Slice 2 was not what rescued it.
+- Duration fell from 3.6 s to 2.29 s: `fra1` also removed the transatlantic hop to Neon
+  (`aws-eu-central-1`).
+
+`fapi.binance.com` refuses US-hosted requests. That is the whole bug, and it is why it never
+reproduced from Poland.
+
+- [x] **451 / geo block:** `"regions": ["fra1"]` in `vercel.json`. The pre-Slice-0 caution about
+      trading a broken pipeline for a slow one did not apply — Neon is in Frankfurt, so this is
+      a win on both axes.
+- [ ] ~~429 / 418 backoff~~ — not the cause. Still worth doing on its own merits eventually,
+      but not part of this spec.
 - [ ] **Either way — a secondary source:** `https://data-api.binance.vision/api/v3/klines`
       (spot) behind the futures primary, same response shape, reusing `isRawKline`. Reported as
       a distinct `SourceStatus`, never silent.
@@ -90,19 +105,27 @@ Do exactly one of these, chosen by the recorded status.
       `fetchKlinesRange` (backfill, spec 013) stays futures-only — mixing series corrupts spec
       012's distance metric and `BACKFILL_START`.
 
-**Done when:** a manual `/api/collect` writes three snapshot rows for the current hour with
-real prices, and `/api/health` returns `ok: true`.
+The remaining item is a **decision, not a diagnosis**: one Vercel region is now a single point
+of failure for the whole pipeline. A spot secondary costs little and removes that. Recommended,
+not required.
+
+**Done when:** ~~a manual `/api/collect` writes three snapshot rows~~ — met 2026-09-18 11:55
+UTC. Only the secondary-source decision is open.
 
 ---
 
 ## Slice 4 — Empty states stop contradicting the banner
 
-- [ ] `SignalsPage.tsx`: the market-state empty state branches on `showStaleCollection`
+- [x] `SignalsPage.tsx`: the market-state empty state branches on `showStaleCollection`
       (already in scope). Stale variant drops the "Collection is healthy and up to date" claim,
-      states the age, and says signals cannot be current.
-- [ ] Same for `NewsFeedSection`'s "No live news signals".
-- [ ] Test both branches: fresh + empty → the quiet-market copy; stale + empty → the stale
+      states the age, and says signals cannot be current. (`marketEmptyStateCopy` in
+      `src/lib/freshness.ts`.)
+- [x] Same for `NewsFeedSection`'s "No live news signals". (`newsEmptyStateCopy` in
+      `src/lib/news/feed.ts`.)
+- [x] Test both branches: fresh + empty → the quiet-market copy; stale + empty → the stale
       copy, and the words "healthy" and "up to date" appear nowhere on the page.
+      (`src/scripts/empty-state-copy.test.ts` — pure functions, no DOM needed since the copy
+      itself was extracted out of the component.)
 
 **Done when:** the page cannot claim health while its own banner says collection may be
 stalled.
@@ -111,17 +134,28 @@ stalled.
 
 ## Slice 5 — News without rss2json
 
-- [ ] Replace the rss2json bridge with direct fetches of the three feeds' own RSS/Atom
-      endpoints.
-- [ ] `parsePubDate` handles RFC-822 and ISO-8601. An unparsable date **rejects the item** —
-      never `now()`. `publishNews` computes ageing and expiry from `published_at`, so a wrong
-      date puts a stale headline inside the impact horizon.
-- [ ] Handle RSS `<item>` and Atom `<entry>` (`<link>` text vs `href`), or verify all three
-      feeds are RSS 2.0 and record that in a comment.
-- [ ] Keep per-feed isolation, honest `SourceStatus` per feed, and idempotent ingest on
-      `url_hash`.
-- [ ] Test: a feed returning malformed XML contributes nothing and does not affect the other
-      two.
+- [x] Replace the rss2json bridge with direct fetches of the three feeds' own RSS/Atom
+      endpoints. `RSS_FEEDS` already held each feed's own URL (rss2json only wrapped it in a
+      query param), so `fetchFeed` now fetches it directly with a UA header and parses the XML
+      itself — no new dependency, a narrow hand-rolled extractor per technical-considerations §6.
+- [x] `parsePubDate` handles RFC-822 and ISO-8601 (delegates to `Date`'s native parser, which
+      accepts both natively; verified against fixtures of each in
+      `src/scripts/news-feed-xml.test.ts`). An unparsable date **rejects the item** — returns
+      `null`, never `now()` — and `toIngestedItem` drops the item on `null`.
+- [x] Handles both RSS `<item>` (`<link>` as text) and Atom `<entry>` (`<link href="...">`,
+      preferring `rel="alternate"`) — `parseFeedXml`/`extractLink`. Not narrowed to "RSS 2.0
+      only" since handling both cost no extra complexity and covers a future feed addition.
+- [x] Kept per-feed isolation (`Promise.allSettled`, unchanged), honest `SourceStatus` per feed
+      (a feed whose body parses to zero `<item>`/`<entry>` blocks is now a reported failure, not
+      a silent empty success), and idempotent ingest on `url_hash` (`normalizeUrl`/`hashUrl`
+      unchanged).
+- [x] Test: `src/scripts/news-feed-xml.test.ts` — RSS `<item>` parsing, Atom `<entry>` parsing
+      (link preference, CDATA + entity decoding), and malformed/truncated/non-feed XML yielding
+      zero items (which `fetchFeed` turns into one failed `SourceStatus`, isolated by
+      `Promise.allSettled` the same as a network failure — the "doesn't affect the other two"
+      guarantee was already covered by the existing per-feed isolation, unchanged here).
+      `src/scripts/news.test.ts` updated to RFC-822 fixtures (the old rss2json-normalised date
+      format no longer exists) and a new case for an unparsable date rejecting the item.
 
 **Done when:** news items appear with `published_at` values matching the articles, and
 `news:*` sources report per feed.
@@ -133,13 +167,33 @@ stalled.
 - [ ] Re-run 017 Slice 1's 24-hour completeness query from `docs/runbook.md` (do not rewrite
       it): 24 distinct snapshot hours per asset, no gaps.
 - [ ] Investigate and record the cause of **every** missing hour. Do not average them away.
-- [ ] Confirm the hourly Actions path is green — the `vercel.json` cron is daily, and with a
-      3-hour `SIGNALS_FRESHNESS_HOURS` a daily-only run leaves the feed empty 21 hours in 24.
-- [ ] Decide and record the scheduler cadence question (technical-considerations §5.1): the
-      measured `collect.yml` cadence is ~4.4 h against a 3 h `SIGNALS_FRESHNESS_HOURS`, so the
-      feed stays empty much of the day even when collection works. Pick one of the three
-      options there. Do not widen the constant silently.
+- [x] ~~Confirm the hourly Actions path is green~~ — replaced by the external hourly cron
+      (see the cadence entry above). Actions is now a fallback, not the primary; a red run
+      there no longer means collection stopped.
+- [ ] ~~Confirm the hourly Actions path is green — the `vercel.json` cron is daily, and with a
+      3-hour `SIGNALS_FRESHNESS_HOURS` a daily-only run leaves the feed empty 21 hours in 24.~~
+- [x] Scheduler cadence (technical-considerations §5.1) — **decided 2026-09-18**: none of the
+      three listed options was taken. Instead the cadence itself was fixed, which was the
+      cleaner answer. An external free cron (cron-job.org) now POSTs `/api/collect` at `7 * * * *`
+      with `Authorization: Bearer <CRON_SECRET>`, verified 200 / `written: 3`. Hourly collection
+      against a 3 h freshness window leaves no routine gap, so `SIGNALS_FRESHNESS_HOURS` stays
+      at 3 — deliberately not widened.
+      GitHub Actions `collect.yml` and the daily `vercel.json` cron remain as redundant
+      fallbacks; the endpoint is idempotent per hour, so three triggers are harmless.
+      Failure email notifications are enabled on the external cron — the first automated alarm
+      this pipeline has ever had, and the absence of one is why the outage ran 16 days.
+- [ ] Verify the hourly cron actually fires unattended: `snapshots24h` should climb by one per
+      hour. One successful test run is not evidence of a working schedule.
+- [ ] Re-sync `CRON_SECRET` in `.env.local` (confirmed stale on 2026-09-18 — a direct POST with
+      it returned 401) and confirm the GitHub Actions secret still matches production.
 - [ ] Signals page shows either real signals or the correct stale-free empty state.
+- [ ] Add to `decisions.md` §8 the reporting defect found on the way: `<SYMBOL>:snapshotBuilder`
+      rows are written to `collector_status` **only from the catch block**, so a source that
+      succeeds never updates and stays permanently red with a stale `lastError`
+      (`lastSuccessAt: null` even now that collection works). A source that cannot report
+      success is worse than no row at all in a health endpoint.
+- [ ] Also record the ETF flows gap: `BTC:etfFlows` / `ETH:etfFlows` return
+      `collector returned null` on every run (Farside). Field stays null; separate from 023.
 - [ ] Add the defect and its resolution to `context/product/decisions.md` §8.
 - [ ] Decide separately, and record: backfill the ~14 lost days, or accept the gap. Do not
       bundle that decision into this spec.

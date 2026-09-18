@@ -27,29 +27,32 @@
  * calls this function already makes in parallel.
  */
 import {
+  ATR_PERIOD,
   COLLECT_ASSETS,
   COLLECT_TIMEFRAMES,
+  type CollectTimeframe,
   KLINE_LIMIT,
   MA_PERIODS,
   RSI_PERIOD,
-  ATR_PERIOD,
   VOLUME_Z_LOOKBACK,
 } from '@/consts/collect';
 import type { MarketSnapshot, SourceStatus } from '@/data/types';
-import { rsi, sma, atr, zScore, pctFrom, structure } from '@/lib/indicators';
-import {
-  fetchAllTimeframes,
-  type OHLCV,
-  type KlinesByTimeframe,
-} from '@/lib/collectors/binanceKlines';
 import {
   fetchFunding,
-  fetchOpenInterest,
   fetchLongShortRatio,
+  fetchOpenInterest,
 } from '@/lib/collectors/binanceFutures';
+import {
+  describeKlineFailure,
+  fetchAllTimeframes,
+  type KlinesByTimeframe,
+  type KlinesFailuresByTimeframe,
+  type OHLCV,
+} from '@/lib/collectors/binanceKlines';
+import { type EtfFlowsResult, fetchEtfFlows } from '@/lib/collectors/etfFlows';
 import { fetchFearGreed } from '@/lib/collectors/fearGreed';
-import { fetchEtfFlows, type EtfFlowsResult } from '@/lib/collectors/etfFlows';
 import { query } from '@/lib/db/client';
+import { atr, pctFrom, rsi, sma, structure, zScore } from '@/lib/indicators';
 
 /** Trailing bars examined by `structure()`, same lookback for every timeframe. */
 const STRUCTURE_LOOKBACK = 20;
@@ -88,6 +91,12 @@ export interface AssembleSnapshotInput {
   klinesByTf: KlinesByTimeframe | null;
   /** Current Fear & Greed reading, or `null` when unavailable. */
   fearGreed: FearGreedReading | null;
+  /**
+   * Why each failed timeframe in `klinesByTf` failed (spec 023 Slice 1).
+   * Optional — the history backfill doesn't track per-timeframe reasons, so
+   * a missing entry falls back to a generic message.
+   */
+  klinesFailures?: KlinesFailuresByTimeframe;
   /** Positioning / flow fields; defaults to all-`null` (the backfill case). */
   derivatives?: SnapshotDerivatives;
   /**
@@ -115,15 +124,6 @@ async function resolveAssetId(symbol: string): Promise<number> {
     throw new Error(`snapshotBuilder: no assets row for symbol "${symbol}"`);
   }
   return rows[0].id;
-}
-
-/** Wraps a settled promise result into a `[value | null, SourceStatus]` pair. */
-function settle<T>(source: string, result: PromiseSettledResult<T>): [T | null, SourceStatus] {
-  if (result.status === 'fulfilled') {
-    return [result.value, { source, ok: true }];
-  }
-  const error = result.reason instanceof Error ? result.reason.message : String(result.reason);
-  return [null, { source, ok: false, error }];
 }
 
 /** Wraps a settled promise result whose fulfilled value may itself be `null` (collector reported "no data"). */
@@ -168,26 +168,34 @@ function sliceSeries(candles: OHLCV[] | null | undefined, sliceAt: Date | null):
  * history this is exactly why MA99 / RSI(14) come out `NULL` rather than
  * computed from a short window (technical-considerations.md §3.2).
  *
- * Throws only when there is no usable daily close for `ts` — a snapshot row
- * requires a NOT NULL price (migration §2).
+ * Throws only when every timeframe (1d, 4h, 1h, 15m) has no usable close for
+ * `ts` — a snapshot row requires a NOT NULL price (migration §2). The price
+ * itself falls back in that order (spec 023 §2.2/§4) so one dead timeframe
+ * costs only its own daily-only indicators, not the whole hour.
  */
 export function assembleSnapshot(input: AssembleSnapshotInput): {
   snapshot: MarketSnapshot;
   sources: SourceStatus[];
 } {
-  const { assetId, ts, klinesByTf, fearGreed, sliceAt } = input;
+  const { assetId, ts, klinesByTf, fearGreed, sliceAt, klinesFailures } = input;
   const derivatives = input.derivatives ?? NO_DERIVATIVES;
   const { funding, openInterest, longShortRatio, etfFlows } = derivatives;
 
   const sources: SourceStatus[] = [];
 
-  // Report per-timeframe kline failures individually (checked against the raw,
-  // pre-slice input — `fetchAllTimeframes` never rejects, each timeframe is
-  // independently wrapped inside it).
+  // Report per-timeframe kline failures individually, with the real reason
+  // when known (spec 023 Slice 1) — checked against the raw, pre-slice input
+  // (`fetchAllTimeframes` never rejects, each timeframe is independently
+  // wrapped inside it).
   if (klinesByTf) {
     for (const tf of COLLECT_TIMEFRAMES) {
       if (!klinesByTf[tf]) {
-        sources.push({ source: `klines:${tf}`, ok: false, error: 'fetch failed' });
+        const failure = klinesFailures?.[tf];
+        sources.push({
+          source: `klines:${tf}`,
+          ok: false,
+          error: failure ? describeKlineFailure(failure) : 'fetch failed',
+        });
       }
     }
   }
@@ -217,8 +225,31 @@ export function assembleSnapshot(input: AssembleSnapshotInput): {
   const lowsDaily = daily?.map((c) => c.low) ?? null;
   const volumesDaily = daily?.map((c) => c.volume) ?? null;
 
-  const latestPrice =
-    closesDaily && closesDaily.length > 0 ? closesDaily[closesDaily.length - 1] : null;
+  // Price fallback order 1d -> 4h -> 1h -> 15m (spec 023 §2.2 / §4): the
+  // substitute is always *fresher* than what it replaces, never staler, so
+  // this is a smaller error than the daily close it stands in for, not a
+  // bigger one. Only the price follows the fallback — every `*Daily`
+  // indicator below still requires `closesDaily` directly and stays `null`
+  // without it; a 99-period MA over 4h candles would be a different
+  // quantity wearing the same column name.
+  const priceCandidates: { tf: CollectTimeframe; closes: number[] | null }[] = [
+    { tf: '1d', closes: closesDaily },
+    { tf: '4h', closes: closes4h },
+    { tf: '1h', closes: closes1h },
+    { tf: '15m', closes: closes15m },
+  ];
+  let latestPrice: number | null = null;
+  let priceSource: CollectTimeframe | null = null;
+  for (const candidate of priceCandidates) {
+    if (candidate.closes && candidate.closes.length > 0) {
+      latestPrice = candidate.closes[candidate.closes.length - 1];
+      priceSource = candidate.tf;
+      break;
+    }
+  }
+  if (priceSource !== null && priceSource !== '1d') {
+    sources.push({ source: 'price:fallback', ok: true, note: priceSource });
+  }
 
   const rsi15m = closes15m ? rsi(closes15m, RSI_PERIOD) : null;
   const rsi1h = closes1h ? rsi(closes1h, RSI_PERIOD) : null;
@@ -270,11 +301,11 @@ export function assembleSnapshot(input: AssembleSnapshotInput): {
     highsDaily && lowsDaily ? structure(highsDaily, lowsDaily, STRUCTURE_LOOKBACK) : null;
 
   if (latestPrice === null) {
-    // No price for this timestamp is a total failure for this asset — a
-    // snapshot row requires a NOT NULL price (migration §2). Surface this
-    // loudly so the caller can decide whether to skip the write.
+    // Every timeframe (1d, 4h, 1h, 15m) is empty — a total failure for this
+    // asset, since a snapshot row requires a NOT NULL price (migration §2).
+    // Surface this loudly so the caller can decide whether to skip the write.
     throw new Error(
-      `snapshotBuilder: no daily klines for asset ${assetId} at ${ts.toISOString()} — cannot derive price`,
+      `snapshotBuilder: no klines on any timeframe for asset ${assetId} at ${ts.toISOString()} — cannot derive price`,
     );
   }
 
@@ -285,6 +316,7 @@ export function assembleSnapshot(input: AssembleSnapshotInput): {
     longShortRatio,
     fearGreed,
     etfFlows,
+    priceSource,
   };
 
   const snapshot: MarketSnapshot = {
@@ -396,8 +428,34 @@ export async function buildSnapshot(
 
   const sources: SourceStatus[] = [];
 
-  const [klinesByTf, klinesStatus] = settle('klines', klinesResult);
-  sources.push(klinesStatus);
+  // The `klines` aggregate is `ok: false` only when every COLLECT_TIMEFRAMES
+  // entry failed (spec 023 §3, technical-considerations) — `fetchAllTimeframes`
+  // never rejects, so `settle` alone would always report `ok: true` here even
+  // when nothing usable came back. Per-timeframe reasons (`klinesFailures`)
+  // are threaded into `assembleSnapshot`, which emits the honest `klines:<tf>`
+  // rows; this block only decides the one aggregate row.
+  let klinesByTf: KlinesByTimeframe | null = null;
+  let klinesFailures: KlinesFailuresByTimeframe = {};
+  if (klinesResult.status === 'fulfilled') {
+    klinesByTf = klinesResult.value.byTimeframe;
+    klinesFailures = klinesResult.value.failures;
+    const allFailed = COLLECT_TIMEFRAMES.every((tf) => !klinesByTf?.[tf]);
+    if (allFailed) {
+      const detail = COLLECT_TIMEFRAMES.map((tf) => {
+        const failure = klinesFailures[tf];
+        return `${tf}:${failure ? describeKlineFailure(failure) : 'unknown'}`;
+      }).join(', ');
+      sources.push({ source: 'klines', ok: false, error: detail });
+    } else {
+      sources.push({ source: 'klines', ok: true });
+    }
+  } else {
+    const reason =
+      klinesResult.reason instanceof Error
+        ? klinesResult.reason.message
+        : String(klinesResult.reason);
+    sources.push({ source: 'klines', ok: false, error: reason });
+  }
   const [funding, fundingStatus] = settleNullable('funding', fundingResult);
   sources.push(fundingStatus);
   const [openInterest, oiStatus] = settleNullable('openInterest', oiResult);
@@ -417,15 +475,28 @@ export async function buildSnapshot(
 
   // Live path: no point-in-time slice — the assembled output is byte-identical
   // to the pre-Slice-3 builder.
-  const { snapshot, sources: assemblySources } = assembleSnapshot({
-    assetId,
-    ts: hourTs,
-    klinesByTf,
-    fearGreed,
-    derivatives: { funding, openInterest, longShortRatio, etfFlows },
-    sliceAt: null,
-  });
-  sources.push(...assemblySources);
-
-  return { snapshot, sources };
+  try {
+    const { snapshot, sources: assemblySources } = assembleSnapshot({
+      assetId,
+      ts: hourTs,
+      klinesByTf,
+      fearGreed,
+      klinesFailures,
+      derivatives: { funding, openInterest, longShortRatio, etfFlows },
+      sliceAt: null,
+    });
+    sources.push(...assemblySources);
+    return { snapshot, sources };
+  } catch (error) {
+    // `assembleSnapshot` throws when every timeframe is empty. Without
+    // attaching `sources` here, the route's catch block would seed the error
+    // from an empty array and every per-timeframe/funding/OI/etc. status
+    // collected above would be lost exactly when it matters most (spec 023
+    // §3.1, confirmed against prod 2026-09-18: `/api/health` showed no
+    // `klines:*` row at all for a throwing asset).
+    if (error instanceof Error) {
+      (error as Error & { sources?: SourceStatus[] }).sources = sources;
+    }
+    throw error;
+  }
 }

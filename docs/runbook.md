@@ -257,6 +257,35 @@ transaction and records it in `schema_migrations`, so re-running is safe.
 | Restore drill into a throwaway Neon branch                        | **PENDING — operator**.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `/api/health` CU-h cost measured against the 100/month budget     | **PENDING — operator** (set the external check interval from the measurement).                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
+### 2026-09-18 — spec 023 Slice 0
+
+| Check | Result |
+| --- | --- |
+| **`CRON_SECRET` / `COLLECT_ENDPOINT` / `FORECAST_INGEST_SECRET` / `ADMIN_SECRET` — surrounding quotes in Vercel** | **Not directly checked in the Vercel dashboard (no Vercel CLI/API access from this environment) — operator should still confirm.** Strong indirect evidence they are **not** quoted: `collector_status` rows are being written with fresh `lastAttemptAt` timestamps on every `collect.yml` run (see below), which only happens *after* the `Authorization: Bearer $CRON_SECRET` check in `src/app/api/collect/route.ts:78` passes. A quoted `CRON_SECRET` would 401 every run and no `collector_status` row would ever update. `forecastIngest.state` is `healthy` with a recent `lastAcceptedAt`, which similarly depends on `FORECAST_INGEST_SECRET` matching. Same reasoning does not extend to `ADMIN_SECRET` (unused by the hourly path) — that one is still unverified either way. |
+| **GitHub Actions `collect.yml` run history (last 24 runs)** | **Firing, but not hourly, and every run in the sample is `failure`.** Pulled via `GET /repos/kushnir-serhii/catoshi_dashboard/actions/workflows/collect.yml/runs` (public repo, no token needed). 102 total runs recorded. Last 24 span 2026-09-13T22:57Z → 2026-09-18T04:28Z (~4.4 days) — average gap **~4.4 hours**, not the configured `0 * * * *`. All 24 are `event: schedule`, `conclusion: failure`, same `head_sha` (`ccb7dbd`, no new commits since). The failure is **not** an auth/config problem: `POST /api/collect` on prod returns **HTTP 502** because `snapshotBuilder` throws for every asset (`anyAssetSucceeded = false` → 502, `route.ts:281`) with `lastError: "snapshotBuilder: no daily klines for asset N at <hour> — cannot derive price"` for BTC/ETH/SOL alike — this is exactly the failure Slice 1 targets. `curl --fail-with-body` in the workflow step turns that 502 into the Action's `failure` conclusion. The wide/irregular gaps between runs (hours, not minutes) are unexplained by the "best-effort drift" note in §1 above and are worth a second look, but are out of scope for this spec's gate. |
+| **Neon project region** | `aws-eu-central-1` (Frankfurt). Confirmed via Neon MCP `list_projects` → project `Catoshi` (`rapid-hat-62986557`), `proxy_host: c-6.eu-central-1.aws.neon.tech`. Relevant for Slice 3's 451/geo-block branch: **no `regions` key is set in `vercel.json`**, so the collect function runs on Vercel's default region (commonly `iad1`, US East, on Hobby — not confirmed in the dashboard from here). If Slice 3 lands on the 451 branch, pinning `vercel.json` to `fra1` would colocate the function with the DB; weigh that against Binance's own regional routing before deciding. |
+
+Also observed while pulling the above, ahead of Slice 1: prod `/api/health` (`https://catoshi-analitics.vercel.app/api/health`) currently returns 503 — newest snapshot is `2026-09-02T08:00:00Z`, ~16 days stale, `snapshots24h: 0` for all three assets. The three `newsFeed` sources (`news:coindesk`, `news:cointelegraph`, `news:decrypt`) are also all failing with `rss2json HTTP 422`, consistent with Slice 5's scope (rss2json bridge).
+
+### 2026-09-18 — spec 023 Slices 1 & 2 (code, not yet deployed)
+
+Code changes only — the "deploy and run manually" step in Slice 1 and the 24-hour proof
+in Slice 6 are still pending an operator deploy. Not a substitute for those.
+
+| Change | Where |
+| --- | --- |
+| `fetchKlines` returns `{ ok: true, candles }` \| `{ ok: false, reason, detail }` instead of a bare `null`; logs one line per failure with pair/interval/status and up to 200 chars of the response body. | `src/lib/collectors/binanceKlines.ts` |
+| `fetchAllTimeframes` returns `{ byTimeframe, failures }` — the per-timeframe success shape (`OHLCV[]`) is unchanged, failure reasons are carried alongside instead of discarded. | `src/lib/collectors/binanceKlines.ts` |
+| `buildSnapshot`'s aggregate `klines` `SourceStatus` is `ok: false` only when every `COLLECT_TIMEFRAMES` entry failed (carrying all four reasons); `assembleSnapshot`'s per-timeframe `klines:<tf>` rows now carry the real reason (`http 451`, `network`, `malformed`) instead of a generic `"fetch failed"`. | `src/lib/snapshotBuilder.ts` |
+| A throw inside `assembleSnapshot` now attaches the accumulated `sources` array to the `Error` before rethrowing, and `route.ts`'s catch recovers it — fixes the confirmed prod bug where a throwing asset's entire `SourceStatus` list (klines, funding, OI, long/short, fear/greed) was discarded and replaced with a single `snapshotBuilder` row. | `src/lib/snapshotBuilder.ts`, `src/app/api/collect/route.ts` |
+| Price derivation order `1d → 4h → 1h → 15m`: `assembleSnapshot` throws only when every timeframe is empty; `snapshot.raw.priceSource` records which timeframe supplied the price, and a `price:fallback` `SourceStatus` (`note: '<tf>'`) is emitted when it wasn't `1d`. Every `*Daily` field (`ma7Daily`/`ma25Daily`/`ma99Daily`, `pctFromMa*Daily`, `atrDaily`, `volumeZDaily`, `structureDaily`, `volume24hUsd`) still requires `closesDaily` directly and stays `null` without it — no substitute timeframe ever feeds a `*Daily` column. | `src/lib/snapshotBuilder.ts` |
+| `SourceStatus` gained an optional `note` field for a qualifier on a successful-but-non-default outcome (only `price:fallback` uses it so far). | `src/data/types.ts` |
+| Tests: price fallback through all four timeframes, the all-empty-throws guard (both `null` and `[]` forms), and per-timeframe failure reasons reaching `SourceStatus`. `npx tsx src/scripts/snapshot-builder.test.ts` — 26/26 passing. | `src/scripts/snapshot-builder.test.ts` |
+
+Not yet done from Slice 1: deploying and running `/api/collect` manually to read the real
+per-(asset × timeframe) status codes off prod, and recording them here. That number is
+still needed before Slice 3 can be scoped.
+
 ---
 
 ## 8. Operator workflows on GitHub Actions (spec 018)

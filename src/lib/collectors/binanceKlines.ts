@@ -1,10 +1,13 @@
 /**
  * Binance USDT-M futures klines (OHLCV) collector.
  *
- * Any non-200 response or network failure resolves to `null` rather than
- * throwing — per technical-considerations.md §2.3, "treat any non-200 as a
- * missing field rather than a run failure" (AC 2.2). Callers must not `await`
- * this expecting a rejection on failure; they get `null` instead.
+ * Any non-200 response or network failure resolves to a failure result
+ * rather than throwing — per technical-considerations.md §2.3, "treat any
+ * non-200 as a missing field rather than a run failure" (AC 2.2). Callers
+ * must not `await` this expecting a rejection on failure; they get
+ * `{ ok: false, ... }` instead. Spec 023 Slice 1: the failure carries *why*
+ * (HTTP status, network error, or malformed payload) instead of collapsing
+ * to a bare `null`, so `/api/health` and the logs can say more than "missing".
  */
 import {
   BACKFILL_KLINE_LIMIT,
@@ -53,45 +56,111 @@ function isRawKline(value: unknown): value is RawKline {
   return Array.isArray(value) && value.length >= 7;
 }
 
+/** Why a live kline fetch failed — carried instead of collapsing to `null` (spec 023 §2.1). */
+export type KlineFailureReason =
+  | { kind: 'http'; status: number }
+  | { kind: 'network' }
+  | { kind: 'malformed' };
+
+export interface KlineFetchFailure {
+  ok: false;
+  reason: KlineFailureReason;
+  /** First ~200 chars of the response body, or the network/parse error message. */
+  detail: string;
+}
+
+export interface KlineFetchSuccess {
+  ok: true;
+  candles: OHLCV[];
+}
+
+export type KlineFetchResult = KlineFetchSuccess | KlineFetchFailure;
+
+/** One-line summary of a failure for logs and `SourceStatus.error` — e.g. `"http 451"`. */
+export function describeKlineFailure(failure: KlineFetchFailure): string {
+  switch (failure.reason.kind) {
+    case 'http':
+      return `http ${failure.reason.status}`;
+    case 'network':
+      return 'network';
+    case 'malformed':
+      return 'malformed';
+  }
+}
+
+const BODY_SNIPPET_LENGTH = 200;
+
 /**
  * Fetches `limit` candles for `pair` at `interval` from Binance USDT-M
- * futures. Resolves to `null` on any non-200 status, network error, or
- * malformed payload — never throws.
+ * futures. Resolves to a `KlineFetchFailure` on any non-200 status, network
+ * error, or malformed payload — never throws. Logs one line per failure with
+ * the pair, interval, status/reason, and (for HTTP failures) the first
+ * ~200 chars of the response body, where Binance puts its refusal reason.
  */
 export async function fetchKlines(
   pair: string,
   interval: string,
   limit: number,
-): Promise<OHLCV[] | null> {
+): Promise<KlineFetchResult> {
+  const url = `${BINANCE_FAPI_BASE}/fapi/v1/klines?symbol=${encodeURIComponent(pair)}&interval=${encodeURIComponent(interval)}&limit=${limit}`;
+
+  let res: Response;
   try {
-    const url = `${BINANCE_FAPI_BASE}/fapi/v1/klines?symbol=${encodeURIComponent(pair)}&interval=${encodeURIComponent(interval)}&limit=${limit}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      return null;
-    }
-    const body: unknown = await res.json();
-    if (!Array.isArray(body)) {
-      return null;
-    }
-    const candles: OHLCV[] = [];
-    for (const row of body) {
-      if (!isRawKline(row)) {
-        return null;
-      }
-      candles.push({
-        openTime: row[0],
-        open: Number(row[1]),
-        high: Number(row[2]),
-        low: Number(row[3]),
-        close: Number(row[4]),
-        volume: Number(row[5]),
-        closeTime: row[6],
-      });
-    }
-    return candles;
-  } catch {
-    return null;
+    res = await fetch(url);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[binanceKlines] ${pair} ${interval} fetch failed: network — ${message}`);
+    return { ok: false, reason: { kind: 'network' }, detail: message };
   }
+
+  if (!res.ok) {
+    let bodySnippet = '';
+    try {
+      bodySnippet = (await res.text()).slice(0, BODY_SNIPPET_LENGTH);
+    } catch {
+      // Body unreadable — the status code alone is still useful.
+    }
+    console.error(
+      `[binanceKlines] ${pair} ${interval} fetch failed: HTTP ${res.status} — ${bodySnippet}`,
+    );
+    return { ok: false, reason: { kind: 'http', status: res.status }, detail: bodySnippet };
+  }
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[binanceKlines] ${pair} ${interval} fetch failed: malformed JSON — ${message}`);
+    return { ok: false, reason: { kind: 'malformed' }, detail: message };
+  }
+
+  if (!Array.isArray(body)) {
+    console.error(
+      `[binanceKlines] ${pair} ${interval} fetch failed: malformed — response was not an array`,
+    );
+    return { ok: false, reason: { kind: 'malformed' }, detail: 'response was not an array' };
+  }
+
+  const candles: OHLCV[] = [];
+  for (const row of body) {
+    if (!isRawKline(row)) {
+      console.error(
+        `[binanceKlines] ${pair} ${interval} fetch failed: malformed — unrecognised row shape`,
+      );
+      return { ok: false, reason: { kind: 'malformed' }, detail: 'unrecognised row shape' };
+    }
+    candles.push({
+      openTime: row[0],
+      open: Number(row[1]),
+      high: Number(row[2]),
+      low: Number(row[3]),
+      close: Number(row[4]),
+      volume: Number(row[5]),
+      closeTime: row[6],
+    });
+  }
+  return { ok: true, candles };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -233,23 +302,44 @@ export async function fetchKlinesRange(
 /** One timeframe's klines result, `null` when that fetch failed. */
 export type KlinesByTimeframe = Partial<Record<CollectTimeframe, OHLCV[] | null>>;
 
+/** Per-timeframe failure reasons, present only for timeframes that failed. */
+export type KlinesFailuresByTimeframe = Partial<Record<CollectTimeframe, KlineFetchFailure>>;
+
+export interface TimeframesFetchResult {
+  byTimeframe: KlinesByTimeframe;
+  failures: KlinesFailuresByTimeframe;
+}
+
 /**
  * Fetches all `COLLECT_TIMEFRAMES` for one pair in parallel. This is the
  * per-timeframe-parallel half of the "per-asset sequential, per-timeframe
  * parallel" fetch pattern (technical-considerations.md §2.3) — a future
  * `snapshotBuilder.ts` loops assets sequentially and calls this once per
  * asset.
+ *
+ * The success shape per timeframe (`OHLCV[]`) is unchanged for callers; a
+ * failed timeframe is `null` in `byTimeframe` as before, with its reason
+ * carried alongside in `failures` (spec 023 Slice 1) rather than discarded.
  */
-export async function fetchAllTimeframes(pair: string, limit: number): Promise<KlinesByTimeframe> {
+export async function fetchAllTimeframes(
+  pair: string,
+  limit: number,
+): Promise<TimeframesFetchResult> {
   const entries = await Promise.all(
     COLLECT_TIMEFRAMES.map(async (timeframe) => {
-      const candles = await fetchKlines(pair, timeframe, limit);
-      return [timeframe, candles] as const;
+      const result = await fetchKlines(pair, timeframe, limit);
+      return [timeframe, result] as const;
     }),
   );
-  const result: KlinesByTimeframe = {};
-  for (const [timeframe, candles] of entries) {
-    result[timeframe] = candles;
+  const byTimeframe: KlinesByTimeframe = {};
+  const failures: KlinesFailuresByTimeframe = {};
+  for (const [timeframe, result] of entries) {
+    if (result.ok) {
+      byTimeframe[timeframe] = result.candles;
+    } else {
+      byTimeframe[timeframe] = null;
+      failures[timeframe] = result;
+    }
   }
-  return result;
+  return { byTimeframe, failures };
 }

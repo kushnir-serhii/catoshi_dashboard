@@ -119,8 +119,15 @@ async function handleCollect(request: Request): Promise<NextResponse> {
       committedSnapshots.push({ symbol: asset.symbol, snapshot: data });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
+      // `buildSnapshot` attaches its accumulated `sources` to the thrown
+      // error before rethrowing (spec 023 §3.1) — without recovering them
+      // here, `sourcesBySymbol[asset.symbol]` was never assigned (the throw
+      // happens before that line runs), so every per-timeframe/funding/OI/etc.
+      // status collected this run would silently vanish for the one asset
+      // that failed hardest.
+      const attachedSources = (error as Error & { sources?: SourceStatus[] })?.sources;
       sourcesBySymbol[asset.symbol] = [
-        ...(sourcesBySymbol[asset.symbol] ?? []),
+        ...(attachedSources ?? sourcesBySymbol[asset.symbol] ?? []),
         { source: 'snapshotBuilder', ok: false, error: message },
       ];
     }

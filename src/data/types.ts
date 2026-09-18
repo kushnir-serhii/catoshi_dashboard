@@ -369,6 +369,10 @@ export interface SourceStatus {
   // failure (`ok: false` implies something broke). Consumers should render
   // this as its own state rather than lumping it in with either.
   disabled?: boolean;
+  // A qualifier on a successful outcome that isn't the default path — e.g.
+  // `price:fallback` carries which timeframe supplied the price when it
+  // wasn't `1d` (spec 023 §4). Never set on a failure; use `error` for that.
+  note?: string;
 }
 
 /**

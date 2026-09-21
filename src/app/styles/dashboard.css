@@ -241,47 +241,9 @@
   grid-template-areas:
     'kpis    kpis'
     'chart   ai'
-    'scen    ai'
-    'watch   watch'
+    'today   ai'
+    'watch   ai'
     'signals signals';
-}
-/* Scenario always gets special gradient surface. Its radius matches every
-   other .card — it read as 4px only because that value was hand-written. */
-.prowl .area-scen.card {
-  background:
-    linear-gradient(135deg, oklch(0.55 0.2 295 / 0.18) 0%, transparent 45%),
-    linear-gradient(225deg, oklch(0.7 0.18 145 / 0.12) 0%, transparent 50%), var(--surface);
-  border-radius: var(--radius-lg);
-  border-color: oklch(0.55 0.2 295 / 0.3);
-}
-.prowl .area-scen .scen-row .val {
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-}
-.prowl .area-scen .scen-row .lbl {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-.prowl .area-scen .scen-result .cell {
-  border-radius: var(--radius-sm);
-  background: rgba(10, 10, 18, 0.55);
-  backdrop-filter: blur(4px);
-}
-.prowl .area-scen .scen-result .cell .lbl {
-  letter-spacing: var(--ls-label);
-}
-.prowl .area-scen .scen-result .cell .val {
-  font-family: var(--font-mono);
-  font-size: var(--fs-base);
-}
-.prowl .area-scen .btn-ghost {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
 }
 
 .prowl .area-kpis {
@@ -293,8 +255,8 @@
 .prowl .area-ai {
   grid-area: ai;
 }
-.prowl .area-scen {
-  grid-area: scen;
+.prowl .area-today {
+  grid-area: today;
 }
 .prowl .area-watch {
   grid-area: watch;
@@ -671,58 +633,6 @@
   font-family: var(--font-mono);
 }
 
-/* Scenario simulator */
-.prowl .scen-coin-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding-bottom: var(--sp-3);
-}
-.prowl .scen-coin-label {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
-}
-.prowl .scen-coin-label .sym {
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-}
-.prowl .scen-coin-label .name {
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-}
-.prowl .scen-spot {
-  margin-left: auto;
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
-}
-.prowl .scen-spot .lbl {
-  font-size: var(--fs-xs);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-.prowl .scen-spot .val {
-  font-size: var(--fs-base);
-  font-weight: 500;
-  font-feature-settings: 'tnum';
-}
-
-.prowl .scen-note {
-  margin-top: var(--sp-3);
-  font-size: var(--fs-sm);
-  line-height: var(--lh-normal);
-  color: var(--text-3);
-}
-.prowl .scen-result .cell .chg {
-  margin-top: var(--sp-0);
-  font-size: var(--fs-xs);
-  color: var(--text-3);
-  font-family: var(--font-mono);
-}
-
 /* Coin picker — borrows the topbar .search field treatment for its query input */
 .prowl .coin-select {
   position: relative;
@@ -839,110 +749,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.prowl .scen-row {
-  display: grid;
-  grid-template-columns: 110px 1fr 80px;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-3) 0;
-  border-top: 1px solid var(--line);
-}
-.prowl .scen-row:first-of-type {
-  border-top: 0;
-}
-.prowl .scen-row .lbl {
-  font-size: var(--fs-sm);
-  color: var(--text-2);
-}
-.prowl .scen-row .val {
-  font-size: var(--fs-sm);
-  text-align: right;
-  font-feature-settings: 'tnum';
-}
-/* The visible track is 4px, but the input box is 28px (44px on touch) so
-   there is something to actually grab. The track stays vertically centred
-   in the box, so the thumb offset is unchanged. */
-.prowl .scen-row input[type='range'] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  width: 100%;
-  height: 28px;
-  margin: 0;
-}
-.prowl .scen-row input[type='range']::-webkit-slider-runnable-track {
-  height: 4px;
-  background: linear-gradient(90deg, var(--violet) var(--p, 50%), var(--surface-3) var(--p, 50%));
-  border-radius: var(--radius-pill);
-}
-.prowl .scen-row input[type='range']::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-pill);
-  background: var(--text);
-  margin-top: -5px;
-  box-shadow:
-    var(--ring-soft),
-    0 0 var(--glow-md) var(--violet);
-  cursor: grab;
-}
-/* Firefox had no slider styling at all and fell back to the OS widget. */
-.prowl .scen-row input[type='range']::-moz-range-track {
-  height: 4px;
-  background: var(--surface-3);
-  border-radius: var(--radius-pill);
-}
-.prowl .scen-row input[type='range']::-moz-range-progress {
-  height: 4px;
-  background: var(--violet);
-  border-radius: var(--radius-pill);
-}
-.prowl .scen-row input[type='range']::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--text);
-  box-shadow:
-    var(--ring-soft),
-    0 0 var(--glow-md) var(--violet);
-  cursor: grab;
-}
-
-.prowl .scen-result {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-3);
-  margin-top: var(--sp-4);
-}
-.prowl .scen-result .cell {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--sp-3);
-  background: var(--bg-2);
-}
-.prowl .scen-result .cell .lbl {
-  font-size: var(--fs-xs);
-  letter-spacing: var(--ls-label);
-  color: var(--text-3);
-  text-transform: uppercase;
-}
-.prowl .scen-result .cell .val {
-  font-size: var(--fs-base);
-  margin-top: var(--sp-1);
-  font-feature-settings: 'tnum';
-}
-.prowl .scen-result .cell.bear .val {
-  color: var(--red);
-}
-.prowl .scen-result .cell.base .val {
-  color: var(--text);
-}
-.prowl .scen-result .cell.bull .val {
-  color: var(--green);
 }
 
 /* Watchlist */
@@ -1406,6 +1212,84 @@
   min-width: 580px;
 }
 
+/* Watchlist on phones: each table row becomes a compact two-column card
+   (asset / price, 24h / trend, projection / confidence) — no sideways scroll. */
+@media (max-width: 640px) {
+  .prowl .tbl-wrap:has(.watch-table) {
+    overflow-x: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .prowl .tbl-wrap .watch-table {
+    min-width: 0;
+    display: block;
+  }
+  .prowl .watch-table thead {
+    display: none;
+  }
+  .prowl .watch-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+  .prowl .watch-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-3);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .prowl .watch-table td,
+  .prowl .watch-table tr:last-child td {
+    display: block;
+    padding: 0;
+    border: 0;
+    text-align: left !important;
+  }
+  .prowl .watch-table td:nth-child(2) {
+    text-align: right !important;
+    font-size: var(--fs-base);
+    font-weight: 600;
+  }
+  .prowl .watch-table td:nth-child(3) {
+    grid-column: 1;
+  }
+  .prowl .watch-table td:nth-child(4) {
+    grid-column: 2;
+    justify-self: end;
+  }
+  .prowl .watch-table td:nth-child(5),
+  .prowl .watch-table td:nth-child(6) {
+    padding-top: var(--sp-2);
+    border-top: 1px solid var(--line);
+  }
+  .prowl .watch-table td:nth-child(5)::before,
+  .prowl .watch-table td:nth-child(6)::before {
+    display: block;
+    margin-bottom: var(--sp-1);
+    font-size: var(--fs-xs);
+    letter-spacing: var(--ls-label);
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-weight: 500;
+  }
+  .prowl .watch-table td:nth-child(5)::before {
+    content: 'Projection';
+  }
+  .prowl .watch-table td:nth-child(6)::before {
+    content: 'Confidence';
+  }
+  .prowl .watch-table td:nth-child(6) {
+    text-align: right !important;
+  }
+  .prowl .watch-table td:nth-child(6) .proj-bar {
+    margin-left: auto;
+  }
+}
+
 /* Mobile nav strip (hidden on desktop) */
 .prowl .mobile-nav {
   display: none;
@@ -1498,7 +1382,7 @@
 
   .prowl .grid.layout-default {
     grid-template-columns: 1fr;
-    grid-template-areas: 'kpis' 'chart' 'ai' 'scen' 'watch' 'signals';
+    grid-template-areas: 'kpis' 'chart' 'today' 'ai' 'watch' 'signals';
   }
 
   /* KPIs: 2×2 */
@@ -1535,10 +1419,6 @@
   .prowl .chart-tabs button {
     padding: var(--sp-1) var(--sp-2);
     font-size: var(--fs-xs);
-  }
-  .prowl .scen-row {
-    grid-template-columns: 100px 1fr 65px;
-    gap: var(--sp-3);
   }
 
   /* Chart card header: let the coin selector drop to its own line instead
@@ -1698,28 +1578,6 @@
     grid-template-columns: 1fr;
   }
 
-  /* Scenario: 3 equal narrow columns */
-  .prowl .scen-result {
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--sp-2);
-    margin-top: var(--sp-3);
-  }
-  .prowl .scen-result .cell {
-    padding: var(--sp-3) var(--sp-2);
-  }
-  .prowl .scen-result .cell .lbl {
-    font-size: var(--fs-xs);
-  }
-  .prowl .scen-result .cell .val {
-    font-size: var(--fs-sm);
-    margin-top: var(--sp-1);
-  }
-  .prowl .scen-row {
-    grid-template-columns: 76px 1fr 50px;
-    gap: var(--sp-2);
-    font-size: var(--fs-xs);
-  }
-
   /* Page utilities */
   .prowl .pg-split {
     grid-template-columns: 1fr;
@@ -1756,16 +1614,6 @@
   /* Font reductions */
   .prowl .kpi .val {
     font-size: var(--fs-base);
-  }
-  /* The bear/base/bull price is this panel's answer — it stays the largest
-     thing in the cell even at 375px, where it previously dropped to 11px. */
-  .prowl .scen-result .cell .val {
-    font-size: var(--fs-sm);
-  }
-  .prowl .scen-row {
-    grid-template-columns: 64px 1fr 48px;
-    gap: var(--sp-2);
-    font-size: var(--fs-xs);
   }
   .prowl .card {
     padding: var(--sp-3);
@@ -1834,11 +1682,6 @@
   }
   .prowl .watch-table th button {
     min-height: 44px;
-  }
-  /* The scenario sliders are a 4px track — without this the grabbable box is
-     4px tall on a phone. */
-  .prowl .scen-row input[type='range'] {
-    height: 44px;
   }
   /* Brand lockup and any remaining inline control clear the 24px WCAG 2.2
      minimum with room to spare. */
@@ -1972,4 +1815,169 @@
   .prowl .animate-pulse {
     animation: none;
   }
+}
+
+/* Today range card (spec 024). Neutral violet/grey only: no green/red, no
+   direction colouring (functional §2.3). Field labels are normal case. */
+.prowl .today-card {
+  min-width: 0;
+}
+.prowl .today-skeleton {
+  height: 140px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+}
+.prowl .today-preview-badge {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-pill);
+  padding: var(--sp-0) var(--sp-2);
+}
+.prowl .today-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+}
+.prowl .today-spot {
+  font-size: var(--fs-lg);
+  color: var(--text);
+}
+.prowl .today-hilo,
+.prowl .today-horizon-note {
+  margin: var(--sp-1) 0 0;
+}
+.prowl .today-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.prowl .today-chips button {
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: var(--sp-1) var(--sp-3);
+  min-height: 32px;
+  cursor: pointer;
+}
+.prowl .today-chips button.active {
+  color: var(--text);
+  background: var(--violet-soft);
+  border-color: var(--violet);
+}
+.prowl .today-chips button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.prowl .today-band {
+  margin-top: var(--sp-4);
+}
+.prowl .today-band-track {
+  position: relative;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+}
+.prowl .today-band-90,
+.prowl .today-band-50 {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.prowl .today-band-90 {
+  background: var(--violet-soft);
+  border: 1px solid var(--violet-2);
+  border-radius: var(--radius-sm);
+}
+.prowl .today-band-50 {
+  background: var(--violet-2);
+  opacity: 0.75;
+}
+.prowl .today-band-spot,
+.prowl .today-band-level {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  transform: translateX(-1px);
+}
+.prowl .today-band-spot {
+  background: var(--text);
+}
+.prowl .today-band-level {
+  background: var(--text-3);
+  border-left: 1px dashed var(--text-2);
+  width: 0;
+}
+.prowl .today-band-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin-top: var(--sp-2);
+  color: var(--text-2);
+}
+.prowl .today-band-legend .sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: var(--sp-1);
+}
+.prowl .today-band-legend .sw-90 {
+  background: var(--violet-soft);
+  border: 1px solid var(--violet-2);
+}
+.prowl .today-band-legend .sw-50 {
+  background: var(--violet-2);
+}
+.prowl .today-level {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.prowl .today-level-label {
+  display: block;
+  color: var(--text-2);
+  margin-bottom: var(--sp-1);
+}
+.prowl .today-level-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: var(--fs-base); /* 16px: stops iOS zooming on focus */
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+}
+.prowl .today-level-input:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+.prowl .today-probs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0 0;
+}
+.prowl .today-probs dd {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-lg);
+  color: var(--text);
+}
+.prowl .today-probs dt {
+  margin: 0;
+}
+.prowl .today-track {
+  margin: var(--sp-3) 0 0;
+}
+.prowl .today-footer {
+  margin: var(--sp-4) 0 0;
+  font-size: var(--fs-xs);
 }

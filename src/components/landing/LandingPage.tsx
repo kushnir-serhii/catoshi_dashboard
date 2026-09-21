@@ -312,20 +312,13 @@ export function LandingPage() {
     },
     {
       num: '03',
-      title: 'Scenario simulator',
-      body: 'Adjust horizon, volatility and drift and watch the bear / base / bull outcome re-price against the selected coin’s spot. Volatility and drift are seeded from that coin’s own realized history.',
-      green: false,
-      wide: false,
-    },
-    {
-      num: '04',
       title: 'Market-state signals',
       body: 'Bullish, bearish and neutral signals from deterministic rules over each hourly snapshot — RSI, funding, open interest, ETF streaks, volume, moving-average compression and Fear & Greed. No language model, no social scraping; ordered by severity.',
       green: false,
       wide: false,
     },
     {
-      num: '05',
+      num: '04',
       title: 'Measured, not asserted',
       body: 'The Models page reports only resolved-forecast accuracy: a multi-category Brier score against the no-skill baseline, grouped by model and prompt version, with an explicit empty state below the minimum sample size.',
       green: false,

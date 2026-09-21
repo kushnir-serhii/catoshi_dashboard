@@ -245,9 +245,6 @@ function ChartTooltip({
           </div>
         </>
       )}
-      {d.scenario != null && (
-        <div style={{ color: 'var(--color-chart-scenario)' }}>Your scenario {formatPrice(d.scenario)}</div>
-      )}
     </div>
   );
 }
@@ -481,19 +478,6 @@ export function ProjectionChart({
             strokeDasharray="5 3"
             dot={false}
             activeDot={{ r: 3, fill: 'var(--color-chart-bear)', strokeWidth: 0 }}
-            connectNulls={false}
-            isAnimationActive={false}
-          />
-
-          <Line
-            dataKey="scenario"
-            name="Your scenario"
-            type="linear"
-            stroke="var(--color-chart-scenario)"
-            strokeWidth={1.6}
-            strokeDasharray="2 3"
-            dot={false}
-            activeDot={{ r: 3, fill: 'var(--color-chart-scenario)', strokeWidth: 0 }}
             connectNulls={false}
             isAnimationActive={false}
           />

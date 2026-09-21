@@ -13,6 +13,7 @@
     "backfill": "node --env-file=.env.local --import tsx src/scripts/backfill.ts",
     "backfill:ci": "node --import tsx src/scripts/backfill.ts",
     "analog-gate": "node --import tsx src/scripts/analog-falsification.ts",
+    "today-range-backtest": "node --import tsx src/scripts/today-range-backtest.ts",
     "test": "node --import tsx --test src/scripts/*.test.ts"
   },
   "dependencies": {

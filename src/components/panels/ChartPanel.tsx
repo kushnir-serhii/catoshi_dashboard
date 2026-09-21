@@ -1,7 +1,7 @@
 'use client';
 
 import { Surface } from '@heroui/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { ProjectionChart } from '@/components/dashboard/charts';
 import { ChartSkeleton } from '@/components/dashboard/ChartSkeleton';
@@ -12,11 +12,83 @@ import { SignInInviteModal } from '@/components/dashboard/SignInInviteModal';
 import { CoinSelect } from '@/components/ui/CoinSelect';
 import { DEFAULT_FORECAST_TARGETS, RANGE_OPTIONS } from '@/consts/projections';
 import type { CoinListItem, ForecastSnapshot, ProjectionData } from '@/data/types';
-import type { ScenarioOverride } from '@/hooks/useProjectionChart';
 import { useProjectionChart } from '@/hooks/useProjectionChart';
 import { describeRefreshError, exhaustedAllowanceMessage } from '@/hooks/useProjections';
 import { useSession } from '@/hooks/useSession';
 import { formatPrice } from '@/lib/projectionSeries';
+
+const TAG_OFFSET_KEY = 'catoshi.scenarioTagOffset.';
+
+/** A scenario badge the user can drag anywhere over the chart. The offset is
+ * a translate from the badge's default slot, remembered per browser;
+ * double-click puts it back. */
+function DraggableTag({ id, label }: { id: 'bull' | 'base' | 'bear'; label: string }) {
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const start = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  const color = `var(--color-chart-${id})`;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TAG_OFFSET_KEY + id);
+      if (raw) setOffset(JSON.parse(raw));
+    } catch {
+      // storage unavailable — default position
+    }
+  }, [id]);
+
+  const save = (o: { x: number; y: number }) => {
+    try {
+      if (o.x === 0 && o.y === 0) localStorage.removeItem(TAG_OFFSET_KEY + id);
+      else localStorage.setItem(TAG_OFFSET_KEY + id, JSON.stringify(o));
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <div
+      className={`scenario-tag ${id}`}
+      title="Drag to move · double-click to reset"
+      style={{
+        color,
+        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        pointerEvents: 'auto',
+        cursor: dragging ? 'grabbing' : 'grab',
+        touchAction: 'none',
+        userSelect: 'none',
+        zIndex: dragging ? 2 : 1,
+      }}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        start.current = { px: e.clientX, py: e.clientY, ox: offset.x, oy: offset.y };
+        setDragging(true);
+      }}
+      onPointerMove={(e) => {
+        const s = start.current;
+        if (!s) return;
+        setOffset({ x: s.ox + e.clientX - s.px, y: s.oy + e.clientY - s.py });
+      }}
+      onPointerUp={() => {
+        start.current = null;
+        setDragging(false);
+        save(offset);
+      }}
+      onPointerCancel={() => {
+        start.current = null;
+        setDragging(false);
+      }}
+      onDoubleClick={() => {
+        const zero = { x: 0, y: 0 };
+        setOffset(zero);
+        save(zero);
+      }}
+    >
+      <span className="dot" style={{ background: color }}></span>
+      {label}
+    </div>
+  );
+}
 
 type ChartRange = (typeof RANGE_OPTIONS)[number];
 type RangeTarget = 'history' | 'forecast';
@@ -38,9 +110,6 @@ interface ChartPanelProps {
    * action, usable for any coin regardless of whether it's in the default
    * tracked batch. */
   onReforecast: () => Promise<void>;
-  /** The Scenario Simulator's current sliders, drawn as an overlay line on
-   * the chart so its effect is directly visible next to the AI forecast. */
-  scenarioOverride?: ScenarioOverride | null;
   /** @deprecated use projections + selectedCoin instead */
   projData?: ProjectionData | null;
   snapshotOverride?: ProjectionData | null;
@@ -96,7 +165,6 @@ export function ChartPanel({
   setIsSettingsOpen,
   refresh,
   onReforecast,
-  scenarioOverride,
   projData: legacyProjData,
   snapshotOverride,
   snapshots,
@@ -127,7 +195,6 @@ export function ChartPanel({
     histRange,
     fcastRange,
     projections,
-    scenarioOverride,
   });
   const [isRetrying, setIsRetrying] = useState(false);
   const [isSavePromptOpen, setIsSavePromptOpen] = useState(false);
@@ -205,7 +272,12 @@ export function ChartPanel({
       <Surface className="card glow-violet area-chart animate-pulse">
         <div className="card-header">
           <div
-            style={{ height: 14, width: '40%', borderRadius: 'var(--radius-sm)', background: 'var(--surface-3)' }}
+            style={{
+              height: 14,
+              width: '40%',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-3)',
+            }}
           />
         </div>
         <div style={{ marginTop: 'var(--sp-3)' }}>
@@ -223,35 +295,32 @@ export function ChartPanel({
             <div className="chart-head-coin">
               <CoinSelect value={selectedCoin} onChange={setSelectedCoin} />
             </div>
-            <ForecastModeIndicator
+            {/* <ForecastModeIndicator
               service={service}
               model={model}
               onOpen={() => setIsSettingsOpen(true)}
-            />
+            /> */}
           </div>
           <div className="chart-legend-row">
             <div className="legend">
               <span>
-                <span className="sw" style={{ background: 'var(--color-chart-bull)' }}></span>Bull case
+                <span className="sw" style={{ background: 'var(--color-chart-bull)' }}></span>Bull
+                case
                 {activeProjData?.scenarioProbabilities &&
                   ` (${activeProjData.scenarioProbabilities.bull}%)`}
               </span>
               <span>
-                <span className="sw" style={{ background: 'var(--color-chart-base)' }}></span>Base case
+                <span className="sw" style={{ background: 'var(--color-chart-base)' }}></span>Base
+                case
                 {activeProjData?.scenarioProbabilities &&
                   ` (${activeProjData.scenarioProbabilities.base}%)`}
               </span>
               <span>
-                <span className="sw" style={{ background: 'var(--color-chart-bear)' }}></span>Bear case
+                <span className="sw" style={{ background: 'var(--color-chart-bear)' }}></span>Bear
+                case
                 {activeProjData?.scenarioProbabilities &&
                   ` (${activeProjData.scenarioProbabilities.bear}%)`}
               </span>
-              {scenarioOverride && (
-                <span>
-                  <span className="sw" style={{ background: 'var(--color-chart-scenario)' }}></span>Your
-                  scenario
-                </span>
-              )}
             </div>
             <div className="chart-range">
               <button
@@ -307,7 +376,10 @@ export function ChartPanel({
               <div className="muted small">{histChange.label}</div>
             </>
           )}
-          <div className="right" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <div
+            className="right"
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}
+          >
             <div style={{ position: 'relative' }}>
               <button
                 className="btn-ghost"
@@ -524,24 +596,30 @@ export function ChartPanel({
             simply hidden, which removed the forecast's actual numbers from the
             phone entirely. They now reflow into a row under the chart instead. */}
           <div className="scenario-tags">
-            <div className="scenario-tag bull" style={{ color: 'var(--color-chart-bull)' }}>
-              <span className="dot" style={{ background: 'var(--color-chart-bull)' }}></span>
-              Bull · {formatBadgeValue(badges.bull, livePrice)}
-              {activeProjData?.scenarioProbabilities &&
-                ` · ${activeProjData.scenarioProbabilities.bull}% likely`}
-            </div>
-            <div className="scenario-tag base" style={{ color: 'var(--color-chart-base)' }}>
-              <span className="dot" style={{ background: 'var(--color-chart-base)' }}></span>
-              Base · {formatBadgeValue(badges.base, livePrice)}
-              {activeProjData?.scenarioProbabilities &&
-                ` · ${activeProjData.scenarioProbabilities.base}% likely`}
-            </div>
-            <div className="scenario-tag bear" style={{ color: 'var(--color-chart-bear)' }}>
-              <span className="dot" style={{ background: 'var(--color-chart-bear)' }}></span>
-              Bear · {formatBadgeValue(badges.bear, livePrice)}
-              {activeProjData?.scenarioProbabilities &&
-                ` · ${activeProjData.scenarioProbabilities.bear}% likely`}
-            </div>
+            <DraggableTag
+              id="bull"
+              label={`Bull · ${formatBadgeValue(badges.bull, livePrice)}${
+                activeProjData?.scenarioProbabilities
+                  ? ` · ${activeProjData.scenarioProbabilities.bull}% likely`
+                  : ''
+              }`}
+            />
+            <DraggableTag
+              id="base"
+              label={`Base · ${formatBadgeValue(badges.base, livePrice)}${
+                activeProjData?.scenarioProbabilities
+                  ? ` · ${activeProjData.scenarioProbabilities.base}% likely`
+                  : ''
+              }`}
+            />
+            <DraggableTag
+              id="bear"
+              label={`Bear · ${formatBadgeValue(badges.bear, livePrice)}${
+                activeProjData?.scenarioProbabilities
+                  ? ` · ${activeProjData.scenarioProbabilities.bear}% likely`
+                  : ''
+              }`}
+            />
           </div>
         </div>
         <ForecastContextPanel projData={activeProjData} isStale={isStale} />

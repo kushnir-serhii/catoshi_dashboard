@@ -97,7 +97,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Collapse the per-hour rows to one per (asset_id, rule_id) — a condition
     // that held for twenty hours is one card, not twenty (functional-spec 2.3).
     // `distinct on` keeps the newest row per condition inside the freshness
-    // window; the outer query then orders by importance and caps the card count.
+    // window; the outer query then orders newest-first (severity, then id, break
+    // ties so the order is stable across refreshes) and caps the card count.
     // Explicit column list, not `select *`: a renamed column is a compile error
     // against SignalRow, not a runtime `undefined`.
     const marketStateRows = await query<SignalRow>(
@@ -127,7 +128,7 @@ export async function GET(request: Request): Promise<NextResponse> {
               and ($3::text is null or a.symbol = $3::text)
             order by s.asset_id, s.rule_id, s.snapshot_ts desc
          ) collapsed
-        order by collapsed.severity desc, collapsed.snapshot_ts desc
+        order by collapsed.snapshot_ts desc, collapsed.severity desc, collapsed.id desc
         limit $2`,
       [SIGNALS_FRESHNESS_HOURS, SIGNALS_COUNT, assetScope],
     );
@@ -166,7 +167,7 @@ export async function GET(request: Request): Promise<NextResponse> {
           and s.expires_at > now()
           and ($1::boolean is not true or s.asset_id is null)
           and ($2::text is null or a.symbol = $2::text)
-        order by s.severity desc, ni.published_at desc`,
+        order by ni.published_at desc, s.severity desc, s.id desc`,
       [scope === 'market', assetScope, NEWS_PROMPT_VERSION],
     );
 

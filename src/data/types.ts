@@ -423,3 +423,34 @@ export interface ModelsResponse {
   /** True when the calibration views could not be read (dead DB, missing view). */
   fetchError?: boolean;
 }
+
+/** Why `/api/today` (spec 024) refuses to return a number. */
+export type TodayUnavailableReason = 'klines_failed' | 'stale' | 'insufficient' | 'untracked';
+
+/**
+ * `GET /api/today` response (spec 024 technical §3). `unavailable` carries no
+ * numeric field at all (README §4 rule 1): `lastBarTs` is an ISO string.
+ * `klinesFailure` is the spec-023 one-line failure summary (e.g. `http 451`).
+ */
+export type TodayResponse =
+  | {
+      status: 'ok';
+      asset: string;
+      spot: number;
+      spotTs: string;
+      /** Already multiplied by `k` (`scaledSigmaHourly`). */
+      sigmaHourly: number;
+      k: number;
+      modelVersion: number;
+      lastBarTs: string;
+      /** High/low of the closed 1h bars in the UTC day of the newest closed bar. */
+      dayHighUtc: number;
+      dayLowUtc: number;
+      track: { n: number; held90: number; held50: number } | null;
+    }
+  | {
+      status: 'unavailable';
+      reason: TodayUnavailableReason;
+      lastBarTs?: string;
+      klinesFailure?: string;
+    };

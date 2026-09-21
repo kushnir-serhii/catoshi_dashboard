@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 
 import { COLLECT_ASSETS } from '@/consts/collect';
+import { TODAY_SCORING_GROUP } from '@/consts/today';
 import type { MarketSnapshot, SourceStatus } from '@/data/types';
 import { collectNewsFeeds } from '@/lib/collectors/newsFeed';
 import { upsertSnapshot } from '@/lib/db/analytics';
@@ -13,6 +14,7 @@ import { publishNews } from '@/lib/news/publish';
 import { resolveForecasts } from '@/lib/scoring/resolve';
 import { generateSignals } from '@/lib/signals/generate';
 import { buildSnapshot } from '@/lib/snapshotBuilder';
+import { createTodayScoringDeps, runTodayScoring } from '@/lib/todayScoring';
 
 /**
  * Cron-triggered hourly market-snapshot collection endpoint (spec 010,
@@ -247,6 +249,29 @@ async function handleCollect(request: Request): Promise<NextResponse> {
     sourcesBySymbol.news = [
       ...(sourcesBySymbol.news ?? []),
       { source: 'news:publish', ok: false, error: message },
+    ];
+  }
+
+  // Today Range daily scoring (spec 024, Slice 4). Last data stage, after the
+  // news steps, same isolation discipline: issues at most one 24h band per asset
+  // per UTC day (never from stale/failed data, never backdated) and resolves rows
+  // past their horizon from 1h klines. Non-fatal: a throw is logged and surfaced
+  // through SourceStatus, never fails the collection run. Klines failing leaves
+  // rows unresolved for the next hour's pass.
+  try {
+    const { sources: todaySources } = await runTodayScoring(createTodayScoringDeps());
+    if (todaySources.length > 0) {
+      sourcesBySymbol[TODAY_SCORING_GROUP] = [
+        ...(sourcesBySymbol[TODAY_SCORING_GROUP] ?? []),
+        ...todaySources,
+      ];
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] today range scoring failed:', error);
+    sourcesBySymbol[TODAY_SCORING_GROUP] = [
+      ...(sourcesBySymbol[TODAY_SCORING_GROUP] ?? []),
+      { source: 'today:scoring', ok: false, error: message },
     ];
   }
 

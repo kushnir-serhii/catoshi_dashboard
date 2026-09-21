@@ -14,10 +14,6 @@ export interface ChartRow {
   bull?: number;
   base?: number;
   bear?: number;
-  /** Scenario Simulator's own median (drift-only) projection, overlaid
-   * alongside the AI bull/base/bear series so the user can directly compare
-   * their manual assumptions against the AI forecast on the same chart. */
-  scenario?: number;
 }
 
 /**
@@ -106,7 +102,6 @@ export function buildChartRows(
   scenarios: ForecastScenarios | undefined,
   todayMs: number,
   livePrice: number | undefined,
-  scenarioOverlay?: readonly ScenarioPoint[],
 ): ChartRow[] {
   const rowsByTime = new Map<number, ChartRow>();
 
@@ -133,26 +128,14 @@ export function buildChartRows(
     }
   }
 
-  if (scenarioOverlay) {
-    for (const point of scenarioOverlay) {
-      const t = todayMs + point.d * MS_PER_DAY;
-      getRow(t).scenario = point.p;
-    }
-  }
-
-  if ((scenarios || scenarioOverlay) && livePrice !== undefined) {
+  if (scenarios && livePrice !== undefined) {
     const todayRow = getRow(todayMs);
     if (history.length > 0) {
       todayRow.hist = livePrice;
     }
-    if (scenarios) {
-      todayRow.bull = livePrice;
-      todayRow.base = livePrice;
-      todayRow.bear = livePrice;
-    }
-    if (scenarioOverlay) {
-      todayRow.scenario = livePrice;
-    }
+    todayRow.bull = livePrice;
+    todayRow.base = livePrice;
+    todayRow.bear = livePrice;
   }
 
   return Array.from(rowsByTime.values()).sort((a, b) => a.t - b.t);
@@ -167,7 +150,7 @@ export function computeYDomain(rows: readonly ChartRow[]): [number, number] {
   let max = -Infinity;
 
   for (const row of rows) {
-    const values = [row.hist, row.bull, row.base, row.bear, row.scenario];
+    const values = [row.hist, row.bull, row.base, row.bear];
     for (const value of values) {
       if (value === undefined) continue;
       if (value < min) min = value;

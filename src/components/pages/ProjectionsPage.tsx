@@ -4,20 +4,13 @@ import { useCallback, useState } from 'react';
 
 import { useDashboard } from '@/components/dashboard/context';
 import { WatchlistManageModal } from '@/components/dashboard/WatchlistManageModal';
-import {
-  AIPanel,
-  ChartPanel,
-  ScenarioPanel,
-  SignalsPanel,
-  WatchlistPanel,
-} from '@/components/panels';
+import { AIPanel, ChartPanel, SignalsPanel, TodayPanel, WatchlistPanel } from '@/components/panels';
 import { DEFAULT_COIN } from '@/consts/projections';
 import type { CoinListItem, ProjectionData } from '@/data/types';
 import { useCoinSearch } from '@/hooks/useCoinSearch';
 import { useForecastSettings } from '@/hooks/useForecastSettings';
 import { useForecastSnapshots } from '@/hooks/useForecastSnapshots';
 import { useMarkets } from '@/hooks/useMarkets';
-import type { ScenarioOverride } from '@/hooks/useProjectionChart';
 import { useProjections } from '@/hooks/useProjections';
 import { useSignals } from '@/hooks/useSignals';
 import { useWatchlist } from '@/hooks/useWatchlist';
@@ -28,7 +21,6 @@ export function ProjectionsPage() {
   const [selectedCoin, setSelectedCoin] = useState<CoinListItem>(DEFAULT_COIN);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [snapshotOverride, setSnapshotOverride] = useState<ProjectionData | null>(null);
-  const [scenarioOverride, setScenarioOverride] = useState<ScenarioOverride | null>(null);
   const [isWatchlistManageOpen, setIsWatchlistManageOpen] = useState(false);
 
   const { service, model, setServiceAndModel } = useForecastSettings();
@@ -97,7 +89,6 @@ export function ProjectionsPage() {
         setIsSettingsOpen={setIsSettingsOpen}
         refresh={refresh}
         onReforecast={handleReforecast}
-        scenarioOverride={scenarioOverride}
         snapshotOverride={snapshotOverride}
         snapshots={snapshots.snapshots}
         onSaveSnapshot={snapshots.save}
@@ -105,17 +96,13 @@ export function ProjectionsPage() {
         onRenameSnapshot={snapshots.rename}
         onRemoveSnapshot={snapshots.remove}
       />
+      <TodayPanel coin={selectedCoin} />
       <AIPanel
         glow={glowNorm}
         popularAssets={popularAssets}
         projections={projections}
         selectedCoin={selectedCoin}
         onSelectCoin={setSelectedCoin}
-      />
-      <ScenarioPanel
-        coin={selectedCoin}
-        onScenarioChange={setScenarioOverride}
-        onReforecast={handleReforecast}
       />
       <WatchlistPanel
         coins={watchlist.coins}

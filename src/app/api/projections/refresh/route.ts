@@ -20,8 +20,8 @@ interface RefreshRequestBody {
   service?: string;
   model?: string;
   /** When present, only this one coin is (re)forecasted instead of the
-   * default tracked batch — used by the chart's and Scenario Simulator's
-   * per-coin "Reforecast" actions, so switching to an arbitrary coin only
+   * default tracked batch — used by the chart's per-coin "Reforecast"
+   * action, so switching to an arbitrary coin only
    * costs an AI call when the user actually asks for one. */
   coin?: { id?: string; symbol?: string; name?: string };
 }

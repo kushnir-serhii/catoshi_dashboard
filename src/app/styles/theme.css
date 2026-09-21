@@ -86,7 +86,6 @@
   --color-chart-bull: var(--color-green);
   --color-chart-base: var(--color-violet-light);
   --color-chart-bear: oklch(0.65 0.18 25);
-  --color-chart-scenario: oklch(0.8 0.18 85);
   --color-chart-base-fill: oklch(0.78 0.22 295 / 0.1);
 
   /* Selected / active state in modals, pickers and toggles. */

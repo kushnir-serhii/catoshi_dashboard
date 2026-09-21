@@ -2,12 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-  FORECAST_GRID_DAYS,
-  HISTORY_FETCH_DAYS,
-  RANGE_DAYS,
-  type RANGE_OPTIONS,
-} from '@/consts/projections';
+import { HISTORY_FETCH_DAYS, RANGE_DAYS, type RANGE_OPTIONS } from '@/consts/projections';
 import type { CoinListItem, ProjectionData } from '@/data/types';
 import { useHistoricalPrices } from '@/hooks/useHistoricalPrices';
 import { usePrices } from '@/hooks/usePrices';
@@ -21,15 +16,6 @@ import {
   isAnchorRatioSane,
   sliceHistory,
 } from '@/lib/projectionSeries';
-import { projectScenarios } from '@/lib/scenarioStats';
-
-/** The Scenario Simulator's current assumptions, used to draw its own
- * median-projection overlay line on the chart independent of AI coverage. */
-export interface ScenarioOverride {
-  volPct: number;
-  driftPct: number;
-  horizonDays: number;
-}
 
 export interface UseProjectionChartParams {
   coin: CoinListItem;
@@ -41,9 +27,6 @@ export interface UseProjectionChartParams {
    * call) — passed in rather than fetched again here to avoid a redundant
    * SWR request for the same data. */
   projections?: ProjectionData[] | null;
-  /** Current Scenario Simulator sliders, or `null`/`undefined` to omit the
-   * overlay line entirely. */
-  scenarioOverride?: ScenarioOverride | null;
 }
 
 /**
@@ -114,7 +97,6 @@ export function useProjectionChart({
   histRange,
   fcastRange,
   projections,
-  scenarioOverride,
 }: UseProjectionChartParams): UseProjectionChartResult {
   const coinGeckoId = coin.id;
   const coinSymbol = coin.symbol.toUpperCase();
@@ -185,18 +167,9 @@ export function useProjectionChart({
     [history, histRange],
   );
 
-  const scenarioOverlayPoints: ScenarioPoint[] | undefined = useMemo(() => {
-    if (!scenarioOverride || livePrice === undefined) return undefined;
-    const days = FORECAST_GRID_DAYS.filter((d) => d <= scenarioOverride.horizonDays);
-    return days.map((d) => ({
-      d,
-      p: projectScenarios(livePrice, d, scenarioOverride.volPct, scenarioOverride.driftPct).base,
-    }));
-  }, [scenarioOverride, livePrice]);
-
   const rows = useMemo(
-    () => buildChartRows(slicedHistory, scenarios, todayMs, livePrice, scenarioOverlayPoints),
-    [slicedHistory, scenarios, todayMs, livePrice, scenarioOverlayPoints],
+    () => buildChartRows(slicedHistory, scenarios, todayMs, livePrice),
+    [slicedHistory, scenarios, todayMs, livePrice],
   );
 
   const yDomain = useMemo(() => computeYDomain(rows), [rows]);

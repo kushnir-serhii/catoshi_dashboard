@@ -99,11 +99,21 @@ export const TODAY_REVALIDATE_SECONDS = 60;
 
 /**
  * The §0 calibration verdict of the Slice 1 backtest (functional-spec §0).
- * `null` = the real backtest has not been run/recorded. Set to 'A' | 'B' | 'C'
- * from the spec once it is. Honoured by `resolveTodayGate`: 'A' ships the full
- * card, 'B' the band only, 'C' and `null` ship nothing in production.
+ * `null` = the real backtest has not been run/recorded. Honoured by
+ * `resolveTodayGate`: 'A' ships the full card, 'B' the band only, 'C' and
+ * `null` ship nothing in production. Also honoured by `runTodayScoring`
+ * (Slice 4): ISSUE is skipped unless this is 'A' or 'B' — never write a fresh
+ * daily prediction from a model that failed (or hasn't run) calibration.
+ *
+ * Set to 'C' on 2026-09-23 from the real out-of-sample backtest (both the
+ * fixed-24h and rest-of-UTC-day horizons): every asset's 50% band
+ * over-covered by 4-14pp outside the 46-54% pass window, and touch/close-
+ * beyond reliability failed multiple deciles even after fitting a per-asset
+ * `k`. See functional-spec §0 for the full numbers. Per the functional-spec
+ * §0 table, Verdict C ships nothing — do not flip this without a new backtest
+ * run recording a new verdict.
  */
-export const TODAY_GATE_VERDICT: 'A' | 'B' | 'C' | null = null;
+export const TODAY_GATE_VERDICT: 'A' | 'B' | 'C' | null = 'C';
 
 /** Client poll interval for `useToday`, ms (matches the route's 60s cache). */
 export const TODAY_REFRESH_INTERVAL_MS = 60_000;

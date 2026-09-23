@@ -23,15 +23,32 @@ touch(S) = 1) pass.
       time split, `k` fitted on train, and the report on test.
 - [x] A GitHub Actions `workflow_dispatch` job that runs it and uploads the report as an
       artifact (`decisions.md` §10).
-- [ ] Record the verdict **A / B / C** with coverage and reliability numbers in
-      functional-spec §0. Write the fitted `k` values into `TODAY_SIGMA_K` and bump
-      `TODAY_MODEL_VERSION`.
+- [x] Record the verdict **A / B / C** with coverage and reliability numbers in
+      functional-spec §0. ~~Write the fitted `k` values into `TODAY_SIGMA_K` and bump
+      `TODAY_MODEL_VERSION`~~ — **not done, deliberately**: Verdict is C, so these `k`
+      values were never calibrated-and-adopted; loading them into `TODAY_SIGMA_K`
+      would risk a future reader mistaking a rejected fit for a validated one.
+      `TODAY_SIGMA_K` stays at its 1.0 default. `TODAY_GATE_VERDICT` is set to `'C'`
+      instead (`src/consts/today.ts`), which is what actually gates the UI and the
+      Slice 4 collect stage off.
 
 | Verdict | Next |
 |---|---|
 | A | Slices 2–5 in full |
 | B | Slices 2–5, but the level input is not built |
 | C | **Stop.** Mark the spec rejected with the numbers |
+
+**RESULT: Verdict C, run 2026-09-23** (functional-spec §0). Per the table above,
+this stops the spec here. Slices 2–4 below were already coded (out of process —
+they should not have merged ahead of the gate) before the real backtest ran;
+that code is kept, not deleted, but is now inert: `TodayPanel` renders nothing
+in production (`TODAY_GATE_VERDICT` = `'C'`, see `src/lib/todayGate.ts`) and the
+daily-scoring collect stage skips issuing new predictions (`runTodayScoring` in
+`src/lib/todayScoring.ts`). Slice 5's remaining items (walking §3's acceptance
+criteria, the Rule-1 sweep, and the 1440px/375px screenshot) are **not pursued**
+— they'd verify a card that must never render. Left unchecked below on purpose,
+as a record of what a Verdict A/B path would still have needed, not as
+outstanding work.
 
 ## Slice 2: API
 

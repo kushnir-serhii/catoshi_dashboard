@@ -16,10 +16,21 @@
  * sandboxes, so the real run is the `today-range-backtest` GitHub Actions workflow
  * (decisions.md §10).
  *
- * Data: 1h USDT-M futures klines via `fetchKlinesRange` (assets strictly one after
- * another, never in parallel), the still-open last candle dropped, cached under
- * `.cache/today-range/`. Any failed fetch or a series with gaps aborts the run with
- * a non-zero exit: a verdict on partial data is worse than no verdict.
+ * Data: 1h **spot** klines from `data-api.binance.vision` (with `api.binance.com`
+ * / `api1.binance.com` fallback), the same public historical-data mirror
+ * `analog-falsification.ts` uses for the spec 012 Gate. NOT `fetchKlinesRange` /
+ * `fapi.binance.com` (USDT-M futures), the production collector's source: as of
+ * 2026-09-23, both `fapi.binance.com` and `api.binance.com` return HTTP 451
+ * ("restricted location") to the GitHub Actions runner IP, confirmed by direct
+ * curl — `data-api.binance.vision` is the one host that isn't geo-blocked there.
+ * Spot and perpetual-futures prices for BTC/ETH/SOL track within a small basis,
+ * which is an acceptable approximation for fitting a volatility scalar `k`, but
+ * it is a real source difference from what `/api/today` and `/api/collect` read
+ * live — noted here so it isn't lost. Assets are fetched strictly one after
+ * another, never in parallel; the still-open last candle is dropped; results are
+ * cached under `.cache/today-range/`. Any failed fetch or a series with gaps
+ * aborts the run with a non-zero exit: a verdict on partial data is worse than no
+ * verdict.
  *
  * Outputs (`.cache/today-range/out/`): `today-range-report.md`,
  * `today-range-results.json`. Stdout ends with the verdict and fitted `k` per asset
@@ -28,17 +39,17 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { COLLECT_ASSETS } from '@/consts/collect';
 import { TODAY_GATE_HORIZON_HOURS } from '@/consts/today';
-import { fetchKlinesRange } from '@/lib/collectors/binanceKlines';
 import {
+  type AssetReport,
   buildAssetReport,
+  type Candle,
+  type GateHorizon,
   mulberry32,
   renderReport,
   verdict,
-  type AssetReport,
-  type Candle,
-  type GateHorizon,
 } from '@/lib/todayRangeEval';
 
 const HOUR_MS = 3_600_000;
@@ -72,6 +83,80 @@ const HORIZONS: GateHorizon[] = [TODAY_GATE_HORIZON_HOURS, 'utc-day'];
 function fail(message: string): never {
   console.error(`\nFAILED: ${message}`);
   process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// Historical klines — data-api.binance.vision (see the file header for why
+// this host and not the production fetchKlinesRange/fapi.binance.com).
+// ---------------------------------------------------------------------------
+
+const HISTORY_HOSTS = [
+  'https://data-api.binance.vision',
+  'https://api.binance.com',
+  'https://api1.binance.com',
+];
+const KLINE_PAGE_LIMIT = 1000;
+const REQUEST_SPACING_MS = 150;
+const RATE_LIMIT_BACKOFF_MS = 5000;
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+async function fetchHistoryPage(path: string): Promise<unknown[]> {
+  let lastErr: unknown;
+  for (const host of HISTORY_HOSTS) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const res = await fetch(host + path);
+        if (res.status === 429 || res.status === 418) {
+          await sleep(RATE_LIMIT_BACKOFF_MS * (attempt + 1));
+          continue;
+        }
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return (await res.json()) as unknown[];
+      } catch (err) {
+        lastErr = err;
+        await sleep(500 * (attempt + 1));
+      }
+    }
+  }
+  throw new Error(`history fetch failed for ${path}: ${String(lastErr)}`);
+}
+
+interface RawCandle extends Candle {
+  closeTime: number;
+}
+
+/** Forward pagination by `startTime`, same shape `fetchKlinesRange` returns (plus `closeTime`). */
+async function fetchSpotKlinesRange(
+  pair: string,
+  interval: string,
+  startTime: number,
+  endTime: number,
+): Promise<RawCandle[]> {
+  const out: RawCandle[] = [];
+  let cursor = startTime;
+  for (;;) {
+    const rows = (await fetchHistoryPage(
+      `/api/v3/klines?symbol=${pair}&interval=${interval}&startTime=${cursor}&endTime=${endTime}&limit=${KLINE_PAGE_LIMIT}`,
+    )) as (string | number)[][];
+    if (!rows.length) break;
+    for (const r of rows) {
+      out.push({
+        openTime: Number(r[0]),
+        open: Number(r[1]),
+        high: Number(r[2]),
+        low: Number(r[3]),
+        close: Number(r[4]),
+        closeTime: Number(r[6]),
+      });
+    }
+    if (rows.length < KLINE_PAGE_LIMIT) break;
+    const lastOpen = Number(rows[rows.length - 1][0]);
+    if (lastOpen >= endTime) break;
+    cursor = lastOpen + 1;
+    await sleep(REQUEST_SPACING_MS);
+  }
+  return out;
 }
 
 /** Seeded regime-switching random walk: deterministic offline data for the smoke run. */
@@ -115,8 +200,12 @@ async function loadCandles(symbol: string, pair: string, days: number): Promise<
   const endTime = Date.now();
   const startTime = endTime - days * DAY_MS;
   console.log(`  ${symbol} (${pair}): fetching ${days}d of ${INTERVAL} ...`);
-  const raw = await fetchKlinesRange(pair, INTERVAL, startTime, endTime);
-  if (raw === null) fail(`${symbol}: fetchKlinesRange returned null (fetch failed)`);
+  let raw: RawCandle[];
+  try {
+    raw = await fetchSpotKlinesRange(pair, INTERVAL, startTime, endTime);
+  } catch (err) {
+    fail(`${symbol}: history fetch failed — ${err instanceof Error ? err.message : String(err)}`);
+  }
   // Drop the still-open last candle: a bar counts only once its closeTime has passed.
   const candles: Candle[] = raw
     .filter((c) => c.closeTime < endTime)

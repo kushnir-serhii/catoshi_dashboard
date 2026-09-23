@@ -51,14 +51,19 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          # 20's bundled npm rejects the committed lockfile with EUSAGE
-          # ("Missing: tailwind-merge@3.7.0 from lock file") even though a
-          # fresh `npm ci` against the same lockfile passes clean locally on
-          # npm 11 — an npm-version resolution quirk, not an actually stale
-          # lock (confirmed 2026-09-23: `npm install` produced no lockfile
-          # diff). 22 matches the npm major used to verify the lock locally.
           node-version: '22'
           cache: npm
+
+      # The runner's bundled npm (10.9.8 on node 22.23.2, confirmed
+      # 2026-09-23) rejects the committed, otherwise-valid lockfile with
+      # EUSAGE ("Missing: tailwind-merge@3.7.0 from lock file") — a real npm
+      # 10-vs-11 resolution difference over an optional-peer tree
+      # (@heroui/styles's nested tailwind-variants), not a stale lock:
+      # `npm install` against the same lock produces no diff, and `npm ci`
+      # passes clean on npm 11.6.4. Upgrade npm itself rather than touch the
+      # lockfile.
+      - name: Upgrade npm
+        run: npm install -g npm@11
 
       - name: Install dependencies
         run: npm ci

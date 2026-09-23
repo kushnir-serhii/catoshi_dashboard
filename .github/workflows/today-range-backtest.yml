@@ -68,6 +68,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # actions/cache keys reject commas, and `assets` is a comma-separated
+      # list (e.g. "BTC,ETH,SOL") — substitute a safe separator before it
+      # reaches the cache key.
+      - name: Sanitize cache key inputs
+        id: cache_vars
+        run: echo "assets_key=$(echo '${{ inputs.assets }}' | tr ',' '-')" >> "$GITHUB_OUTPUT"
+
       # The script caches downloaded candles under .cache/today-range/ so a
       # re-run does not re-fetch Binance history. Public candles only — nothing
       # sensitive. Keyed on the script + eval sources + the inputs so a code
@@ -80,7 +87,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/today-range/
-          key: today-range-${{ hashFiles('src/scripts/today-range-backtest.ts', 'src/lib/todayRangeEval.ts', 'src/lib/todayRange.ts', 'src/consts/today.ts') }}-${{ inputs.assets }}-${{ inputs.days }}
+          key: today-range-${{ hashFiles('src/scripts/today-range-backtest.ts', 'src/lib/todayRangeEval.ts', 'src/lib/todayRange.ts', 'src/consts/today.ts') }}-${{ steps.cache_vars.outputs.assets_key }}-${{ inputs.days }}
           restore-keys: |
             today-range-
 

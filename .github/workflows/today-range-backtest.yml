@@ -91,6 +91,17 @@ jobs:
           restore-keys: |
             today-range-
 
+      - name: DIAGNOSTIC — Binance reachability (temporary)
+        run: |
+          set +e
+          echo "--- fapi.binance.com (futures, what the script uses) ---"
+          curl -sv --max-time 10 'https://fapi.binance.com/fapi/v1/ping' 2>&1 | tail -30
+          echo "--- api.binance.com (spot) ---"
+          curl -sv --max-time 10 'https://api.binance.com/api/v3/ping' 2>&1 | tail -30
+          echo "--- data-api.binance.vision ---"
+          curl -sv --max-time 10 'https://data-api.binance.vision/api/v3/ping' 2>&1 | tail -30
+          exit 0
+
       - name: Run the Gate
         run: |
           set -o pipefail

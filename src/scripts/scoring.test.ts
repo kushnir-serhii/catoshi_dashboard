@@ -21,8 +21,14 @@ import {
   SCORED_HORIZON_DAYS,
   SPARSE_HORIZON_BEHAVIOUR,
 } from '@/consts/scoring';
-import type { ForecastPoint, ScenarioProbabilities } from '@/data/types';
+import type { ForecastPoint, ModelHorizonScore, ScenarioProbabilities } from '@/data/types';
 import { brierScore } from '@/lib/scoring/brier';
+import {
+  buildHorizonBreakdown,
+  formatHorizonCounts,
+  type HorizonEntry,
+  horizonLabel,
+} from '@/lib/scoring/horizonBreakdown';
 import {
   realizedScenario,
   type ScenarioPrices,
@@ -324,6 +330,77 @@ section('Constants sanity');
     'consts: MIN_SCORED_SAMPLE_SIZE is a positive integer',
     Number.isInteger(MIN_SCORED_SAMPLE_SIZE) && MIN_SCORED_SAMPLE_SIZE > 0,
   );
+}
+
+// ---------------------------------------------------------------------------
+// Horizon breakdown (spec 026)
+// ---------------------------------------------------------------------------
+
+section('horizonBreakdown');
+{
+  const order = (es: HorizonEntry[]): string => es.map((e) => e.horizonDays).join(',');
+
+  check('empty input -> 3 entries in 1,7,30 order', order(buildHorizonBreakdown([])) === '1,7,30');
+  const shuffled = buildHorizonBreakdown([
+    { horizonDays: 30, scoredCount: 40, meanBrier: 0.5 },
+    { horizonDays: 1, scoredCount: 40, meanBrier: 0.5 },
+    { horizonDays: 7, scoredCount: 40, meanBrier: 0.5 },
+  ]);
+  check('shuffled input keeps 1,7,30 order', order(shuffled) === '1,7,30');
+
+  const sparse = buildHorizonBreakdown([
+    { horizonDays: 14, scoredCount: 99, meanBrier: 0.1 },
+    { horizonDays: 7, scoredCount: 9, meanBrier: 0.4 },
+  ]);
+  check('stray horizon 14 dropped', order(sparse) === '1,7,30');
+  check('missing horizons zero-filled', sparse[0].scoredCount === 0 && sparse[2].scoredCount === 0);
+  check('zero-filled entries are insufficient', sparse[0].state === 'insufficient');
+
+  const at = (n: number, mb: number | null): HorizonEntry =>
+    buildHorizonBreakdown([{ horizonDays: 1, scoredCount: n, meanBrier: mb }])[0];
+  check('29 scored -> insufficient', at(MIN_SCORED_SAMPLE_SIZE - 1, 0.5).state === 'insufficient');
+  check('30 scored -> scored', at(MIN_SCORED_SAMPLE_SIZE, 0.5).state === 'scored');
+  check('count >= 30 but null meanBrier -> insufficient', at(50, null).state === 'insufficient');
+
+  const good = at(30, 0.5);
+  check(
+    '0.5 beats baseline, delta 0.167',
+    good.state === 'scored' && good.beating && near(good.delta, NO_SKILL_BRIER_BASELINE - 0.5),
+  );
+  const bad = at(30, 0.8);
+  check(
+    '0.8 is below baseline, delta 0.133',
+    bad.state === 'scored' && !bad.beating && near(bad.delta, 0.8 - NO_SKILL_BRIER_BASELINE),
+  );
+
+  const example = buildHorizonBreakdown([
+    { horizonDays: 1, scoredCount: 94, meanBrier: 0.55 },
+    { horizonDays: 30, scoredCount: 12, meanBrier: 0.6 },
+  ]);
+  check('94 one-day -> scored', example[0].state === 'scored');
+  check(
+    '12 thirty-day -> insufficient with count 12',
+    example[2].state === 'insufficient' && example[2].scoredCount === 12,
+  );
+
+  const early = buildHorizonBreakdown([
+    { horizonDays: 1, scoredCount: 14, meanBrier: 0.5 },
+    { horizonDays: 7, scoredCount: 9, meanBrier: 0.5 },
+  ]);
+  check(
+    'formatHorizonCounts exact string',
+    formatHorizonCounts(early) === '1 day: 14 · 7 days: 9 · 30 days: 0',
+    formatHorizonCounts(early),
+  );
+  check('horizonLabel singular/plural', horizonLabel(1) === '1 day' && horizonLabel(7) === '7 days');
+
+  const inputs: ModelHorizonScore[] = [
+    { horizonDays: 1, scoredCount: 94, meanBrier: 0.5 },
+    { horizonDays: 7, scoredCount: 20, meanBrier: 0.6 },
+    { horizonDays: 30, scoredCount: 12, meanBrier: 0.7 },
+  ];
+  const sum = (xs: { scoredCount: number }[]): number => xs.reduce((s, x) => s + x.scoredCount, 0);
+  check('entry counts add up to input counts', sum(buildHorizonBreakdown(inputs)) === sum(inputs));
 }
 
 // ---------------------------------------------------------------------------

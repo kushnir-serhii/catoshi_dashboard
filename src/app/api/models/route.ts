@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import type {
   ModelCalibrationGroup,
+  ModelHorizonScore,
   ModelsExclusionSummary,
   ModelsResponse,
   ModelTrendPoint,
@@ -48,7 +49,23 @@ const GROUPS_QUERY = `
           and ct.prompt_version = cs.prompt_version
       ),
       '[]'::json
-    ) as trend
+    ) as trend,
+    coalesce(
+      (
+        select json_agg(
+                 json_build_object(
+                   'horizonDays', bh.horizon_days,
+                   'scoredCount', bh.scored_count,
+                   'meanBrier', bh.mean_brier
+                 )
+                 order by bh.horizon_days
+               )
+        from public.calibration_scores_by_horizon bh
+        where bh.model = cs.model
+          and bh.prompt_version = cs.prompt_version
+      ),
+      '[]'::json
+    ) as by_horizon
   from public.calibration_scores cs
   order by cs.model, cs.prompt_version
 `;
@@ -75,6 +92,7 @@ interface GroupRow {
   excluded_unscoreable: number;
   total_outcomes: number;
   trend: ModelTrendPoint[];
+  by_horizon: ModelHorizonScore[];
 }
 
 interface ExclusionsRow {
@@ -120,6 +138,7 @@ export async function GET(): Promise<NextResponse> {
       excludedUnscoreable: row.excluded_unscoreable,
       totalOutcomes: row.total_outcomes,
       trend: row.trend,
+      byHorizon: row.by_horizon,
     }));
 
     const e = exclusionRows[0];

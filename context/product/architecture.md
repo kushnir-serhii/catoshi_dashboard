@@ -199,7 +199,9 @@ now fully replaced.
   set aside and counted there. `calibration_scores`, `calibration_trend` and
   `calibration_exclusions` aggregate it. New migrations for this spec:
   `0005_outcome_scores.sql` (adds `outcomes.brier_score` with a `[0, 2]` check),
-  `0006_calibration_view.sql`.
+  `0006_calibration_view.sql`. Spec 026 adds the view `calibration_scores_by_horizon`
+  (`0012_calibration_by_horizon.sql`), which groups `calibration_base` by
+  `(model, prompt_version, horizon_days)`; `/api/models` returns it as `byHorizon` on each group.
 - **`/api/models`** reads those views with no computation. `ModelsPage.tsx` (`src/hooks/useModels.ts`)
   shows mean Brier per `model` + `prompt_version` beside the 0.667 no-skill baseline, the
   month-over-month trend, the sample count and the exclusions, and an explicit

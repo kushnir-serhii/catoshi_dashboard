@@ -25,7 +25,7 @@ interface ForecastContextPanelProps {
   isStale: boolean;
 }
 
-export function ForecastContextPanel({ projData, isStale }: ForecastContextPanelProps) {
+export function ForecastContextPanel({ projData }: ForecastContextPanelProps) {
   if (!projData) {
     return (
       <div className="forecast-context animate-pulse" style={{ marginTop: 'var(--sp-3)' }}>
@@ -67,21 +67,6 @@ export function ForecastContextPanel({ projData, isStale }: ForecastContextPanel
 
   return (
     <div className="forecast-context" style={{ marginTop: 'var(--sp-3)' }}>
-      {isStale && (
-        <div
-          style={{
-            padding: 'var(--sp-2) var(--sp-3)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--color-notice-bg)',
-            border: '1px solid var(--color-notice-border)',
-            color: 'var(--color-notice)',
-            fontSize: 'var(--fs-sm)',
-            marginBottom: 'var(--sp-3)',
-          }}
-        >
-          Forecast may be outdated
-        </div>
-      )}
       <div
         style={{
           display: 'flex',

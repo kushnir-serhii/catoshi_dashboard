@@ -3,6 +3,11 @@
 import { MIN_SCORED_SAMPLE_SIZE, NO_SKILL_BRIER_BASELINE } from '@/consts/scoring';
 import type { ModelCalibrationGroup, ModelsExclusionSummary, ModelTrendPoint } from '@/data/types';
 import { useModels } from '@/hooks/useModels';
+import {
+  buildHorizonBreakdown,
+  formatHorizonCounts,
+  horizonLabel,
+} from '@/lib/scoring/horizonBreakdown';
 
 const CARD_BOX: React.CSSProperties = {
   padding: 'var(--sp-5)',
@@ -206,6 +211,9 @@ function GroupCard({ group }: { group: ModelCalibrationGroup }) {
           report accuracy — {MIN_SCORED_SAMPLE_SIZE} scored outcomes are needed before a mean Brier
           score is more signal than noise.
         </p>
+        <p className="small muted" style={{ margin: 'var(--sp-1) 0 0' }}>
+          {formatHorizonCounts(buildHorizonBreakdown(group.byHorizon))}
+        </p>
         <GroupExclusionLine group={group} />
       </div>
     );
@@ -260,6 +268,43 @@ function GroupCard({ group }: { group: ModelCalibrationGroup }) {
       <p className="small muted" style={{ margin: 'var(--sp-1) 0 0' }}>
         Based on {group.scoredCount} scored outcome{group.scoredCount === 1 ? '' : 's'}.
       </p>
+
+      <div style={{ marginTop: 'var(--sp-4)' }}>
+        <div className="small muted" style={{ marginBottom: 'var(--sp-2)' }}>
+          By horizon
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-4)' }}>
+          {buildHorizonBreakdown(group.byHorizon).map((entry) => (
+            <div key={entry.horizonDays} style={{ flex: '1 1 140px', minWidth: 0 }}>
+              <div className="small muted">{horizonLabel(entry.horizonDays)}</div>
+              {entry.state === 'scored' ? (
+                <>
+                  <div
+                    style={{
+                      fontSize: 'var(--fs-lg)',
+                      fontWeight: 500,
+                      fontFeatureSettings: '"tnum"',
+                      color: entry.beating ? 'var(--green)' : 'var(--red)',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {entry.meanBrier.toFixed(3)}
+                  </div>
+                  <div
+                    className="small"
+                    style={{ color: entry.beating ? 'var(--green)' : 'var(--red)' }}
+                  >
+                    {entry.beating ? 'Beating' : 'Below'} by {entry.delta.toFixed(3)}
+                  </div>
+                  <div className="small muted">{entry.scoredCount} scored</div>
+                </>
+              ) : (
+                <div className="small muted">{entry.scoredCount} scored · not enough yet</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {group.trend.length > 0 && (
         <div style={{ marginTop: 'var(--sp-4)' }}>

@@ -92,7 +92,7 @@ SQL views (migration `0006`), which centralise the exclusions (back-filled snaps
 `ModelsPage.tsx` shows mean Brier per model + prompt version beside the 0.667 no-skill
 baseline (three mutually exclusive scenarios, **not** the binary 0.25), with an
 insufficient-data state below `MIN_SCORED_SAMPLE_SIZE` (30). New migrations:
-`db/migrations/0005_outcome_scores.sql`, `0006_calibration_view.sql`. The realized-scenario
+`db/migrations/0005_outcome_scores.sql`, `0006_calibration_view.sql`, `0012_calibration_by_horizon.sql` (spec 026, per-horizon `byHorizon` scores). The realized-scenario
 rule is canonically documented in `context/product/architecture.md` §7.3 and the
 `realizedScenario.ts` header — changing it invalidates every stored score.
 

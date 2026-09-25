@@ -4,11 +4,14 @@ name: Today range backtest Gate
 # GitHub Actions runner.
 #
 # WHY THIS WORKFLOW EXISTS — network reach (decisions.md §10). The script pulls
-# 730 days of 1h klines from Binance (fapi.binance.com). Neither execution
-# environment available to a coding agent can reach Binance (egress policy), and
-# none can reach Neon either. A GitHub Actions runner can reach Binance, so this
-# run is operator-only not by preference but because no local agent environment
-# can perform it.
+# 730 days of 1h spot klines from data-api.binance.vision (fapi.binance.com and
+# api.binance.com both return HTTP 451 "restricted location" to GitHub-hosted
+# runner IPs as of 2026-09-23 — confirmed by curl, see the script's own header
+# for the full explanation). Neither execution environment available to a
+# coding agent can reach Binance at all (egress policy), and none can reach
+# Neon either. A GitHub Actions runner can reach data-api.binance.vision, so
+# this run is operator-only not by preference but because no local agent
+# environment can perform it.
 #
 # NO DATABASE SECRET. The script never opens a database connection — it reads
 # public candles and writes results to .cache/today-range/ only. It must not be
@@ -51,11 +54,29 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
+
+      # The runner's bundled npm (10.9.8 on node 22.23.2, confirmed
+      # 2026-09-23) rejects the committed, otherwise-valid lockfile with
+      # EUSAGE ("Missing: tailwind-merge@3.7.0 from lock file") — a real npm
+      # 10-vs-11 resolution difference over an optional-peer tree
+      # (@heroui/styles's nested tailwind-variants), not a stale lock:
+      # `npm install` against the same lock produces no diff, and `npm ci`
+      # passes clean on npm 11.6.4. Upgrade npm itself rather than touch the
+      # lockfile.
+      - name: Upgrade npm
+        run: npm install -g npm@11
 
       - name: Install dependencies
         run: npm ci
+
+      # actions/cache keys reject commas, and `assets` is a comma-separated
+      # list (e.g. "BTC,ETH,SOL") — substitute a safe separator before it
+      # reaches the cache key.
+      - name: Sanitize cache key inputs
+        id: cache_vars
+        run: echo "assets_key=$(echo '${{ inputs.assets }}' | tr ',' '-')" >> "$GITHUB_OUTPUT"
 
       # The script caches downloaded candles under .cache/today-range/ so a
       # re-run does not re-fetch Binance history. Public candles only — nothing
@@ -69,7 +90,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/today-range/
-          key: today-range-${{ hashFiles('src/scripts/today-range-backtest.ts', 'src/lib/todayRangeEval.ts', 'src/lib/todayRange.ts', 'src/consts/today.ts') }}-${{ inputs.assets }}-${{ inputs.days }}
+          key: today-range-${{ hashFiles('src/scripts/today-range-backtest.ts', 'src/lib/todayRangeEval.ts', 'src/lib/todayRange.ts', 'src/consts/today.ts') }}-${{ steps.cache_vars.outputs.assets_key }}-${{ inputs.days }}
           restore-keys: |
             today-range-
 

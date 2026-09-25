@@ -19,6 +19,7 @@
 
 import { COLLECT_ASSETS, type CollectAsset } from '@/consts/collect';
 import {
+  TODAY_GATE_VERDICT,
   TODAY_ISSUE_SOURCE,
   TODAY_MODEL_VERSION,
   TODAY_RESOLVE_SOURCE,
@@ -192,6 +193,12 @@ export interface TodayScoringDeps {
   insertPrediction: (row: PredictionInsert) => Promise<boolean>;
   listUnresolved: (now: Date) => Promise<UnresolvedPrediction[]>;
   markResolved: (id: DbId, resolution: PredictionResolution) => Promise<void>;
+  /**
+   * Defaults to the real `TODAY_GATE_VERDICT`. Overridable only so tests can
+   * exercise the issue path under a hypothetical open gate without faking the
+   * module constant; `createTodayScoringDeps` never sets this.
+   */
+  gateVerdict?: 'A' | 'B' | 'C' | null;
 }
 
 export interface TodayScoringResult {
@@ -330,23 +337,36 @@ async function resolveDue(
 /**
  * Runs issue then resolve. Each asset and each step is isolated: a failure is
  * reported as a `SourceStatus` and never thrown, so it cannot fail the collect run.
+ *
+ * ISSUE is skipped entirely when `TODAY_GATE_VERDICT` is not 'A' or 'B' —
+ * never write a fresh daily prediction from a model that hasn't passed (or
+ * hasn't run) the Slice 1 calibration gate (functional-spec §0). RESOLVE
+ * still runs, so any rows issued under a prior verdict are honestly scored
+ * rather than left hanging.
  */
 export async function runTodayScoring(deps: TodayScoringDeps): Promise<TodayScoringResult> {
   const sources: SourceStatus[] = [];
   let issued = 0;
+  const verdict = deps.gateVerdict === undefined ? TODAY_GATE_VERDICT : deps.gateVerdict;
 
-  for (const asset of deps.assets) {
-    try {
-      const r = await issueForAsset(asset, deps);
-      if (r.issued) issued += 1;
-      sources.push(r.status);
-    } catch (error: unknown) {
-      sources.push({
-        source: `${TODAY_ISSUE_SOURCE}:${asset.symbol}`,
-        ok: false,
-        error: errorMessage(error),
-      });
+  if (verdict === 'A' || verdict === 'B') {
+    for (const asset of deps.assets) {
+      try {
+        const r = await issueForAsset(asset, deps);
+        if (r.issued) issued += 1;
+        sources.push(r.status);
+      } catch (error: unknown) {
+        sources.push({
+          source: `${TODAY_ISSUE_SOURCE}:${asset.symbol}`,
+          ok: false,
+          error: errorMessage(error),
+        });
+      }
     }
+  } else {
+    // Matches the `NEWS_CLASSIFY_ENABLED=false` convention (spec 019 Slice 4):
+    // a deliberate pause is `disabled: true`, not a failure.
+    sources.push({ source: TODAY_ISSUE_SOURCE, ok: true, disabled: true });
   }
 
   let resolved = 0;

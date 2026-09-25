@@ -391,6 +391,14 @@ export interface ModelTrendPoint {
   scoredCount: number;
 }
 
+/** One horizon's aggregate from `calibration_scores_by_horizon` (spec 026). Sparse: horizons with no rows are absent. */
+export interface ModelHorizonScore {
+  horizonDays: number;
+  scoredCount: number;
+  /** Null when `scoredCount` is 0. */
+  meanBrier: number | null;
+}
+
 export interface ModelCalibrationGroup {
   model: string;
   promptVersion: string;
@@ -406,6 +414,8 @@ export interface ModelCalibrationGroup {
   /** Total resolved outcomes for this group (scored + excluded). */
   totalOutcomes: number;
   trend: ModelTrendPoint[];
+  /** Raw per-horizon view output: sparse, ordered by horizon_days (spec 026). */
+  byHorizon: ModelHorizonScore[];
 }
 
 export interface ModelsExclusionSummary {

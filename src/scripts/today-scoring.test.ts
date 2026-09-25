@@ -222,6 +222,10 @@ describe('runTodayScoring', () => {
     const deps: TodayScoringDeps = {
       now,
       assets: COLLECT_ASSETS,
+      // These tests exercise issue/resolve logic on its own terms; the real
+      // TODAY_GATE_VERDICT (currently 'C', spec 024 §0) is covered by its own
+      // dedicated test below.
+      gateVerdict: 'A',
       getKlines: async (pair) => {
         klineCalls.push(pair);
         return { ok: true, candles: history(hourStart, 100) };
@@ -338,6 +342,28 @@ describe('runTodayScoring', () => {
     assert.equal(res.issued, 2);
     assert.equal(res.sources.find((s) => s.source === 'today:issue:ETH')?.ok, false);
     assert.ok(res.sources.some((s) => s.source === 'today:resolve'));
+  });
+
+  for (const verdict of ['C', null] as const) {
+    it(`gate verdict ${verdict}: issue is skipped, resolve still runs`, async () => {
+      const h = harness({ gateVerdict: verdict });
+      const res = await runTodayScoring(h.deps);
+      assert.equal(res.issued, 0);
+      assert.equal(h.inserts.length, 0);
+      const issueStatus = res.sources.find((s) => s.source === 'today:issue');
+      assert.equal(issueStatus?.ok, true);
+      assert.equal(issueStatus?.disabled, true);
+      assert.ok(res.sources.some((s) => s.source === 'today:resolve'));
+    });
+  }
+
+  it('gate verdict undefined (not set on deps): defaults to the real TODAY_GATE_VERDICT', async () => {
+    // TODAY_GATE_VERDICT is 'C' as of 2026-09-23 (spec 024 §0) — issue must be
+    // skipped by default, without the harness's gateVerdict: 'A' override.
+    const h = harness({ gateVerdict: undefined });
+    const res = await runTodayScoring(h.deps);
+    assert.equal(res.issued, 0);
+    assert.equal(h.inserts.length, 0);
   });
 
   describe('resolve', () => {

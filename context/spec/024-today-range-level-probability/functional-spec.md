@@ -1,7 +1,11 @@
 # Functional Specification: Today Range & Level Probability
 
 - **Roadmap Item:** Projections → short-horizon forecast ("for today")
-- **Status:** Draft, **GATED**: the UI does not ship until the §0 calibration verdict is recorded
+- **Status:** **REJECTED 2026-09-23 — Verdict C.** See §0. Nothing ships. The
+  built code (pure model, `/api/today`, `TodayPanel`, daily scoring) stays in
+  the repo but is gated off (`TODAY_GATE_VERDICT = 'C'` in `src/consts/today.ts`)
+  rather than deleted, in case a future spec proposes a different volatility
+  model behind the same UI/API contract (functional §4).
 - **Author:** Serhii Kushnir
 - **Created:** 2026-09-21
 
@@ -19,7 +23,54 @@ that only if the estimate is shown to be calibrated. So the backtest (tasks Slic
 | **B**: bands calibrated, touch probabilities not | Range bands only. No level input |
 | **C**: bands not calibrated, even after the single-scalar σ correction | **Nothing.** Close the spec, record the numbers |
 
-**Verdict:** _not yet run._
+**Verdict: C.** Run 2026-09-23, GitHub Actions `today-range-backtest.yml`
+([run 35833428806](https://github.com/kushnir-serhii/catoshi_dashboard/actions/runs/35833428806)),
+730 days of 1h **spot** klines (`data-api.binance.vision` — `fapi.binance.com`
+and `api.binance.com` both returned HTTP 451 "restricted location" to the
+runner IP on the day of the run; see `today-range-backtest.ts`'s header for
+the full explanation and the caveat that spot vs perpetual-futures basis is a
+real, if small, source difference from what `/api/today` reads live), 70/30
+chronological split with a 24-bar gap, `k` fitted on train to hit 90% coverage.
+
+Both horizons (fixed 24h and rest-of-UTC-day) failed. Per-asset `k` narrowed
+the 90% band close to target, but could not simultaneously fix the 50% band or
+the touch/close-beyond reliability curve — exactly the shape-mismatch the
+single-scalar correction was flagged as unable to fix (`technical-considerations.md`
+§4, §2.1) if the return distribution isn't well described by the model shape.
+
+| Asset | Horizon | k | 90% coverage (target 87–93%) | 50% coverage (target 46–54%) | Bands | Touch reliability | Close-beyond reliability |
+|---|---|---|---|---|---|---|---|
+| BTC | 24h | 1.067 | 89.7% | **58.3%** | FAIL | FAIL (4 of 10 deciles >5pp) | pass |
+| ETH | 24h | 1.137 | 91.0% | **62.0%** | FAIL | FAIL (6 of 10 deciles) | FAIL (2 of 5 deciles) |
+| SOL | 24h | 1.053 | 90.6% | **53.8%** | pass | FAIL (1 of 10 deciles) | pass |
+| BTC | rest-of-day | 1.072 | 90.9% | **63.4%** | FAIL | FAIL (5 of 10) | FAIL (3 of 5) |
+| ETH | rest-of-day | 1.145 | 92.1% | **67.7%** | FAIL | FAIL (7 of 10) | FAIL (3 of 5) |
+| SOL | rest-of-day | 1.046 | 90.6% | **57.8%** | FAIL | FAIL (2 of 10) | pass |
+
+The dominant, consistent failure: **the 50% band over-covers by 4–14 points on
+every asset and both horizons** — realized closes land inside the model's
+inner 50% interval far more often than a lognormal, zero-drift model with this
+fitted `k` predicts. Touch probability is also consistently **overstated**
+(observed < predicted in every failing decile, matching the model's own
+documented caveat that continuous-monitoring touch overstates hourly-sampled
+touches — worse in practice than the caveat anticipated). Both point at the
+same root cause: hourly BTC/ETH/SOL returns have a different central shape
+than the fitted lognormal (fatter middle relative to the tails than a normal
+distribution scaled by EWMA σ), which one scalar `k` cannot correct — it can
+buy back the 90% band or the 50% band, not both at once, exactly the failure
+mode the Gate criteria (§4) were designed to catch.
+
+Full per-decile reliability tables and bootstrap CIs: workflow artifact
+`today-range-results-35833428806` (`today-range-report.md` / `.json`,
+retained 90 days from the run above).
+
+**Per the table below, Verdict C ships nothing.** `TODAY_SIGMA_K` in
+`src/consts/today.ts` is intentionally left at its 1.0 default rather than
+loaded with these fitted-but-rejected values, so nothing downstream can
+mistake them for an adopted correction. `TODAY_GATE_VERDICT` is set to `'C'`,
+which keeps `TodayPanel` unrendered in production and stops the daily-scoring
+collect stage from issuing new predictions (`runTodayScoring` in
+`src/lib/todayScoring.ts`).
 
 ---
 

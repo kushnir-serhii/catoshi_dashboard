@@ -15,5 +15,19 @@
         "repo": "provectus/awos"
       }
     }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.awos-tune/hooks/check-components.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

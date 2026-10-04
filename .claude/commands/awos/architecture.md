@@ -1,5 +1,6 @@
 ---
 description: Defines the System Architecture — stack, DBs, infra.
+model: opus
 ---
 
 Use `AskUserQuestion` tool for multiple-choice questions instead of plain text or numbered lists.

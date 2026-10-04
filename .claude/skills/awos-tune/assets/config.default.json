@@ -1,0 +1,20 @@
+{
+  "commandModels": {
+    "product": "opus",
+    "roadmap": "sonnet",
+    "architecture": "opus",
+    "spec": "opus",
+    "tech": "opus",
+    "tasks": "sonnet",
+    "implement": "sonnet",
+    "verify": "sonnet",
+    "hire": "haiku"
+  },
+  "agentDefaultModel": "sonnet",
+  "projectDefaultModel": null,
+  "componentDirs": [],
+  "componentIndexPath": "context/components-index.md",
+  "uiAgentPattern": "react|next\\.?js|component|frontend|\\bui\\b|expo|react-native|tailwind",
+  "componentHook": true,
+  "claudeMdWarnChars": 6000
+}

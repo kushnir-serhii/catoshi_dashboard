@@ -1,0 +1,16 @@
+{
+  "src/components/dashboard/HistoricalPriceChart.tsx": 4,
+  "src/components/dashboard/charts.tsx": 5,
+  "src/components/landing/FaqSection.tsx": 2,
+  "src/components/landing/LandingPage.tsx": 4,
+  "src/components/layout/Header.tsx": 3,
+  "src/components/pages/AdminPage.tsx": 6,
+  "src/components/pages/MarketsPage.tsx": 5,
+  "src/components/pages/ModelsPage.tsx": 7,
+  "src/components/pages/SignalsPage.tsx": 8,
+  "src/components/panels/ChartPanel.tsx": 2,
+  "src/components/panels/SignalsPanel.tsx": 3,
+  "src/components/panels/TodayPanel.tsx": 5,
+  "src/components/panels/WatchlistPanel.tsx": 2,
+  "src/components/ui/CatLogo.tsx": 2
+}

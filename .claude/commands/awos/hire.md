@@ -1,5 +1,6 @@
 ---
 description: Hires specialist agents — finds, installs skills and MCPs, generates agent files.
+model: haiku
 ---
 
 Use `AskUserQuestion` tool for multiple-choice questions instead of plain text or numbered lists.

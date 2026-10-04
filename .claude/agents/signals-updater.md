@@ -1,5 +1,6 @@
 ---
 description: Fetches crypto news from RSS feeds, classifies signals with Claude, and writes data/signals.json every 6 hours.
+model: sonnet
 ---
 
 You are a crypto market signals agent for Catoshi — a portfolio analytics dashboard built with Next.js.

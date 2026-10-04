@@ -1,5 +1,6 @@
 ---
 description: Builds the Product Roadmap — features and their order.
+model: sonnet
 ---
 
 Use `AskUserQuestion` tool for multiple-choice questions instead of plain text or numbered lists.

@@ -20,7 +20,7 @@
   --spacing: 4px;
   /* The two families the app actually renders with. Backed by next/font
      * CSS vars set on <html> in app/layout.tsx. */
-  --font-sans: var(--font-geist), 'Geist', 'Inter', system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), 'Geist', 'Inter', system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
   /* Tailwind's `font-sans` utility resolves to --font-sans above. */
   --font-family: var(--font-sans);

@@ -1,20 +1,11 @@
 import './styles/globals.css';
 
-import { Geist, Geist_Mono } from 'next/font/google';
+// Self-hosted Geist (next/font/local under the hood): no Google Fonts fetch at
+// build time, so builds don't fail when fonts.gstatic.com is unreachable.
+import { GeistMono } from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans';
 
 import { DashboardProvider } from '@/components/dashboard/context';
-
-const geist = Geist({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-geist',
-});
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-geist-mono',
-});
 
 export default function RootLayout({
   children,
@@ -26,10 +17,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geist.variable} ${geistMono.variable} dark`}
+      className={`${GeistSans.variable} ${GeistMono.variable} dark`}
       data-theme="dark"
     >
-      <body className={`${geist.className} antialiased`}>
+      <body className={`${GeistSans.className} antialiased`}>
         <DashboardProvider>{children}</DashboardProvider>
       </body>
     </html>

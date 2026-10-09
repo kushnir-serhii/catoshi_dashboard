@@ -36,7 +36,7 @@ const TONES: Record<NoticeTone, { box: string; title: string; body: string }> = 
 const BLOCK_PADDING: Record<NoticePadding, string> = {
   sm: 'px-4 py-5',
   md: 'px-5 py-8',
-  lg: 'px-5 py-12',
+  lg: 'px-6 py-12',
 };
 
 export interface NoticeProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {

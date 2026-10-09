@@ -22,6 +22,8 @@
      * CSS vars set on <html> in app/layout.tsx. */
   --font-sans: var(--font-geist-sans), 'Geist', 'Inter', system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+  /* Same features the legacy .mono class set, so font-mono is a drop-in. */
+  --font-mono--font-feature-settings: 'tnum', 'zero';
   /* Tailwind's `font-sans` utility resolves to --font-sans above. */
   --font-family: var(--font-sans);
 

@@ -381,7 +381,7 @@ export function ChartPanel({
             style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}
           >
             <div style={{ position: 'relative' }}>
-              <button
+              {/* <button
                 className="btn-ghost"
                 onClick={() => {
                   if (!atSnapshotLimit) {
@@ -396,7 +396,7 @@ export function ChartPanel({
                 style={{ opacity: atSnapshotLimit || !activeProjData ? 0.45 : 1 }}
               >
                 Save snapshot
-              </button>
+              </button> */}
               {isSavePromptOpen && !atSnapshotLimit && (
                 <div
                   style={{
@@ -474,7 +474,7 @@ export function ChartPanel({
                 </div>
               )}
             </div>
-            <button
+            {/* <button
               className="btn-ghost"
               onClick={handleRefresh}
               disabled={isRefreshing}
@@ -482,7 +482,7 @@ export function ChartPanel({
               style={{ opacity: isRefreshing ? 0.6 : 1 }}
             >
               {isRefreshing ? 'Reforecasting…' : reforecastLabel}
-            </button>
+            </button> */}
           </div>
         </div>
         {isOffBatchCoin && (

@@ -112,7 +112,8 @@ export function ForecastContextPanel({ projData }: ForecastContextPanelProps) {
           </div>
         )}
 
-        <span className="muted small">{producerLabel}</span>
+        {/* The badge already says "Scheduled analysis"; only the on-demand case needs the extra label. */}
+        {!isScheduled && <span className="muted small">{producerLabel}</span>}
         <span className="muted small">{relativeTime}</span>
 
         <span

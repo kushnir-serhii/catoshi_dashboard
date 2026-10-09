@@ -1,6 +1,6 @@
 'use client';
 
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { Line, LineChart, ResponsiveContainer } from 'recharts';
 
 interface SparklineChartProps {
   prices: number[];
@@ -10,7 +10,7 @@ interface SparklineChartProps {
 export function SparklineChart({ prices, isPositive }: SparklineChartProps) {
   if (!prices || prices.length < 2) return null;
 
-  const data = prices.map(v => ({ v }));
+  const data = prices.map((v) => ({ v }));
   // Matches the .delta-up / .delta-dn text these sparklines sit beside.
   const stroke = isPositive ? 'var(--color-green)' : 'var(--color-red)';
 

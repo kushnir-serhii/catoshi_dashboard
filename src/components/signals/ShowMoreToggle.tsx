@@ -17,17 +17,7 @@ export function ShowMoreToggle({
       aria-expanded={expanded}
       aria-controls={controlsId}
       onClick={onToggle}
-      className="small"
-      style={{
-        gridColumn: '1 / -1',
-        justifySelf: 'center',
-        padding: 'var(--sp-2) var(--sp-4)',
-        borderRadius: 'var(--radius-pill)',
-        background: 'var(--surface-2)',
-        border: '1px solid var(--surface-3)',
-        color: 'var(--text-2)',
-        cursor: 'pointer',
-      }}
+      className="rounded-pill border-surface-3 bg-surface-2 text-text-2 col-span-full cursor-pointer justify-self-center border px-4 py-2 text-sm leading-(--lh-normal)"
     >
       {expanded ? 'Show less' : `Show ${hiddenCount} more`}
     </button>

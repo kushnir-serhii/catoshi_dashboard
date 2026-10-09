@@ -1,5 +1,7 @@
 'use client';
 
+import { Muted } from '@/components/ui/Muted';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { ProjectionData } from '@/data/types';
 
 function formatRelativeTime(isoString: string): string {
@@ -28,28 +30,10 @@ interface ForecastContextPanelProps {
 export function ForecastContextPanel({ projData }: ForecastContextPanelProps) {
   if (!projData) {
     return (
-      <div className="forecast-context animate-pulse" style={{ marginTop: 'var(--sp-3)' }}>
-        <div
-          style={{ height: 14, width: '30%', borderRadius: 'var(--radius-sm)', background: 'var(--surface-3)' }}
-        />
-        <div
-          style={{
-            height: 12,
-            width: '60%',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-3)',
-            marginTop: 'var(--sp-2)',
-          }}
-        />
-        <div
-          style={{
-            height: 12,
-            width: '80%',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-3)',
-            marginTop: 'var(--sp-2)',
-          }}
-        />
+      <div className="forecast-context mt-3 space-y-2">
+        <Skeleton className="h-3.5 w-3/10 rounded-sm" />
+        <Skeleton className="h-3 w-3/5 rounded-sm" />
+        <Skeleton className="h-3 w-4/5 rounded-sm" />
       </div>
     );
   }
@@ -66,75 +50,34 @@ export function ForecastContextPanel({ projData }: ForecastContextPanelProps) {
   const reasoningText = projData.reasoning.join(' · ');
 
   return (
-    <div className="forecast-context" style={{ marginTop: 'var(--sp-3)' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--sp-4)',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)' }}>
-          <span
-            style={{
-              fontSize: 'var(--fs-lg)',
-              fontWeight: 600,
-              fontVariantNumeric: 'tabular-nums',
-              color: 'var(--green)',
-              letterSpacing: 'var(--ls-tight)',
-            }}
-          >
+    <div className="forecast-context mt-3">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-baseline gap-2">
+          <span className="text-green text-lg font-semibold tracking-(--ls-tight) tabular-nums">
             {projData.confidence}%
           </span>
-          <span className="muted small">confidence</span>
+          <Muted>confidence</Muted>
         </div>
 
         {projData.scenarioProbabilities && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--sp-3)',
-              fontSize: 'var(--fs-sm)',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            <span style={{ color: 'var(--color-chart-bull)' }}>
-              Bull {projData.scenarioProbabilities.bull}%
-            </span>
-            <span style={{ color: 'var(--color-chart-base)' }}>
-              Base {projData.scenarioProbabilities.base}%
-            </span>
-            <span style={{ color: 'var(--color-chart-bear)' }}>
-              Bear {projData.scenarioProbabilities.bear}%
-            </span>
+          <div className="flex items-center gap-3 text-sm tabular-nums">
+            <span className="text-chart-bull">Bull {projData.scenarioProbabilities.bull}%</span>
+            <span className="text-chart-base">Base {projData.scenarioProbabilities.base}%</span>
+            <span className="text-chart-bear">Bear {projData.scenarioProbabilities.bear}%</span>
           </div>
         )}
 
         {/* The badge already says "Scheduled analysis"; only the on-demand case needs the extra label. */}
-        {!isScheduled && <span className="muted small">{producerLabel}</span>}
-        <span className="muted small">{relativeTime}</span>
+        {!isScheduled && <Muted>{producerLabel}</Muted>}
+        <Muted>{relativeTime}</Muted>
 
-        <span
-          style={{
-            fontSize: 'var(--fs-xs)',
-            padding: 'var(--sp-0) var(--sp-2)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-3)',
-            color: 'var(--text-2)',
-            fontFamily: 'var(--font-mono)',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <span className="bg-surface-3 text-text-2 rounded-sm px-2 py-0.5 font-mono text-xs whitespace-nowrap">
           {badgeLabel}
         </span>
       </div>
 
       {reasoningText && (
-        <p className="muted small" style={{ marginTop: 'var(--sp-2)', lineHeight: 'var(--lh-normal)', marginBottom: 0 }}>
-          {reasoningText}
-        </p>
+        <p className="text-text-3 mt-2 text-sm leading-(--lh-normal)">{reasoningText}</p>
       )}
     </div>
   );

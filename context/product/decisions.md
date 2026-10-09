@@ -367,3 +367,31 @@ can be recognised without a page visit.
 - **Re-run schedule:** Monthly backtest; enable notifications once it reports n > 0.
 
 **Reference:** `context/spec/027-market-pulse/functional-spec.md` §2.7 (Telegram), §2.8 (gate).
+
+## 12. FRED data and monetization: UI changes required if the app takes payment (spec 027)
+
+The macro collector uses the FRED API, so the FRED API Terms of Use apply
+(https://fred.stlouisfed.org/docs/api/terms_of_use.html). Attribution is already in the UI because the
+app may become commercial. **If Catoshi ever adds payment (subscriptions, paywall, paid tier, ads), do
+this before launch, not after:**
+
+1. **Re-read the current FRED API Terms of Use** and record the date and any change here. These notes
+   are a checklist, not a copy of the terms.
+2. **Keep the attribution everywhere the data shows.** The sentence "This product uses the FRED® API but
+   is not endorsed or certified by the Federal Reserve Bank of St. Louis." plus the "FRED API Terms of
+   Use" link stays in every footer, including any new paid-area layout, checkout and marketing page
+   (`FredAttribution`, `src/components/layout/`). Macro cards keep "Source: FRED, as of <date>".
+3. **Add a Terms of Service page** (none exists today). It must say users are also bound by the FRED API
+   Terms of Use, with the link. Link it from the footer and from checkout.
+4. **Copyright on third-party series.** FRED shows "Data in this graph are copyrighted" on its graphs
+   and some series carry owner restrictions in their notes. Open the notes of `DCOILBRENTEU` (EIA),
+   `DGS10` and `DTWEXBGS` (Federal Reserve Board) and confirm nothing forbids commercial use. Do the
+   same for every series added later. The check run on 2026-10-09 was inconclusive (see spec 027
+   decisions.md). If a series is restricted, drop it or get the owner's permission.
+5. **Do not sell the raw FRED data.** The paid value must be the Pulse, signals and analysis built on it,
+   not a redistribution of the series. No data download or export of raw FRED readings in a paid tier.
+6. **Branding stays clean.** No FRB logo, and no "FRED" or "Federal Reserve" in the product name,
+   hostname, plan names or marketing. Do not imply endorsement.
+7. **Pricing and landing copy** must not claim the data is "official" or "Federal Reserve backed".
+8. **Verify like the footer check:** the attribution at 1440px and 375px on the new pages, text at least
+   12px, link opens in a new tab with `rel="noopener noreferrer"`.

@@ -173,7 +173,7 @@ export function ChartPanel({
   onRenameSnapshot,
   onRemoveSnapshot,
 }: ChartPanelProps) {
-  const [histRange, setHistRange] = useState<ChartRange>('3M');
+  const [histRange, setHistRange] = useState<ChartRange>('1M');
   const [fcastRange, setFcastRange] = useState<ChartRange>('1M');
   const [rangeTarget, setRangeTarget] = useState<RangeTarget>('history');
   const [isRefreshing, setIsRefreshing] = useState(false);

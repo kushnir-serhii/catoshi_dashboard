@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { COLLECT_ASSETS } from '@/consts/collect';
 import { TODAY_SCORING_GROUP } from '@/consts/today';
 import type { MarketSnapshot, SourceStatus } from '@/data/types';
+import { collectMacro } from '@/lib/collectors/macro';
 import { collectNewsFeeds } from '@/lib/collectors/newsFeed';
 import { upsertSnapshot } from '@/lib/db/analytics';
 import { persistCollectorStatus, reduceSourceStatuses } from '@/lib/db/collectorStatus';
@@ -11,8 +12,11 @@ import { persistNewsItems } from '@/lib/db/news';
 import { classifyNews } from '@/lib/news/classify';
 import { isNewsClassificationPaused } from '@/lib/news/pause';
 import { publishNews } from '@/lib/news/publish';
+import { runNotify } from '@/lib/pulse/notify';
+import { type FreshPulseByScope, runPulse } from '@/lib/pulse/run';
 import { resolveForecasts } from '@/lib/scoring/resolve';
 import { generateSignals } from '@/lib/signals/generate';
+import { generateMacroSignals } from '@/lib/signals/macro/generate';
 import { buildSnapshot } from '@/lib/snapshotBuilder';
 import { createTodayScoringDeps, runTodayScoring } from '@/lib/todayScoring';
 
@@ -142,7 +146,7 @@ async function handleCollect(request: Request): Promise<NextResponse> {
   // collection run — snapshot data is unrecoverable, signals are regenerable.
   for (const { symbol, snapshot } of committedSnapshots) {
     try {
-      const { sources } = await generateSignals(snapshot);
+      const { sources } = await generateSignals(snapshot, symbol);
       if (sources.length > 0) {
         sourcesBySymbol[symbol] = [...(sourcesBySymbol[symbol] ?? []), ...sources];
       }
@@ -249,6 +253,82 @@ async function handleCollect(request: Request): Promise<NextResponse> {
     sourcesBySymbol.news = [
       ...(sourcesBySymbol.news ?? []),
       { source: 'news:publish', ok: false, error: message },
+    ];
+  }
+
+  // Macro collector (spec 027, Slice 3). After news publication, same isolation
+  // discipline: non-fatal, never fails the run. Internally gated to once per
+  // `MACRO_FETCH_INTERVAL_HOURS`; a missing FRED_API_KEY surfaces as a failing
+  // `macro` status in collector_status rather than a silent skip.
+  try {
+    const { sources: macroSources } = await collectMacro();
+    sourcesBySymbol.macro = [...(sourcesBySymbol.macro ?? []), ...macroSources];
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] macro collection failed:', error);
+    sourcesBySymbol.macro = [
+      ...(sourcesBySymbol.macro ?? []),
+      { source: 'macro', ok: false, error: message },
+    ];
+  }
+
+  // Macro signals (spec 027, Slice 3). Own non-fatal step right after the macro
+  // collector, NOT behind its 6h fetch gate: cards are re-asserted every run from
+  // the stored readings, so a FRED outage leaves the rules reading old readings
+  // that age out by MACRO_MAX_AGE_DAYS (an outage nulls the macro rules only).
+  // Failures report as `signals:<ruleId>` / `signals:macro`, like market-state.
+  try {
+    const { sources: macroRuleSources } = await generateMacroSignals();
+    if (macroRuleSources.length > 0) {
+      sourcesBySymbol.macro = [...(sourcesBySymbol.macro ?? []), ...macroRuleSources];
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] macro signal generation failed:', error);
+    sourcesBySymbol.macro = [
+      ...(sourcesBySymbol.macro ?? []),
+      { source: 'signals:macro', ok: false, error: message },
+    ];
+  }
+
+  // Market Pulse (spec 027, Slice 4). After news publication and the macro rules,
+  // so it reads this run's freshly written signals. Own non-fatal step: computes
+  // one `market_pulse` row per scope at this run's hour (`computed_at = hourTs`).
+  // An insufficient scope stores nothing and reports a note. Statuses persist as
+  // `pulse:<scope>` through the collector_status path below.
+  let pulseFresh: FreshPulseByScope = {};
+  try {
+    // This run's outcomes are persisted only after this step, so overlay them on
+    // the stored statuses (same reduction as the persist step) or `missing` lags a run.
+    const currentStatuses = reduceSourceStatuses(
+      sourcesBySymbol,
+      COLLECT_ASSETS.map((a) => a.symbol),
+    ).map(({ source, ok }) => ({ source, ok }));
+    const { sources: pulseSources, fresh } = await runPulse(hourTs, currentStatuses);
+    sourcesBySymbol.pulse = [...(sourcesBySymbol.pulse ?? []), ...pulseSources];
+    pulseFresh = fresh;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] pulse computation failed:', error);
+    sourcesBySymbol.pulse = [
+      ...(sourcesBySymbol.pulse ?? []),
+      { source: 'pulse', ok: false, error: message },
+    ];
+  }
+
+  // Telegram alerts (spec 027, Slice 7; operator only). After the Pulse compute,
+  // from this run's fresh results. Own non-fatal step: off unless
+  // PULSE_NOTIFY_VERDICT is A or B (then it touches neither DB nor network). A
+  // failure reports as source `telegram` and never fails the run.
+  try {
+    const telegramStatus = await runNotify(hourTs, pulseFresh);
+    sourcesBySymbol.telegram = [...(sourcesBySymbol.telegram ?? []), telegramStatus];
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[collect] telegram notification failed:', message);
+    sourcesBySymbol.telegram = [
+      ...(sourcesBySymbol.telegram ?? []),
+      { source: 'telegram', ok: false, error: message },
     ];
   }
 

@@ -144,6 +144,9 @@ through `SourceStatus`, and never touches the market-state feed.
 `signals` (`kind = 'news'`) is the published, expiring feed row. `signals.asset_id` was
 made nullable (migration `0009`) for market-scope news; the "market_state rows always name
 an asset" guarantee moved into `signals_kind_shape_check`.
+Migration `0013` (spec 027) adds nullable `news_classifications.content_type` (`'event'` |
+`'opinion'`; NULL under older prompt versions) and `news_items.cluster_id` (bigint; NULL
+until clustered).
 
 **Read and surface.** `GET /api/signals` gained `?scope=market|BTC|ETH|SOL`; live news is
 `kind = 'news' AND expires_at > now()` — expired rows stay in the table for scoring but

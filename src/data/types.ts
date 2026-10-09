@@ -56,6 +56,11 @@ export interface SignalItem {
    */
   since: string;
   coins: Array<'BTC' | 'ETH' | 'SOL' | 'LINK' | 'ARB' | 'TAO'>;
+  /**
+   * Origin of the row (`public.signals.kind`). Absent on mock data, which is
+   * all market-state. `macro` rows (FRED) carry an observation date in `since`.
+   */
+  kind?: 'market_state' | 'macro';
 }
 
 /** Scope of a news signal: the whole market, or one tracked asset. */
@@ -68,6 +73,15 @@ export type NewsScope = 'market' | 'BTC' | 'ETH' | 'SOL';
  * unaffected by this spec). The Signals page renders these in a distinct
  * section.
  */
+/** One outlet that reported a news event (spec 027). */
+export interface NewsSource {
+  /** Source name (`news_items.source`). */
+  source: string;
+  url: string;
+  title: string;
+  publishedAt: string;
+}
+
 export interface NewsSignalItem {
   id: string;
   kind: 'news';
@@ -79,6 +93,10 @@ export interface NewsSignalItem {
   source: string;
   /** Outbound link to the original article (`news_items.url`). */
   sourceUrl: string;
+  /** Every outlet in this event's cluster (representative included), oldest first. At least one. */
+  sources: NewsSource[];
+  /** 'opinion' gets an "Opinion" badge; null for classifications from older prompt versions. */
+  contentType: 'event' | 'opinion' | null;
   /** The article's own publication time — drives the displayed age. Never classification/render time. */
   publishedAt: string;
   /** `published_at + horizon_hours`. Past this the row is excluded from live results. */
@@ -463,4 +481,95 @@ export type TodayResponse =
       reason: TodayUnavailableReason;
       lastBarTs?: string;
       klinesFailure?: string;
+    };
+
+/* ========================================================================== *
+ * Market Pulse (spec 027, Slice 4).
+ * ========================================================================== */
+
+/**
+ * Scope of a Pulse computation: the whole market, or one tracked asset.
+ * Kept in sync with `TRACKED_COINS` (src/consts/signals.ts), which defines
+ * the assets that have snapshot rows and can have signals/Pulse computed.
+ */
+export type PulseScope = 'market' | 'BTC' | 'ETH' | 'SOL';
+
+/**
+ * Signal driver: one input that contributed to the final Pulse score.
+ * Displays as a row in the Pulse card's rationale section.
+ */
+export interface PulseDriver {
+  /**
+   * `public.signals` row id of the underlying card. For a news cluster it is
+   * the representative (collapsed) card's id, so the chip can scroll to it.
+   */
+  signalId: string;
+  /** Human-readable rule/signal name. */
+  label: string;
+  /** Display string shown on the card (may include severity/metadata). */
+  display: string;
+  /** Direction of the signal: 1 for bullish, -1 for bearish. */
+  sign: 1 | -1;
+}
+
+/**
+ * Market Pulse response (spec 027 technical §7). One of four status variants:
+ * 'ok' (computed score), 'stale' (has Pulse but older than tolerance),
+ * 'insufficient' (too few inputs), or 'unavailable' (cannot compute at all).
+ *
+ * The 'ok' variant carries the full model output: bull/bear indices (0..100),
+ * their aggregate value, conflict flag, input count, drivers (rationale),
+ * summary text, missing categories, previous-24h for comparison, and next
+ * macro event if within lookahead window.
+ */
+export type PulseResponse =
+  | {
+      status: 'ok';
+      scope: PulseScope;
+      /** ISO timestamp when this Pulse was computed. */
+      computedAt: string;
+      /** Bull-side index, 0..100. */
+      bull: number;
+      /** Bear-side index, 0..100. */
+      bear: number;
+      /** Aggregate Pulse value (bull − bear, −100..+100), where positive = bullish. */
+      value: number;
+      /** True when both sides exceed PULSE_CONFLICT_MIN, signaling uncertainty. */
+      conflict: boolean;
+      /** Number of signal inputs used in this computation. */
+      inputCount: number;
+      /** Ordered list of top drivers (rationale) contributing to the score. */
+      drivers: PulseDriver[];
+      /** One-sentence summary of the Pulse reading. */
+      summary: string;
+      /**
+       * Categories whose collectors all fail, plus partially failing news
+       * (k = feeds still working). Example: ["macro", "news (2/3 feeds)"].
+       */
+      missing: string[];
+      /**
+       * Previous 24h Pulse value for comparison, or null if stale or unavailable.
+       * Allows users to see trend ("was bullish, now bearish").
+       */
+      prev24h: number | null;
+      /**
+       * Next upcoming macro event within the lookahead window (72h), or null if
+       * none or the calendar is stale. Used for "X releases in 6h" context.
+       */
+      nextEvent: { ts: string; title: string } | null;
+      /** Pulse model version; bumped when the formula or weights change. */
+      modelVersion: number;
+    }
+  | {
+      status: 'stale';
+      /** ISO timestamp of the last computation. */
+      computedAt: string;
+    }
+  | {
+      status: 'insufficient';
+      /** Number of inputs available (below PULSE_MIN_INPUTS). */
+      inputCount: number;
+    }
+  | {
+      status: 'unavailable';
     };

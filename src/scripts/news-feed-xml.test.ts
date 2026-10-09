@@ -190,6 +190,24 @@ section('parseFeedXml — Dublin Core dc:date');
 }
 
 // ---------------------------------------------------------------------------
+section('parseFeedXml — CDATA-wrapped <link> (Cointelegraph)');
+// ---------------------------------------------------------------------------
+
+{
+  const rss = `<rss version="2.0"><channel><item>
+    <title>Bitcoin ETFs rebound</title>
+    <pubDate>Wed, 07 Oct 2026 09:03:38 +0000</pubDate>
+    <link><![CDATA[https://cointelegraph.com/markets/x?utm_source=rss_feed&utm_medium=rss]]></link>
+  </item></channel></rss>`;
+  const items = parseFeedXml(rss);
+  check(
+    'CDATA link is unwrapped and entity-decoded',
+    items[0]?.link === 'https://cointelegraph.com/markets/x?utm_source=rss_feed&utm_medium=rss',
+    items[0]?.link,
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 console.log(
   failures === 0

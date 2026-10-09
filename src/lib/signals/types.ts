@@ -1,4 +1,5 @@
 import type { MarketSnapshot } from '@/data/types';
+import type { OHLCV } from '@/lib/collectors/binanceKlines';
 
 /**
  * Sentiment label a rule assigns to the condition it detected. Matches the
@@ -30,6 +31,20 @@ export interface Signal {
 }
 
 /**
+ * Per-run, per-asset data that is not on the snapshot (spec 027 technical §4.1).
+ * Loaded once by the run loop; rules never fetch for themselves.
+ */
+export interface RuleContext {
+  /**
+   * 4h candles, closed only (the still-open candle is dropped), ordered
+   * oldest to newest. EMPTY when the fetch failed, and may be shorter than
+   * the requested limit. A rule that needs it must treat an empty or too-short
+   * series as null input and return `null` (null discipline below).
+   */
+  history4h: OHLCV[];
+}
+
+/**
  * A pure rule. Given the current snapshot and the previous one (or `null` when
  * there is no prior snapshot), it returns a `Signal` if its condition holds, or
  * `null`. It performs no I/O.
@@ -39,7 +54,11 @@ export interface Signal {
  * or any other default — a rule reading funding must stay silent when funding is
  * unknown, not announce a flip to zero.
  */
-export type Rule = (snapshot: MarketSnapshot, previous: MarketSnapshot | null) => Signal | null;
+export type Rule = (
+  snapshot: MarketSnapshot,
+  previous: MarketSnapshot | null,
+  ctx: RuleContext,
+) => Signal | null;
 
 /**
  * A rule paired with its stable id. The id is carried here (not only inside the

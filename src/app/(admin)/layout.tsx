@@ -1,4 +1,4 @@
-import { Header } from '@/components/layout';
+import { FredAttribution, Header } from '@/components/layout';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -8,6 +8,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="app">
         <Header />
         <main id="main-content">{children}</main>
+        <footer className="app-footer">
+          <FredAttribution />
+        </footer>
       </div>
     </div>
   );

@@ -157,7 +157,7 @@ const SNAPSHOT_COLUMNS = [
 ] as const;
 
 /** snake_case `snapshots` row -> camelCase MarketSnapshot. */
-function fromSnapshotRow(row: Record<string, unknown>): MarketSnapshot {
+export function fromSnapshotRow(row: Record<string, unknown>): MarketSnapshot {
   return {
     id: row.id as number,
     assetId: row.asset_id as number,

@@ -1,10 +1,13 @@
+import { COLLECT_ASSETS } from '@/consts/collect';
+import { SIGNALS_HISTORY_4H_LIMIT } from '@/consts/signals';
 import type { MarketSnapshot, SourceStatus } from '@/data/types';
+import { fetchKlines, type OHLCV } from '@/lib/collectors/binanceKlines';
 import { getSnapshotBefore } from '@/lib/db/analytics';
 import { query } from '@/lib/db/client';
 
 import { RULES } from './rules';
 import { clamp01 } from './severity';
-import type { Signal } from './types';
+import type { Rule, RuleContext, Signal } from './types';
 
 /**
  * Signal generation for spec 014, Slice 4. Runs every deterministic rule in
@@ -43,12 +46,13 @@ export interface SignalGenerationResult {
 /** Runs `rule` defensively; a throw becomes `[null, failedStatus]`. */
 function runRule(
   ruleId: string,
-  run: (s: MarketSnapshot, p: MarketSnapshot | null) => Signal | null,
+  run: Rule,
   snapshot: MarketSnapshot,
   previous: MarketSnapshot | null,
+  ctx: RuleContext,
 ): [Signal | null, SourceStatus | null] {
   try {
-    return [run(snapshot, previous), null];
+    return [run(snapshot, previous, ctx), null];
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[signals] rule "${ruleId}" threw:`, error);
@@ -57,21 +61,47 @@ function runRule(
 }
 
 /**
+ * Loads the asset's 4h history once for this run and drops the still-open
+ * candle (Binance always returns it last, with `closeTime` in the future).
+ * A failed fetch (or unknown symbol) yields an empty series and never throws.
+ */
+async function loadHistory4h(symbol: string): Promise<OHLCV[]> {
+  const asset = COLLECT_ASSETS.find((a) => a.symbol === symbol);
+  if (!asset) {
+    console.error(`[signals] no Binance pair for symbol "${symbol}"; history4h empty`);
+    return [];
+  }
+  const result = await fetchKlines(asset.binancePair, '4h', SIGNALS_HISTORY_4H_LIMIT);
+  if (!result.ok) {
+    console.error(`[signals] 4h history unavailable for ${symbol}; history4h empty`);
+    return [];
+  }
+  const now = Date.now();
+  return result.candles.filter((c) => c.closeTime < now);
+}
+
+/**
  * Generates and persists signals for one asset's freshly written snapshot.
  *
  * @param snapshot the just-committed snapshot row (must carry a real `assetId`
  *   and `ts`).
+ * @param symbol the asset's `CollectAsset.symbol`, used to load its 4h history.
  */
-export async function generateSignals(snapshot: MarketSnapshot): Promise<SignalGenerationResult> {
+export async function generateSignals(
+  snapshot: MarketSnapshot,
+  symbol: string,
+): Promise<SignalGenerationResult> {
   const sources: SourceStatus[] = [];
 
   // One fetch: feeds both the rules that compare against the prior hour and the
   // `since_ts` carry-forward lookup below.
   const previous = await getSnapshotBefore(snapshot.assetId, snapshot.ts);
 
+  const ctx: RuleContext = { history4h: await loadHistory4h(symbol) };
+
   const fired: Signal[] = [];
   for (const { ruleId, run } of RULES) {
-    const [signal, failure] = runRule(ruleId, run, snapshot, previous);
+    const [signal, failure] = runRule(ruleId, run, snapshot, previous, ctx);
     if (failure) {
       sources.push(failure);
     }

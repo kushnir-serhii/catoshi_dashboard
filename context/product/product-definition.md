@@ -132,13 +132,13 @@ deletes the code and copy that implies otherwise.
   rates. It never tells anyone to buy or sell, and every forecast surface carries a
   non-financial-advice disclaimer.
 - **Alerting** — No email or push alerts in this version.
+  - **Bounded exception (spec 027, 2026-10-09):** Operator-only Telegram notifications for Market Pulse confluence, conflict and reversal alerts; environment-variable token and chat ID; gated by backtest verdict (currently Verdict B; disabled until n > 0); no visitor notifications or user data collected.
 
 ### 3.3. Boundary Test
 
 If a proposed feature needs to know _who the user is_ or _what they own_, it is out of
 scope. If it needs only _what the market did_, it is in scope.
 
-**One deliberate, bounded exception (spec 022):** identity is used solely to attribute and
-meter the paid Reforecast action — three forecasts per signed-in person per day — and for
-the admin role that grants that metering. It is not a licence to add any further feature
-that depends on knowing who the user is.
+**Two deliberate, bounded exceptions:**
+- **(spec 022)** Identity is used solely to attribute and meter the paid Reforecast action — three forecasts per signed-in person per day — and for the admin role that grants that metering. It is not a licence to add any further feature that depends on knowing who the user is.
+- **(spec 027, operator only)** Telegram notifications for Market Pulse alerts are sent to the operator via environment-variable token and chat ID. They describe the market state and depend only on signal data, not on visitor identity or holdings. This exception does not extend to any feature that tracks user activity or actions.

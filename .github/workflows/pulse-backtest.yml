@@ -1,0 +1,109 @@
+name: Market Pulse backtest Gate
+
+# Runs src/scripts/pulse-backtest.ts (spec 027, Slice 6 — the Gate, functional
+# §2.8 / technical §8.1) on a GitHub Actions runner.
+#
+# WHY A RUNNER. The replay needs 4h klines for the range_break rule. Binance
+# futures (fapi.binance.com) and api.binance.com answer HTTP 451 to runner IPs;
+# data-api.binance.vision (spot history) does not (see today-range-backtest.yml).
+#
+# DATABASE ACCESS IS READ-ONLY. The script issues SELECT statements only: it
+# reads snapshots, signals, news_items, news_classifications and macro_readings,
+# and writes nothing to the database (no market_pulse rows, no signals, no
+# notifications). DATABASE_URL is passed to the one step that runs it and to
+# nothing else.
+#
+# The uploaded artifact (.cache/pulse-backtest/out/) is the evidence behind the
+# functional §2.8 verdict and PULSE_BACKTEST_N. It is retained far longer than
+# the log on purpose.
+#
+# workflow_dispatch ONLY. No schedule — every run here is a human decision.
+# NOTE: a workflow_dispatch workflow can only be triggered once it exists on the
+# default branch. To run it from market-backfill-status before merging, add the
+# same push trigger fred-reachability.yml uses, e.g.
+#   push:
+#     branches: [market-backfill-status]
+#     paths: ['.github/workflows/pulse-backtest.yml', 'src/scripts/pulse-backtest.ts']
+# Left out on purpose until the operator chooses to run it on Actions.
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Replay only the last N days (empty = all live-collected history)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+# No `concurrency` group. This workflow writes nothing shared — no database
+# write, no repository commit — so the `catoshi-db-write` group that guards
+# backfill.yml / verify-backfill.yml does not apply here.
+
+jobs:
+  pulse-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # Same npm 10-vs-11 lockfile issue as today-range-backtest.yml.
+      - name: Upgrade npm
+        run: npm install -g npm@11
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run the Gate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          set -o pipefail
+          echo ">>> MARKET PULSE GATE — days=${DAYS:-all}"
+          if [ -n "$DAYS" ]; then
+            npm run pulse-backtest -- --days "$DAYS" 2>&1 | tee pulse-backtest.log
+          else
+            npm run pulse-backtest 2>&1 | tee pulse-backtest.log
+          fi
+
+      - name: Append report to job summary
+        if: always()
+        run: |
+          {
+            echo "## Market Pulse Gate report"
+            echo ''
+            if [ -f .cache/pulse-backtest/out/pulse-backtest-report.md ]; then
+              cat .cache/pulse-backtest/out/pulse-backtest-report.md
+            else
+              echo "(no report — the run step failed before writing one; see the log)"
+              echo ''
+              echo '```'
+              if [ -f pulse-backtest.log ]; then tail -n 40 pulse-backtest.log; fi
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report and results JSON (long retention — outlives the log)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulse-backtest-results-${{ github.run_id }}
+          path: .cache/pulse-backtest/out/
+          retention-days: 400
+
+      - name: Upload full log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulse-backtest-log-${{ github.run_id }}
+          path: pulse-backtest.log
+          retention-days: 90

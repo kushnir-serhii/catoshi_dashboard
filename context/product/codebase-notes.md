@@ -46,6 +46,36 @@ LLM-classified: `src/lib/news/classify.ts` is a second structured tool-use consu
 alongside the forecast prompt (spec 015). The original spec 002 design (no persistence,
 no scope, no falsifiable claim) is fully superseded.
 
+## Market Pulse Synthesis (spec 027)
+
+**Pulse layer** (`src/lib/pulse/`): `compute.ts` and `summary.ts` are pure. Per signal,
+severity c = sign·severity·W[category]·decay·opinionFactor, with per-category caps;
+clustered news counts once; null-content-type news excluded. Bull/bear curves are
+100·(1−exp(−raw/K)); conflict holds when both ≥ 50. `run.ts` executes inside
+`/api/collect` after market-state signal generation and macro rules, storing to
+`public.market_pulse` (migration 0017). `response.ts` handles `GET /api/pulse` status
+logic (ok/stale/insufficient/unavailable; stale after `SIGNALS_FRESHNESS_HOURS`).
+Notifications (`notify-decision.ts`, `notify.ts`, `message.ts`, `telegram.ts`) handle
+alerts stored in `public.pulse_notifications` (migration 0018). Replay gate:
+`backtest.ts`, `backtest-report.ts`, `src/scripts/pulse-backtest.ts` (npm script
+`pulse-backtest`), read-only verdicts. Live-signal queries shared in
+`src/lib/db/signals-live.ts`. UI: `src/components/signals/MarketPulse.tsx`,
+`PulseBar`, `PulseScopeSwitch`, `PulseDriverChips` components, `useMarketPulse` and
+`useCardHighlight` hooks.
+
+**Macro collector** (`src/lib/collectors/macro.ts`): FRED API fetches Brent, US 10Y, broad
+dollar observations with 6h gate and 5s per-series timeout, non-fatal on error. Stores raw
+readings to `public.macro_readings` (migration 0015). Rules in `src/lib/signals/macro/` write
+signals of kind `macro` with asset_id NULL (migration 0016), where since_ts = observation date.
+Liveness per series from `MACRO_MAX_AGE_DAYS`. FRED API Terms of Use require the footer attribution (`FredAttribution`, in the admin and landing footers) and a "Source: FRED, as of <date>" line on macro cards. Event calendar is hand-maintained in
+`src/data/macro-calendar.json`, read via `src/lib/macro/calendar.ts`.
+
+**Cluster step** (`src/lib/news/cluster.ts`): Runs at ingest with overlap coefficient
+≥ 0.35, ≥ 2 shared entities, series-prefix strip, and direction/amount guards (first
+direction word only). Read-path collapse in `src/lib/news/collapse.ts`. News prompt
+now `news-v3`. Collector status `detail` (migration 0014) carries per-run notes like
+drop counts.
+
 ## Forecast Scoring (spec 011)
 
 Forecasts persist their three scenario price curves and probabilities in

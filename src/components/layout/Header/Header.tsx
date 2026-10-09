@@ -65,10 +65,10 @@ export const Header: React.FC = () => {
 
   return (
     <div ref={menuRef}>
-      <header className="border-line bg-surface flex items-center justify-between gap-4 rounded-lg border bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] px-4 py-3 backdrop-blur-[8px] max-[1024px]:flex-nowrap max-[1024px]:gap-3 max-[768px]:gap-2 max-[768px]:px-3 max-[768px]:py-2 max-[390px]:px-2">
+      <header className="border-line bg-surface flex items-center justify-between gap-4 rounded-lg border bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] px-4 py-3 backdrop-blur-sm max-[1024px]:flex-nowrap max-[1024px]:gap-3 max-[768px]:gap-2 max-[768px]:px-3 max-[768px]:py-2 max-[390px]:px-2">
         <a
           href="#main-content"
-          className="bg-surface-3 text-text absolute top-0 -left-[9999px] z-(--z-skip-link) rounded px-4 py-3 text-sm no-underline focus-visible:top-3 focus-visible:left-3 focus-visible:rounded-sm"
+          className="bg-surface-3 text-text absolute top-0 -left-2499.75 z-(--z-skip-link) rounded px-4 py-3 text-sm no-underline focus-visible:top-3 focus-visible:left-3 focus-visible:rounded-sm"
         >
           Skip to main content
         </a>
@@ -95,7 +95,7 @@ export const Header: React.FC = () => {
             'max-[1024px]:visible max-[1024px]:mt-3 max-[1024px]:max-h-120 max-[1024px]:translate-y-0 max-[1024px]:opacity-100 max-[1024px]:[transition-delay:0s]',
         )}
       >
-        <nav className="border-line bg-surface flex flex-col gap-0.5 rounded-lg border bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] p-2 backdrop-blur-[8px] max-[640px]:px-0 max-[640px]:pb-0">
+        <nav className="border-line bg-surface flex flex-col gap-0.5 rounded-lg border bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] p-2 backdrop-blur-sm max-[640px]:px-0 max-[640px]:pb-0">
           {renderLinks('mobile')}
         </nav>
       </div>

@@ -31,6 +31,7 @@ import {
   NEWS_CLASSIFY_INTERVAL_HOURS,
   NEWS_CLASSIFY_MAX_PER_RUN,
   NEWS_CLASSIFY_MODEL,
+  NEWS_HORIZON_CAP_HOURS,
   NEWS_HORIZON_HOURS_MAX,
   NEWS_HORIZON_HOURS_MIN,
   NEWS_PROMPT_VERSION,
@@ -73,6 +74,12 @@ const TOOL_INPUT_SCHEMA: Anthropic.Tool['input_schema'] = {
             type: 'integer',
             description: `Integer in [${NEWS_HORIZON_HOURS_MIN}, ${NEWS_HORIZON_HOURS_MAX}]`,
           },
+          content_type: {
+            type: 'string',
+            enum: ['event', 'opinion'],
+            description:
+              "'event' if something happened or was decided; 'opinion' for columns, previews, price-target talk",
+          },
           confidence: { type: 'number', description: '0..1, how sure the classifier is' },
           rationale: {
             type: 'string',
@@ -85,6 +92,7 @@ const TOOL_INPUT_SCHEMA: Anthropic.Tool['input_schema'] = {
           'direction',
           'magnitude',
           'horizon_hours',
+          'content_type',
           'confidence',
           'rationale',
         ],
@@ -105,6 +113,7 @@ export interface RawClassification {
   direction?: unknown;
   magnitude?: unknown;
   horizon_hours?: unknown;
+  content_type?: unknown;
   confidence?: unknown;
   rationale?: unknown;
 }
@@ -117,13 +126,28 @@ export interface ValidClassification {
   direction: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   magnitude: 'LOW' | 'MEDIUM' | 'HIGH';
   horizonHours: number;
+  contentType: 'event' | 'opinion';
   confidence: number;
   rationale: string;
 }
 
+/** Why a classification entry was not persisted. */
+export type DropReason =
+  | 'scope_drop'
+  | 'horizon_cap'
+  | 'missing_content_type'
+  | 'omitted'
+  | 'invalid_other';
+
+export type DropCounts = Record<DropReason, number>;
+
+export function emptyDropCounts(): DropCounts {
+  return { scope_drop: 0, horizon_cap: 0, missing_content_type: 0, omitted: 0, invalid_other: 0 };
+}
+
 export type ValidationResult =
   | { ok: true; value: ValidClassification }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; code: DropReason };
 
 export interface PendingNewsItem {
   id: number;
@@ -157,6 +181,8 @@ export interface ClassifyNewsResult {
   classified: number;
   /** Items seen but not persisted (invalid, unresolvable, or omitted by the model). */
   dropped: number;
+  /** `dropped` broken down by reason. */
+  dropCounts: DropCounts;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,7 +200,10 @@ export function validateClassification(
   trackedSymbols: readonly string[],
 ): ValidationResult {
   const scopeRaw = typeof raw.scope === 'string' ? raw.scope.trim() : '';
-  if (!scopeRaw) return { ok: false, reason: 'missing scope' };
+  if (!scopeRaw) return { ok: false, reason: 'missing scope', code: 'invalid_other' };
+  if (scopeRaw.toLowerCase() === 'drop') {
+    return { ok: false, reason: 'scope drop (intentional)', code: 'scope_drop' };
+  }
 
   let scope: string;
   let assetSymbol: string | null;
@@ -184,7 +213,11 @@ export function validateClassification(
   } else {
     const symbol = scopeRaw.toUpperCase();
     if (!trackedSymbols.includes(symbol)) {
-      return { ok: false, reason: `scope "${scopeRaw}" is not 'market' and not a tracked symbol` };
+      return {
+        ok: false,
+        reason: `scope "${scopeRaw}" is not 'market' and not a tracked symbol`,
+        code: 'invalid_other',
+      };
     }
     scope = symbol;
     assetSymbol = symbol;
@@ -195,34 +228,68 @@ export function validateClassification(
     return {
       ok: false,
       reason: `direction "${String(raw.direction)}" not in BULLISH|BEARISH|NEUTRAL`,
+      code: 'invalid_other',
     };
   }
 
   const magnitude = typeof raw.magnitude === 'string' ? raw.magnitude.trim().toUpperCase() : '';
   if (!MAGNITUDES.has(magnitude)) {
-    return { ok: false, reason: `magnitude "${String(raw.magnitude)}" not in LOW|MEDIUM|HIGH` };
+    return {
+      ok: false,
+      reason: `magnitude "${String(raw.magnitude)}" not in LOW|MEDIUM|HIGH`,
+      code: 'invalid_other',
+    };
   }
 
   const horizonNum =
     typeof raw.horizon_hours === 'number' ? raw.horizon_hours : Number(raw.horizon_hours);
   if (!Number.isFinite(horizonNum)) {
-    return { ok: false, reason: `horizon_hours "${String(raw.horizon_hours)}" is not a number` };
+    return {
+      ok: false,
+      reason: `horizon_hours "${String(raw.horizon_hours)}" is not a number`,
+      code: 'invalid_other',
+    };
   }
   const horizonHours = Math.round(horizonNum);
   if (horizonHours < NEWS_HORIZON_HOURS_MIN || horizonHours > NEWS_HORIZON_HOURS_MAX) {
     return {
       ok: false,
       reason: `horizon_hours ${horizonHours} outside [${NEWS_HORIZON_HOURS_MIN}, ${NEWS_HORIZON_HOURS_MAX}]`,
+      code: 'invalid_other',
     };
   }
 
+  const horizonCap = NEWS_HORIZON_CAP_HOURS[magnitude as ValidClassification['magnitude']];
+  if (horizonHours > horizonCap) {
+    return {
+      ok: false,
+      reason: `horizon_hours ${horizonHours} exceeds the ${magnitude} cap of ${horizonCap}`,
+      code: 'horizon_cap',
+    };
+  }
+
+  const contentTypeRaw =
+    typeof raw.content_type === 'string' ? raw.content_type.trim().toLowerCase() : '';
+  if (contentTypeRaw !== 'event' && contentTypeRaw !== 'opinion') {
+    return {
+      ok: false,
+      reason: `content_type "${String(raw.content_type)}" not in event|opinion`,
+      code: 'missing_content_type',
+    };
+  }
+  const contentType = contentTypeRaw;
+
   const confidence = typeof raw.confidence === 'number' ? raw.confidence : Number(raw.confidence);
   if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
-    return { ok: false, reason: `confidence "${String(raw.confidence)}" outside 0..1` };
+    return {
+      ok: false,
+      reason: `confidence "${String(raw.confidence)}" outside 0..1`,
+      code: 'invalid_other',
+    };
   }
 
   const rationale = typeof raw.rationale === 'string' ? raw.rationale.trim() : '';
-  if (!rationale) return { ok: false, reason: 'missing rationale' };
+  if (!rationale) return { ok: false, reason: 'missing rationale', code: 'invalid_other' };
 
   return {
     ok: true,
@@ -232,6 +299,7 @@ export function validateClassification(
       direction: direction as ValidClassification['direction'],
       magnitude: magnitude as ValidClassification['magnitude'],
       horizonHours,
+      contentType,
       confidence,
       rationale,
     },
@@ -307,6 +375,8 @@ interface BatchOutcome {
   /** Every item id in the batch — all terminal once a batch call succeeds. */
   terminalItemIds: number[];
   droppedCount: number;
+  dropCounts: DropCounts;
+  costUsd: number | null;
 }
 
 /**
@@ -364,17 +434,22 @@ async function classifyBatch(
 
   const inserts: ClassificationInsert[] = [];
   let droppedCount = 0;
+  const dropCounts = emptyDropCounts();
+  const drop = (reason: DropReason): void => {
+    droppedCount += 1;
+    dropCounts[reason] += 1;
+  };
 
   for (const item of batch) {
     const raw = byId.get(String(item.id));
     if (!raw) {
-      droppedCount += 1;
+      drop('omitted');
       continue;
     }
 
     const result = validateClassification(raw, trackedSymbols);
     if (!result.ok) {
-      droppedCount += 1;
+      drop(result.code);
       continue;
     }
 
@@ -383,7 +458,7 @@ async function classifyBatch(
     if (value.assetSymbol && assetId === null) {
       // Asset scope we cannot resolve to an `assets.id` — dropping is safer
       // than writing a row that violates the FK / scope-asset check.
-      droppedCount += 1;
+      drop('invalid_other');
       continue;
     }
 
@@ -394,6 +469,7 @@ async function classifyBatch(
       direction: value.direction,
       magnitude: value.magnitude,
       horizonHours: value.horizonHours,
+      contentType: value.contentType,
       confidence: value.confidence,
       rationale: value.rationale,
       model: NEWS_CLASSIFY_MODEL,
@@ -404,12 +480,25 @@ async function classifyBatch(
     });
   }
 
-  return { inserts, terminalItemIds: batch.map((item) => item.id), droppedCount };
+  return {
+    inserts,
+    terminalItemIds: batch.map((item) => item.id),
+    droppedCount,
+    dropCounts,
+    costUsd,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Orchestrator
 // ---------------------------------------------------------------------------
+
+function formatDropNote(classified: number, dropCounts: DropCounts): string {
+  const parts = (Object.keys(dropCounts) as DropReason[]).map(
+    (reason) => `${reason}=${dropCounts[reason]}`,
+  );
+  return `classified=${classified} ${parts.join(' ')}`;
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -425,7 +514,12 @@ export async function classifyNews(deps: ClassifyNewsDeps = {}): Promise<Classif
 
   // Mock mode: no API call, no DB, no-op ok status.
   if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') {
-    return { sources: [{ source: SOURCE, ok: true }], classified: 0, dropped: 0 };
+    return {
+      sources: [{ source: SOURCE, ok: true }],
+      classified: 0,
+      dropped: 0,
+      dropCounts: emptyDropCounts(),
+    };
   }
 
   const loadLastRunAt = deps.loadLastRunAt ?? defaultLoadLastRunAt;
@@ -442,10 +536,16 @@ export async function classifyNews(deps: ClassifyNewsDeps = {}): Promise<Classif
       sources: [{ source: SOURCE, ok: false, error: errorMessage(error) }],
       classified: 0,
       dropped: 0,
+      dropCounts: emptyDropCounts(),
     };
   }
   if (!isCadenceElapsed(lastRunAt, now)) {
-    return { sources: [{ source: SOURCE, ok: true }], classified: 0, dropped: 0 };
+    return {
+      sources: [{ source: SOURCE, ok: true }],
+      classified: 0,
+      dropped: 0,
+      dropCounts: emptyDropCounts(),
+    };
   }
 
   // Work list, capped.
@@ -457,10 +557,16 @@ export async function classifyNews(deps: ClassifyNewsDeps = {}): Promise<Classif
       sources: [{ source: SOURCE, ok: false, error: errorMessage(error) }],
       classified: 0,
       dropped: 0,
+      dropCounts: emptyDropCounts(),
     };
   }
   if (pending.length === 0) {
-    return { sources: [{ source: SOURCE, ok: true }], classified: 0, dropped: 0 };
+    return {
+      sources: [{ source: SOURCE, ok: true }],
+      classified: 0,
+      dropped: 0,
+      dropCounts: emptyDropCounts(),
+    };
   }
 
   let assetIdBySymbol: Record<string, number>;
@@ -471,6 +577,7 @@ export async function classifyNews(deps: ClassifyNewsDeps = {}): Promise<Classif
       sources: [{ source: SOURCE, ok: false, error: errorMessage(error) }],
       classified: 0,
       dropped: 0,
+      dropCounts: emptyDropCounts(),
     };
   }
 
@@ -479,6 +586,7 @@ export async function classifyNews(deps: ClassifyNewsDeps = {}): Promise<Classif
   const sources: SourceStatus[] = [];
   let classified = 0;
   let dropped = 0;
+  const dropCounts = emptyDropCounts();
 
   for (let offset = 0; offset < pending.length; offset += NEWS_CLASSIFY_BATCH_SIZE) {
     const batch = pending.slice(offset, offset + NEWS_CLASSIFY_BATCH_SIZE);
@@ -488,16 +596,21 @@ export async function classifyNews(deps: ClassifyNewsDeps = {}): Promise<Classif
       await persist(outcome.inserts, outcome.terminalItemIds);
       classified += outcome.inserts.length;
       dropped += outcome.droppedCount;
+      for (const reason of Object.keys(dropCounts) as DropReason[]) {
+        dropCounts[reason] += outcome.dropCounts[reason];
+      }
     } catch (error: unknown) {
       // API error, malformed tool output, or transaction failure. Write
       // nothing for this batch; its items stay classified_at IS NULL and are
       // retried next run. Stop here — a failing model call will keep failing.
       console.error('[news:classify] batch failed:', error);
       sources.push({ source: SOURCE, ok: false, error: errorMessage(error) });
-      return { sources, classified, dropped };
+      return { sources, classified, dropped, dropCounts };
     }
   }
 
-  sources.push({ source: SOURCE, ok: true });
-  return { sources, classified, dropped };
+  // Intentional `scope_drop`s are only recorded, never a failure: the status
+  // stays ok and the counts ride along in `note`.
+  sources.push({ source: SOURCE, ok: true, note: formatDropNote(classified, dropCounts) });
+  return { sources, classified, dropped, dropCounts };
 }

@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 
-import type { NewsScope, NewsSignalItem, SignalItem } from '@/data/types';
+import { MarketPulse, NewsCard, ShowMoreToggle } from '@/components/signals';
+import { SIGNALS_EXPANDED_COUNT } from '@/consts/signals';
+import type { NewsSignalItem, SignalItem } from '@/data/types';
+import { useCardHighlight } from '@/hooks/useCardHighlight';
 import { useSignals } from '@/hooks/useSignals';
 import { formatSnapshotAge, isSnapshotStale, marketEmptyStateCopy } from '@/lib/freshness';
 import {
@@ -102,6 +105,13 @@ function formatDuration(since: string): string {
   return `for ${Math.round(hours / 24)}d`;
 }
 
+/** "MM-DD" of a FRED observation date (a calendar date, so read in UTC). */
+function macroObservedLabel(since: string): string {
+  const d = new Date(since);
+  if (Number.isNaN(d.getTime())) return 'n/a';
+  return `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
 function SignalCard({ s }: { s: SignalItem }) {
   const tagClass = s.tag === 'BULLISH' ? 'bullish' : s.tag === 'BEARISH' ? 'bearish' : 'neutral';
   const sinceTime = new Date(s.since).toLocaleTimeString([], {
@@ -109,8 +119,18 @@ function SignalCard({ s }: { s: SignalItem }) {
     minute: '2-digit',
   });
 
+  // Macro signals (scope market) carry no coin: show a "Market" chip instead.
+  const chips = s.coins.length > 0 ? s.coins : ['Market'];
+
+  // Macro `since` is the FRED observation date, not how long a condition has held,
+  // so macro cards get a "Source: FRED, as of <date>" line instead of a duration.
+  const footText =
+    formatDuration(s.since) === 'just now'
+      ? 'flagged just now'
+      : `holding ${formatDuration(s.since)} · since ${sinceTime}`;
+
   return (
-    <div className={`signal ${tagClass}`} style={{ padding: 'var(--sp-4)' }}>
+    <div id={`signal-${s.id}`} className={`signal ${tagClass}`} style={{ padding: 'var(--sp-4)' }}>
       <div className="head">
         <span className="tag">{s.tag}</span>
         <span className="src">{s.source}</span>
@@ -124,7 +144,7 @@ function SignalCard({ s }: { s: SignalItem }) {
           {s.body}
         </p>
       )}
-      {s.coins.length > 0 && (
+      {chips.length > 0 && (
         <div
           style={{
             display: 'flex',
@@ -133,7 +153,7 @@ function SignalCard({ s }: { s: SignalItem }) {
             marginBottom: 'var(--sp-2)',
           }}
         >
-          {s.coins.map((coin) => (
+          {chips.map((coin) => (
             <span
               key={coin}
               className="coin-chip"
@@ -150,13 +170,14 @@ function SignalCard({ s }: { s: SignalItem }) {
         </div>
       )}
       <div className="foot" style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
-        <span className="small">
-          {formatDuration(s.since) === 'just now'
-            ? 'flagged just now'
-            : `holding ${formatDuration(s.since)} · since ${sinceTime}`}
-        </span>
+        {s.kind !== 'macro' && <span className="small">{footText}</span>}
         <span className="small muted">{new Date(s.publishedAt).toLocaleString()}</span>
       </div>
+      {s.kind === 'macro' && (
+        <p className="small muted" style={{ margin: 'var(--sp-1) 0 0' }}>
+          Source: FRED, as of {macroObservedLabel(s.since)}
+        </p>
+      )}
     </div>
   );
 }
@@ -234,51 +255,6 @@ const SCOPE_LABELS: Record<NewsScopeFilter, string> = {
 };
 const SCOPE_ORDER: NewsScopeFilter[] = ['all', 'market', 'BTC', 'ETH', 'SOL'];
 
-function scopeBadgeLabel(scope: NewsScope): string {
-  return scope === 'market' ? 'market-wide' : scope;
-}
-
-/**
- * A classified news headline (spec 015). Deliberately distinct from a rule card:
- * a "NEWS" pill and a blue accent, the source name, a scope badge, a magnitude
- * indicator, an outbound link to the article, and the article's own age.
- */
-function NewsCard({ n }: { n: NewsSignalItem }) {
-  const tagClass = n.tag === 'BULLISH' ? 'bullish' : n.tag === 'BEARISH' ? 'bearish' : 'neutral';
-  // Age is the ARTICLE's publication time — never classification or render time
-  // (functional-spec 2.3, `decisions.md` §3 instance 2).
-  const age = formatSnapshotAge(n.publishedAt) ?? 'recently';
-
-  return (
-    <div className={`signal news ${tagClass}`} style={{ padding: 'var(--sp-4)' }}>
-      <div className="head">
-        <span className="news-pill">NEWS</span>
-        <span className="tag">{n.tag}</span>
-        <span className="src">{n.source}</span>
-      </div>
-      <div className="news-meta">
-        <span className="news-badge">{scopeBadgeLabel(n.scope)}</span>
-        <span className={`news-badge mag-${n.magnitude}`}>{n.magnitude} impact</span>
-      </div>
-      <h4 style={{ fontSize: 'var(--fs-base)' }}>{n.title}</h4>
-      {n.body && (
-        <p
-          className="small muted"
-          style={{ margin: 'var(--sp-1) 0 var(--sp-2)', lineHeight: 'var(--lh-normal)' }}
-        >
-          {n.body}
-        </p>
-      )}
-      <div className="foot" style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
-        <a className="news-link small" href={n.sourceUrl} target="_blank" rel="noopener noreferrer">
-          Read on {n.source} ↗
-        </a>
-        <span className="small muted">{age}</span>
-      </div>
-    </div>
-  );
-}
-
 /**
  * The news section: a scope filter (all / market-wide / one asset) applied
  * client-side over the single unfiltered fetch, the true age of the newest
@@ -289,12 +265,16 @@ function NewsFeedSection({
   newsSignals,
   newsClassificationPaused,
   showStaleCollection,
+  filter,
+  onFilterChange,
 }: {
   newsSignals: NewsSignalItem[];
   newsClassificationPaused: boolean;
   showStaleCollection: boolean;
+  // Lifted to SignalsPage so a Pulse driver jump can reset it to 'all'.
+  filter: NewsScopeFilter;
+  onFilterChange: (f: NewsScopeFilter) => void;
 }) {
-  const [filter, setFilter] = useState<NewsScopeFilter>('all');
   const visible = filterNewsByScope(newsSignals, filter);
   const newestAll = newestNewsPublishedAt(newsSignals);
   const newestAge = newestAll ? formatSnapshotAge(newestAll) : null;
@@ -312,7 +292,12 @@ function NewsFeedSection({
         {newestAge && <span className="small muted">Newest news item: {newestAge}</span>}
         <div className="news-filter" style={{ marginLeft: 'auto' }}>
           {SCOPE_ORDER.map((s) => (
-            <button key={s} type="button" aria-pressed={filter === s} onClick={() => setFilter(s)}>
+            <button
+              key={s}
+              type="button"
+              aria-pressed={filter === s}
+              onClick={() => onFilterChange(s)}
+            >
               {SCOPE_LABELS[s]}
             </button>
           ))}
@@ -352,6 +337,29 @@ export function SignalsPage() {
     newsClassificationPaused,
   } = useSignals();
 
+  // Lifted so a later slice can expand the tail programmatically.
+  const [expanded, setExpanded] = useState(false);
+  const [newsFilter, setNewsFilter] = useState<NewsScopeFilter>('all');
+  const focusCard = useCardHighlight();
+  const allSignals = signals ?? [];
+  const visibleSignals = expanded ? allSignals : allSignals.slice(0, SIGNALS_EXPANDED_COUNT);
+  const hiddenCount = Math.max(0, allSignals.length - SIGNALS_EXPANDED_COUNT);
+
+  // Pulse driver chip: reveal the card if the collapse or the news scope filter
+  // hides it, then scroll + ring it (the hook scrolls after the commit).
+  function handleDriverSelect(signalId: string) {
+    const marketIdx = allSignals.findIndex((s) => s.id === signalId);
+    if (marketIdx >= SIGNALS_EXPANDED_COUNT) setExpanded(true);
+    if (
+      newsSignals &&
+      newsSignals.some((n) => n.id === signalId) &&
+      !filterNewsByScope(newsSignals, newsFilter).some((n) => n.id === signalId)
+    ) {
+      setNewsFilter('all');
+    }
+    focusCard(signalId);
+  }
+
   const showStaleCollection = !!lastUpdated && isSnapshotStale(lastUpdated);
   const hasSignals = (signals?.length ?? 0) > 0;
   const showError = !isLoading && (fetchError || (!hasSignals && !collectionHealthy));
@@ -380,6 +388,8 @@ export function SignalsPage() {
 
       {showStaleCollection && lastUpdated && <StaleCollectionNotice lastUpdated={lastUpdated} />}
 
+      <MarketPulse onDriverSelect={handleDriverSelect} />
+
       <div className="pg-signals-2" style={{ gap: 'var(--sp-4)' }}>
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => <SignalCardSkeleton key={i} />)
@@ -392,7 +402,18 @@ export function SignalsPage() {
         ) : showEmpty ? (
           <FeedNotice tone="quiet" title={marketEmptyCopy.title} body={marketEmptyCopy.body} />
         ) : (
-          (signals ?? []).map((s) => <SignalCard key={s.id} s={s} />)
+          <>
+            {visibleSignals.map((s) => (
+              <SignalCard key={s.id} s={s} />
+            ))}
+            {hiddenCount > 0 && (
+              <ShowMoreToggle
+                expanded={expanded}
+                hiddenCount={hiddenCount}
+                onToggle={() => setExpanded((v) => !v)}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -401,6 +422,8 @@ export function SignalsPage() {
           newsSignals={newsSignals}
           newsClassificationPaused={newsClassificationPaused}
           showStaleCollection={showStaleCollection}
+          filter={newsFilter}
+          onFilterChange={setNewsFilter}
         />
       )}
 

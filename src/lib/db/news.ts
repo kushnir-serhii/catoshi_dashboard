@@ -6,9 +6,14 @@
  * catches it into a `SourceStatus` entry — a news failure never fails the run.
  */
 
-import { NEWS_MAGNITUDE_SEVERITY, NEWS_PROMPT_VERSION } from '@/consts/news';
+import {
+  NEWS_CLUSTER_WINDOW_HOURS,
+  NEWS_MAGNITUDE_SEVERITY,
+  NEWS_PROMPT_VERSION,
+} from '@/consts/news';
 import type { IngestedNewsItem } from '@/lib/collectors/newsFeed';
 import { getPool, query } from '@/lib/db/client';
+import { type ClusterCandidate, findClusterId } from '@/lib/news/cluster';
 
 export interface PersistNewsResult {
   /** Rows actually inserted (a duplicate `url_hash` is a no-op). */
@@ -16,20 +21,56 @@ export interface PersistNewsResult {
 }
 
 /**
+ * Recent stored items a new batch may cluster with: everything published within
+ * the cluster window before the oldest incoming item. Legacy rows with a NULL
+ * `cluster_id` count as their own cluster (`coalesce(cluster_id, id)`).
+ */
+export const NEWS_CLUSTER_CANDIDATES_SQL = `select id, coalesce(cluster_id, id) as cluster_id, title, published_at
+   from public.news_items
+   where published_at >= $1::timestamptz - make_interval(hours => $2)
+   order by published_at`;
+
+/**
  * Inserts each ingested article, skipping any whose canonical URL is already
  * stored (`ON CONFLICT (url_hash) DO NOTHING`). Ingest is idempotent by
  * construction: running collection twice inserts each article once.
+ *
+ * Each new row also gets its duplicate-cluster key (spec 027 5.3): the
+ * `cluster_id` of a similar recent item if `findClusterId` finds one,
+ * otherwise its own id. The own-id case needs the generated id, so it is a
+ * follow-up `update` after the insert (only for rows that start a cluster);
+ * items inserted earlier in this same batch are candidates for later ones.
  */
 export async function persistNewsItems(
   items: readonly IngestedNewsItem[],
 ): Promise<PersistNewsResult> {
   let inserted = 0;
+  if (items.length === 0) return { inserted };
+
+  const oldest = items.reduce(
+    (min, i) => (i.publishedAt < min ? i.publishedAt : min),
+    items[0].publishedAt,
+  );
+  const stored = await query<{
+    id: string;
+    cluster_id: string;
+    title: string;
+    published_at: Date;
+  }>(NEWS_CLUSTER_CANDIDATES_SQL, [oldest, NEWS_CLUSTER_WINDOW_HOURS]);
+  const candidates: ClusterCandidate[] = stored.map((r) => ({
+    id: Number(r.id),
+    clusterId: Number(r.cluster_id),
+    title: r.title,
+    publishedAt: new Date(r.published_at),
+  }));
 
   for (const item of items) {
+    const publishedAt = new Date(item.publishedAt);
+    const clusterId = findClusterId(item.title, publishedAt, candidates);
     const rows = await query<{ id: string }>(
       `insert into public.news_items
-         (url_hash, url, title, source, feed_url, published_at, raw)
-       values ($1, $2, $3, $4, $5, $6, $7)
+         (url_hash, url, title, source, feed_url, published_at, raw, cluster_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)
        on conflict (url_hash) do nothing
        returning id`,
       [
@@ -40,9 +81,17 @@ export async function persistNewsItems(
         item.feedUrl,
         item.publishedAt,
         JSON.stringify(item.raw),
+        clusterId,
       ],
     );
+    if (rows.length === 0) continue;
     inserted += rows.length;
+
+    const id = Number(rows[0].id);
+    if (clusterId === null) {
+      await query('update public.news_items set cluster_id = id where id = $1', [id]);
+    }
+    candidates.push({ id, clusterId: clusterId ?? id, title: item.title, publishedAt });
   }
 
   return { inserted };
@@ -67,6 +116,8 @@ export interface ClassificationInsert {
   direction: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   magnitude: 'LOW' | 'MEDIUM' | 'HIGH';
   horizonHours: number;
+  /** Classifier verdict; `null` when the model omitted or mis-stated it. */
+  contentType: 'event' | 'opinion' | null;
   confidence: number;
   rationale: string;
   model: string;
@@ -85,8 +136,9 @@ export interface ClassificationInsert {
  */
 export const NEWS_CLASSIFICATION_INSERT_SQL = `insert into public.news_classifications
      (news_item_id, scope, asset_id, direction, magnitude, horizon_hours,
-      confidence, rationale, model, prompt_version, input_tokens, output_tokens, cost_usd)
-   values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      confidence, rationale, model, prompt_version, input_tokens, output_tokens, cost_usd,
+      content_type)
+   values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
    on conflict (news_item_id, prompt_version) do nothing`;
 
 /**
@@ -125,6 +177,7 @@ export async function persistClassifications(
         row.inputTokens,
         row.outputTokens,
         row.costUsd,
+        row.contentType,
       ]);
     }
 

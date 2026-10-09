@@ -335,3 +335,35 @@ network policy — it does not mean the database is down, the scripts are broken
 project is broken. Do not "fix" it, do not rewrite the scripts, do not conclude the pipeline
 is dead. Dispatch the relevant workflow from the Actions tab (or `gh workflow run <file>`)
 and read the job summary. `docs/runbook.md` §8 has the inputs and the how-to-read-it detail.
+
+---
+
+## 11. Operator-only Telegram alerts: reversing the "no alerting" boundary (spec 027, Slice 7)
+
+**Decision:** Ship Market Pulse notifications to the operator via Telegram, gated by the
+§2.8 backtest verdict.
+
+**Why:** On 2026-10-07, ETH fell from ~2,700 to 2,596 in one hour. The market drivers
+(ETF outflows, oil/yields shock, long crowding) were all public and measurable before or
+during the move, but they were scattered across the feed — no single signal correlated enough
+to fire, and the news list was half duplicates of opinion items. A user or operator opening
+Signals at 08:00Z would not have seen the confluence clearly until reading dozens of items.
+The Market Pulse block synthesises these drivers into one bar and summary; notifications
+alert the operator to confluence events at the hourly collection cadence, so critical moves
+can be recognised without a page visit.
+
+**Boundaries (§2.7 & §3.2 / §3.3):**
+- **Recipient:** Operator only. Environment variables `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (no user data collected or exposed).
+- **Content:** Pulse bar value, top drivers, link to `/signals`.
+- **Scope:** Market Pulse confluence alerts only (bearish confluence, bullish confluence, conflict, reversal). News signals and all other forecast types do not trigger notifications.
+- **Rate limit:** One message per alert type per scope per 24-hour rolling window.
+- **Visitor impact:** Zero. No UI, no data collection, no user tracking. Every visitor sees Signals exactly as before.
+- **Boundary test:** Pulse depends only on market state (`snapshots`, news events, macro readings, none of which identify a visitor). The operator receives notifications from their own environment variables and a Telegram bot, not from any product interaction.
+
+**Gate status (§2.8 backtest result, 2026-10-09):**
+- Backtest ran on all live-collected history (2026-09-01 16:00Z to 2026-10-09 12:00Z, 510 hours replayed).
+- **Verdict B** (too little history): n = 0 qualifying alerts in all 8 confluence cells (market/BTC/ETH/SOL × bear/bull) after 24-hour dedupe and 72-hour spacing.
+- **Shipping status:** `PULSE_NOTIFY_VERDICT` unset, which disables notifications. One real test message to the operator's chat is allowed to verify token, chat ID, format and the `/signals` link. Notifications are enabled only after a monthly re-run gives n > 0. If the result is Verdict B, notifications carry "Unvalidated (backtest n = <n>)"; if Verdict A, the label is dropped.
+- **Re-run schedule:** Monthly backtest; enable notifications once it reports n > 0.
+
+**Reference:** `context/spec/027-market-pulse/functional-spec.md` §2.7 (Telegram), §2.8 (gate).

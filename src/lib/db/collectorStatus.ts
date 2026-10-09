@@ -29,6 +29,8 @@ export interface CollectorOutcome {
    * "it succeeded."
    */
   disabled?: boolean;
+  /** The run's `SourceStatus.note`, persisted to `detail`; null/absent when none. */
+  note?: string;
 }
 
 /**
@@ -61,13 +63,16 @@ export function reduceSourceStatuses(
           ok: status.ok,
           error: status.ok ? undefined : status.error,
           disabled: status.ok ? status.disabled : undefined,
+          note: status.ok ? status.note : undefined,
         });
       } else if (existing.ok && !status.ok) {
         existing.ok = false;
         existing.error = status.error;
         existing.disabled = undefined;
-      } else if (existing.ok && status.ok && status.disabled && !existing.disabled) {
-        existing.disabled = true;
+        existing.note = undefined;
+      } else if (existing.ok && status.ok) {
+        if (status.disabled && !existing.disabled) existing.disabled = true;
+        existing.note ??= status.note;
       }
     }
   }
@@ -88,6 +93,8 @@ export function reduceSourceStatuses(
  *   both columns keep whatever they last legitimately held. Without this,
  *   re-enabling classification after a long pause and reading `last_success_at`
  *   would look like "just ran" instead of "last ran before the pause."
+ * - `detail` is overwritten on every attempt (including a pause) with the run's
+ *   note, or NULL when there is none; it never affects the columns above.
  */
 export async function persistCollectorStatus(
   outcomes: readonly CollectorOutcome[],
@@ -97,8 +104,7 @@ export async function persistCollectorStatus(
   }
 
   // Split into two groups so each can use its own ON CONFLICT SET clause —
-  // there's no `disabled` column on `public.collector_status` (no migration
-  // in this task), so the only way to leave `last_success_at`/`last_error`
+  // there's no `disabled` column on `public.collector_status`, so the only way to leave `last_success_at`/`last_error`
   // genuinely untouched on a disabled outcome is to omit them from that
   // statement's SET list entirely, rather than try to express a per-row
   // "skip this column" flag inside one shared statement.
@@ -116,20 +122,23 @@ export async function persistCollectorStatus(
         // `now()` and the success flag are baked into SQL text, not
         // parameters, so every row in one statement shares a single
         // transaction timestamp.
+        const detailParam = `$${values.length + 1}`;
+        values.push(outcome.note ?? null);
         const successAt = outcome.ok ? 'now()' : 'null';
-        return `(${sourceParam}, now(), ${successAt}, ${errorParam}, now())`;
+        return `(${sourceParam}, now(), ${successAt}, ${errorParam}, now(), ${detailParam})`;
       });
 
       await query(
         `
           insert into public.collector_status
-            (source, last_attempt_at, last_success_at, last_error, updated_at)
+            (source, last_attempt_at, last_success_at, last_error, updated_at, detail)
           values ${rows.join(', ')}
           on conflict (source) do update set
             last_attempt_at = excluded.last_attempt_at,
             last_success_at = coalesce(excluded.last_success_at, public.collector_status.last_success_at),
             last_error      = excluded.last_error,
-            updated_at      = excluded.updated_at
+            updated_at      = excluded.updated_at,
+            detail          = excluded.detail
         `,
         values,
       );
@@ -140,7 +149,9 @@ export async function persistCollectorStatus(
       const rows = disabled.map((outcome) => {
         const sourceParam = `$${values.length + 1}`;
         values.push(outcome.source);
-        return `(${sourceParam}, now(), now())`;
+        const detailParam = `$${values.length + 1}`;
+        values.push(outcome.note ?? null);
+        return `(${sourceParam}, now(), now(), ${detailParam})`;
       });
 
       // Deliberately no `last_success_at` / `last_error` in the SET clause
@@ -150,11 +161,12 @@ export async function persistCollectorStatus(
       await query(
         `
           insert into public.collector_status
-            (source, last_attempt_at, updated_at)
+            (source, last_attempt_at, updated_at, detail)
           values ${rows.join(', ')}
           on conflict (source) do update set
             last_attempt_at = excluded.last_attempt_at,
-            updated_at      = excluded.updated_at
+            updated_at      = excluded.updated_at,
+            detail          = excluded.detail
         `,
         values,
       );

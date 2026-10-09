@@ -68,6 +68,12 @@ _Market state says what moved. News says why. This is the feature that makes the
   - [ ] **Market-Wide vs Coin-Specific Scope:** Every classified item is tagged as affecting the whole crypto market or one specific tracked asset, so the feed can be filtered to the coin the user is looking at. _(spec 015 — pipeline shipped; calibration pending first real run)_
   - [ ] **Scoreable News Claims:** Each news signal stores an asserted direction and horizon, so it can be resolved against what actually happened rather than remaining an unfalsifiable opinion. _(spec 015 — pipeline shipped; calibration pending first real run)_
 
+- [ ] **Market Pulse Synthesis** _(slices 1–2, 4–6 built; slice 3 (macro) awaits FRED_API_KEY + fra1 check; slice 7 (Telegram) built but gated on backtest n > 0; slice 9 (tests) pending, spec 027)_
+  - [ ] **News Quality & Market-State Coverage:** Clustering (≥0.35 overlap, ≥2 shared entities), direction/amount guards, news v3 prompt. Market-state rules: long_flush, short_squeeze, price_velocity, range_break, rsi_1h_extreme. _(spec 027, slices 1–2)_
+  - [x] **Signal Aggregation & Severity Scoring:** Per-signal severity weighted by category and decay, clustered news consolidated once, live bull/bear/conflict synthesis from market-state and news signals with per-category caps. _(spec 027, slices 4–5)_
+  - [ ] **Macro Integration:** FRED observations (Brent, US 10Y, broad dollar) with hand-maintained event calendar (`src/data/macro-calendar.json`), 6h collection gate and per-series liveness. Awaiting operator FRED_API_KEY + fra1 reachability check after deploy. _(spec 027, slice 3)_
+  - [ ] **Operator Telegram Alerts (hourly cadence):** Alerts on bear/bull confluence, conflict entry and reversal, gated on backtest verdict (Verdict B, n = 0 today; rerun pending for n > 0). _(spec 027, slice 7)_
+
 ---
 
 ### Phase 5 — Keeping Score

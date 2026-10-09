@@ -16,6 +16,17 @@ export const COLLECT_ASSETS: readonly CollectAsset[] = [
   { symbol: 'SOL', binancePair: 'SOLUSDT', coingeckoId: 'solana' },
 ] as const;
 
+/**
+ * Public Binance **spot** history hosts, tried in order, for the GitHub Actions
+ * backtests. `data-api.binance.vision` is the one host not geo-blocked (HTTP 451)
+ * for runner IPs as of 2026-09-23 (see `src/scripts/today-range-backtest.ts`).
+ */
+export const BINANCE_SPOT_HISTORY_HOSTS: readonly string[] = [
+  'https://data-api.binance.vision',
+  'https://api.binance.com',
+  'https://api1.binance.com',
+] as const;
+
 export const COLLECT_TIMEFRAMES = ['15m', '1h', '4h', '1d'] as const;
 export type CollectTimeframe = (typeof COLLECT_TIMEFRAMES)[number];
 

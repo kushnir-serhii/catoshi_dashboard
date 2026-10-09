@@ -1,0 +1,22 @@
+{
+  "_note": "Read-only extract of ETH snapshots from the production DB (spec 027 slice 9). Only the fields the Pulse rules read. etf_* are null for every snapshot before 2026-10-09: ETF flows were not stored on 10-07.",
+  "symbol": "ETH",
+  "snapshots": [
+    {
+      "ts": "2026-10-07T01:00:00.000Z",
+      "price": 2692.59,
+      "openInterestUsd": 6242810115.368701,
+      "rsi1h": 42.05855682243962,
+      "etfNetFlowUsd": null,
+      "etfStreakDays": null
+    },
+    {
+      "ts": "2026-10-07T02:00:00.000Z",
+      "price": 2599.46,
+      "openInterestUsd": 6028280572.83936,
+      "rsi1h": 17.07054859686194,
+      "etfNetFlowUsd": null,
+      "etfStreakDays": null
+    }
+  ]
+}

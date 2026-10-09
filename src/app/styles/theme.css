@@ -106,6 +106,12 @@
   --color-accent-openai: oklch(0.74 0.13 165);
   --color-accent-neutral: oklch(0.72 0.05 280);
 
+  /* Market Pulse signals (MarketPulseCard). */
+  --pulse-bull: var(--color-chart-bull); /* bullish sentiment */
+  --pulse-bear: var(--color-chart-bear); /* bearish sentiment */
+  --pulse-range: var(--color-amber); /* range-bound/neutral */
+  --pulse-conflict-stripe: rgba(255, 255, 255, 0.04); /* conflict fill stripe */
+
   /* ── Type scale, as Tailwind utilities ───────────────────────────
      * Mirrors --fs-* below, so `text-sm` in markup and var(--fs-sm) in
      * CSS are guaranteed to be the same 14px. */
@@ -212,5 +218,4 @@
   --sp-7: 48px;
   --sp-8: 64px;
   --sp-9: 96px;
-
 }

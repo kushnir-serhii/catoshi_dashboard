@@ -126,7 +126,11 @@ function extractTagText(block: string, tagNames: string[]): string | undefined {
  * Atom's.
  */
 function extractLink(block: string): string | undefined {
-  const rssMatch = block.match(/<link>([^<]+)<\/link>/i);
+  // `[\s\S]*?` (not `[^<]+`): Cointelegraph wraps the URL in
+  // `<link><![CDATA[...]]></link>`, and the CDATA opener contains `<`, so the
+  // old pattern never matched and every one of its items was dropped for
+  // "no link" while the feed reported healthy (spec 027 Slice 1).
+  const rssMatch = block.match(/<link>([\s\S]*?)<\/link>/i);
   if (rssMatch) {
     const text = cleanText(rssMatch[1]);
     if (text) return text;
@@ -324,15 +328,32 @@ export async function collectNewsFeeds(now: Date = new Date()): Promise<NewsInge
       return;
     }
 
+    // Usable = parsed, in-window items, counted before cross-feed dedupe so a
+    // feed whose articles another feed already carried is not misread as empty.
+    let usable = 0;
     for (const raw of result.value) {
       const item = toIngestedItem(raw, feedUrl, now);
-      if (!item || seenHashes.has(item.urlHash)) {
-        continue;
-      }
+      if (!item) continue;
+      usable += 1;
+      if (seenHashes.has(item.urlHash)) continue;
       seenHashes.add(item.urlHash);
       items.push(item);
     }
-    sources.push({ source: sourceName, ok: true });
+    // A feed that yields zero usable items must not look healthy (spec 027
+    // §2.5.5): it gets a failed per-feed row naming the counts.
+    if (usable === 0) {
+      sources.push({
+        source: sourceName,
+        ok: false,
+        error: `0 usable items: ${result.value.length} parsed, none with title+link+date inside the ${NEWS_INGEST_WINDOW_HOURS}h window`,
+      });
+      return;
+    }
+    sources.push({
+      source: sourceName,
+      ok: true,
+      note: `${usable} usable of ${result.value.length} parsed`,
+    });
   });
 
   return { items, sources };

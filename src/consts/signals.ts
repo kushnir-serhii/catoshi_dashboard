@@ -12,7 +12,7 @@ export const TRACKED_COINS = ['BTC', 'ETH', 'SOL'] as const;
  * per the CLAUDE.md constants rule it lives here rather than being hardcoded as
  * `limit 20` in the route (technical-considerations §1.6).
  */
-export const SIGNALS_COUNT = 6;
+export const SIGNALS_EXPANDED_COUNT = 6;
 
 export const SIGNALS_REFRESH_INTERVAL_MS = 60_000;
 
@@ -25,10 +25,50 @@ export const SIGNALS_COLLECTION_INTERVAL_MS = 60 * 60 * 1000;
 /**
  * Freshness window for the feed (technical-considerations §3). A signal derived
  * from a snapshot older than this never appears, even if that leaves fewer than
- * `SIGNALS_COUNT` cards. Three hours tolerates two missed best-effort hourly
+ * `SIGNALS_EXPANDED_COUNT` cards. Three hours tolerates two missed best-effort hourly
  * runs while keeping "current" honest.
  */
 export const SIGNALS_FRESHNESS_HOURS = 3;
+
+/**
+ * Minimum time gap between previous and current snapshot for `long_flush`/`short_squeeze` rules.
+ * (technical-considerations §4.2)
+ */
+export const SIGNALS_PREV_GAP_MIN_MINUTES = 45;
+
+/**
+ * Maximum time gap between previous and current snapshot for `long_flush`/`short_squeeze` rules.
+ * A larger gap returns null. (technical-considerations §4.2)
+ */
+export const SIGNALS_PREV_GAP_MAX_MINUTES = 90;
+
+/**
+ * Buffer percentage for `range_break` rule, preventing a single tick poke from
+ * being classified as a break. (technical-considerations §4.3)
+ */
+export const RANGE_BREAK_BUFFER_PCT = 0.3;
+
+/**
+ * Minimum consecutive days with same-sign ETF net flow for `etf_streak` rule.
+ */
+export const ETF_STREAK_MIN_DAYS = 3;
+
+/**
+ * Single-day USD net flow threshold for `etf_streak` rule.
+ */
+export const ETF_SINGLE_DAY_USD = 100e6;
+
+/**
+ * Open-interest percentage move threshold for `long_flush`/`short_squeeze` rules.
+ * (technical-considerations §9)
+ */
+export const PULSE_OI_FLUSH_PCT = 3;
+
+/**
+ * Price percentage move threshold for `long_flush`/`short_squeeze` rules.
+ * (technical-considerations §9)
+ */
+export const PULSE_PRICE_FLUSH_PCT = 2;
 
 /* ------------------------------------------------------------------------- *
  * Rule thresholds (technical-considerations §4).
@@ -75,10 +115,10 @@ export const OI_SURGE_PRICE_FLAT_PCT = 1;
 /** OI-change points past threshold that map to full severity. */
 export const OI_SURGE_SEVERITY_SPAN = 15;
 
-/** `etf_streak` fires at this many consecutive same-sign ETF net-flow days. */
-export const ETF_STREAK_DAYS = 5;
-/** Streak days past threshold that map to full severity. */
+/** Streak days past threshold that map to full severity for `etf_streak`. */
 export const ETF_STREAK_SEVERITY_SPAN = 5;
+/** Single-day flow distance past threshold that maps to full severity for `etf_streak`. */
+export const ETF_SINGLE_DAY_SEVERITY_SPAN = 100e6;
 
 /** `volume_spike` fires when the daily volume z-score `>=` this. */
 export const VOLUME_SPIKE_Z = 2;
@@ -110,9 +150,9 @@ export const SEVERITY_FIXED_MID = 0.5;
  * Added after the first live run produced only four signals across three
  * assets. Every rule below reads a snapshot field that no earlier rule touched,
  * so the additions widen coverage rather than restating what already fires.
- * The feed is still capped at `SIGNALS_COUNT` and ordered by severity, so more
- * rules raise the chance the page has something true to say without making it
- * longer.
+ * The API returns all live rows; the page expands the top `SIGNALS_EXPANDED_COUNT`
+ * and collapses the rest under "Show N more", so more rules raise the chance the page
+ * has something true to say without making it longer.
  * ------------------------------------------------------------------------- */
 
 /** `long_short_extreme`: fires when the long/short account ratio `>=` this. */
@@ -145,3 +185,41 @@ export const MA99_STRETCH_SEVERITY_SPAN = 30;
 export const ATR_EXPANSION_PCT = 5;
 /** Percentage points past the threshold that map to full severity. */
 export const ATR_EXPANSION_SEVERITY_SPAN = 5;
+
+/**
+ * Number of 4h candles loaded into `RuleContext.history4h` per asset per run:
+ * 84 closed candles for 14 days plus the still-open one, which is dropped
+ * before any rule sees the series (spec 027 technical §4.1).
+ */
+export const SIGNALS_HISTORY_4H_LIMIT = 85;
+
+/* ------------------------------------------------------------------------- *
+ * Market Pulse rules (spec 027 slice 2).
+ * ------------------------------------------------------------------------- */
+
+/** `price_velocity` fires when |1h return| (%) `>=` this. */
+export const PRICE_VELOCITY_PCT = 3;
+/** Percentage points past the velocity threshold that map to full severity. */
+export const PRICE_VELOCITY_SEVERITY_SPAN = 3;
+
+/** OI-drop points past `PULSE_OI_FLUSH_PCT` that map to full severity for `long_flush`/`short_squeeze`. */
+export const PULSE_OI_FLUSH_SEVERITY_SPAN = 5;
+
+/** `rsi_1h_extreme` fires bullish (oversold) when 1h RSI `<=` this. */
+export const RSI_1H_OVERSOLD = 25;
+/** ...and bearish (overbought) when 1h RSI `>=` this. */
+export const RSI_1H_OVERBOUGHT = 75;
+/**
+ * Fixed severity for `rsi_1h_extreme`. Equals the LOW band of
+ * `NEWS_MAGNITUDE_SEVERITY` (0.25): a contrarian hint that sinks below the
+ * other market-state signals.
+ */
+export const RSI_1H_EXTREME_SEVERITY = 0.25;
+
+/**
+ * `range_break` reference window: the closed 4h candles before the last closed
+ * one (84 = 14 days). Needs lookback + 1 candles in `history4h`.
+ */
+export const RANGE_BREAK_LOOKBACK_CANDLES = 84;
+/** Percentage points past the buffered range edge that map to full severity. */
+export const RANGE_BREAK_SEVERITY_SPAN = 3;

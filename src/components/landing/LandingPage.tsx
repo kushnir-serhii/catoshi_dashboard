@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { ProjectionChart, Sparkline } from '@/components/dashboard/charts';
+import { FredAttribution } from '@/components/layout';
 import type { LogoVariant } from '@/components/ui/CatLogo';
 import { Cat, CatoshiWordmark } from '@/components/ui/CatLogo';
 
@@ -506,6 +507,7 @@ export function LandingPage() {
           © 2026 Catoshi · Crypto involves risk. Projections are statistical, not guaranteed. Not
           financial advice.
         </div>
+        <FredAttribution />
       </footer>
     </div>
   );

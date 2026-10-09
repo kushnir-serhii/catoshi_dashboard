@@ -28,6 +28,7 @@ void (async () => {
   const {
     NEWS_CLASSIFY_INTERVAL_HOURS,
     NEWS_CLASSIFY_MODEL,
+    NEWS_HORIZON_CAP_HOURS,
     NEWS_HORIZON_HOURS_MAX,
     NEWS_HORIZON_HOURS_MIN,
     NEWS_PROMPT_VERSION,
@@ -64,6 +65,7 @@ void (async () => {
       direction: 'BULLISH',
       magnitude: 'MEDIUM',
       horizon_hours: 48,
+      content_type: 'event',
       confidence: 0.5,
       rationale: 'CPI print of 3.1% came in above the 2.9% consensus.',
       ...overrides,
@@ -111,7 +113,10 @@ void (async () => {
     );
     check(
       `horizon exactly MAX (${NEWS_HORIZON_HOURS_MAX}) validates`,
-      validateClassification(rawEntry({ horizon_hours: NEWS_HORIZON_HOURS_MAX }), TRACKED).ok,
+      validateClassification(
+        rawEntry({ magnitude: 'HIGH', horizon_hours: NEWS_HORIZON_HOURS_MAX }),
+        TRACKED,
+      ).ok,
     );
     check(
       'confidence exactly 0 validates',
@@ -136,6 +141,8 @@ void (async () => {
     ['horizon below MIN', rawEntry({ horizon_hours: NEWS_HORIZON_HOURS_MIN - 1 })],
     ['horizon above MAX', rawEntry({ horizon_hours: NEWS_HORIZON_HOURS_MAX + 1 })],
     ['horizon non-numeric', rawEntry({ horizon_hours: 'soon' })],
+    ['missing content_type', rawEntry({ content_type: undefined })],
+    ['invalid content_type', rawEntry({ content_type: 'rumor' })],
     ['confidence < 0', rawEntry({ confidence: -0.01 })],
     ['confidence > 1', rawEntry({ confidence: 1.5 })],
     ['confidence non-numeric', rawEntry({ confidence: 'high' })],
@@ -146,6 +153,31 @@ void (async () => {
     const result = validateClassification(raw, TRACKED);
     check(`rejected: ${label}`, !result.ok, result.ok ? 'unexpectedly validated' : '');
   }
+
+  // ---------------------------------------------------------------------------
+  section('validateClassification — horizon caps per magnitude (dropped, never clamped)');
+  // ---------------------------------------------------------------------------
+
+  for (const magnitude of ['LOW', 'MEDIUM', 'HIGH'] as const) {
+    const cap = NEWS_HORIZON_CAP_HOURS[magnitude];
+    const atCap = validateClassification(rawEntry({ magnitude, horizon_hours: cap }), TRACKED);
+    check(
+      `${magnitude} horizon exactly at cap (${cap}) kept`,
+      atCap.ok && atCap.value.horizonHours === cap,
+    );
+    const overCap = validateClassification(
+      rawEntry({ magnitude, horizon_hours: cap + 1 }),
+      TRACKED,
+    );
+    check(
+      `${magnitude} horizon over cap (${cap + 1}) dropped`,
+      !overCap.ok,
+      overCap.ok ? 'unexpectedly validated' : '',
+    );
+  }
+
+  const opinion = validateClassification(rawEntry({ content_type: 'Opinion' }), TRACKED);
+  check('content_type opinion validates', opinion.ok && opinion.value.contentType === 'opinion');
 
   // ---------------------------------------------------------------------------
   section('isCadenceElapsed');
@@ -308,6 +340,7 @@ void (async () => {
                 direction: 'BEARISH',
                 magnitude: 'HIGH',
                 horizon_hours: 168,
+                content_type: 'event',
                 confidence: 0.7,
                 rationale: 'CPI came in at 3.1%, above the 2.9% consensus.',
               },
@@ -317,6 +350,7 @@ void (async () => {
                 direction: 'BULLISH',
                 magnitude: 'LOW',
                 horizon_hours: 72,
+                content_type: 'event',
                 confidence: 0.4,
                 rationale: 'Ethereum client update shipped on schedule.',
               },
@@ -370,6 +404,7 @@ void (async () => {
                 direction: 'BEARISH',
                 magnitude: 'HIGH',
                 horizon_hours: 168,
+                content_type: 'event',
                 confidence: 0.7,
                 rationale: 'CPI came in hot at 3.1%.',
               },
@@ -379,6 +414,7 @@ void (async () => {
                 direction: 'SIDEWAYS',
                 magnitude: 'LOW',
                 horizon_hours: 72,
+                content_type: 'event',
                 confidence: 0.4,
                 rationale: 'bad direction.',
               },
@@ -416,6 +452,7 @@ void (async () => {
                 direction: 'NEUTRAL',
                 magnitude: 'LOW',
                 horizon_hours: 24,
+                content_type: 'event',
                 confidence: 0.2,
                 rationale: 'Routine CPI recap, no surprise vs consensus.',
               },
@@ -482,6 +519,7 @@ void (async () => {
                 direction: 'NEUTRAL',
                 magnitude: 'LOW',
                 horizon_hours: 24,
+                content_type: 'event',
                 confidence: 0.2,
                 rationale: 'Routine recap.',
               },

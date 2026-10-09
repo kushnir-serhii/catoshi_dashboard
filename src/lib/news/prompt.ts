@@ -13,7 +13,12 @@
  * fresh row rather than overwrite the old assertion (functional-spec 2.4).
  */
 
-import { NEWS_HORIZON_HOURS_MAX, NEWS_HORIZON_HOURS_MIN, NEWS_PROMPT_VERSION } from '@/consts/news';
+import {
+  NEWS_HORIZON_CAP_HOURS,
+  NEWS_HORIZON_HOURS_MAX,
+  NEWS_HORIZON_HOURS_MIN,
+  NEWS_PROMPT_VERSION,
+} from '@/consts/news';
 
 export { NEWS_PROMPT_VERSION };
 
@@ -38,6 +43,8 @@ ${TRACKED_ASSETS_LINE}. These are the only per-asset scopes that exist.
 - \`BTC\`, \`ETH\`, or \`SOL\` — the headline is specifically about that tracked asset.
 - \`drop\` — the headline is about an untracked asset with no broad relevance (a small-cap token listing, an altcoin roadmap update), or is not market-relevant at all (a post-mortem of a defunct project, a sponsored piece, a price recap that carries no new information).
 
+Macro and geopolitical shocks — war, energy supply, rates, sanctions, tariffs — are market-wide: scope \`market\` and magnitude at least \`MEDIUM\`, even when the headline is framed around a single asset's price. Example: "Bitcoin dips below $84,000 as oil jumps on Iranian tanker attacks" is scope \`market\`, magnitude \`MEDIUM\` or higher.
+
 Never force a headline about an untracked asset onto a tracked symbol. If it is not clearly about BTC, ETH, or SOL: it is \`market\` only when the event is genuinely broad, and otherwise \`drop\`.
 
 ### direction — \`BULLISH\`, \`BEARISH\`, or \`NEUTRAL\`
@@ -60,6 +67,17 @@ High magnitude with low confidence is a valid and common combination. Do not col
 ### horizon_hours — an integer between ${NEWS_HORIZON_HOURS_MIN} and ${NEWS_HORIZON_HOURS_MAX}
 
 The period over which you assert the impact plays out. A macro data print resolves over a day or two; a regulatory framework plays out over weeks. Pick the window over which the claim can actually be checked against realised price.
+
+The horizon MUST respect the magnitude cap: \`LOW\` magnitude at most ${NEWS_HORIZON_CAP_HOURS.LOW} hours, \`MEDIUM\` at most ${NEWS_HORIZON_CAP_HOURS.MEDIUM} hours, \`HIGH\` at most ${NEWS_HORIZON_CAP_HOURS.HIGH} hours.
+
+A horizon above the cap makes the entry invalid and it is discarded, so choose the magnitude first and then a horizon inside its cap. Example: "Mid-size exchange lists a new token pair" is \`LOW\` magnitude with \`horizon_hours\` 72 — not 168, because 168 exceeds the \`LOW\` cap of ${NEWS_HORIZON_CAP_HOURS.LOW} hours.
+
+### content_type — \`event\` or \`opinion\`
+
+- \`event\` — something happened or was decided: an approval, a hack, a rate decision, an attack, a listing, a filing. Example: "SEC approves spot Ether ETF".
+- \`opinion\` — columns, previews, price-target talk, analyst speculation, "X in play" framing. Example: "Bitcoin beats gold, surge to $100,000 in play".
+
+An opinion piece describes no new fact, so it should rarely carry a high magnitude or confidence.
 
 ### rationale — one sentence
 

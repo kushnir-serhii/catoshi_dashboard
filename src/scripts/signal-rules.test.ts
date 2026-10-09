@@ -21,15 +21,15 @@
 
 import {
   ATR_EXPANSION_PCT,
-  ETF_STREAK_DAYS,
+  ETF_STREAK_MIN_DAYS,
   FEAR_GREED_FEAR,
   FEAR_GREED_GREED,
   FUNDING_EXTREME_RATE,
   FUNDING_FLIP_MIN_RATE,
   LONG_SHORT_LONG_HEAVY,
   LONG_SHORT_SHORT_HEAVY,
-  MA99_STRETCH_PCT,
   MA_COMPRESSION_PCT,
+  MA99_STRETCH_PCT,
   OI_SURGE_CHANGE_PCT,
   OI_SURGE_PRICE_FLAT_PCT,
   RSI_MIDLINE,
@@ -40,7 +40,9 @@ import {
 } from '@/consts/signals';
 import type { MarketSnapshot } from '@/data/types';
 import { RULES, RULES_BY_ID } from '@/lib/signals/rules';
-import type { Signal } from '@/lib/signals/types';
+import type { RuleContext, Signal } from '@/lib/signals/types';
+
+const EMPTY_CTX: RuleContext = { history4h: [] };
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -135,7 +137,7 @@ function run(
     check(`${ruleId} is registered`, false, 'not found in RULES_BY_ID');
     return null;
   }
-  const signal = definition.run(snapshot, previous);
+  const signal = definition.run(snapshot, previous, EMPTY_CTX);
   if (signal) {
     produced.push({ ruleId, signal });
   }
@@ -154,10 +156,18 @@ function quartet(
   const fired = run(ruleId, cases.fires.snapshot, cases.fires.previous ?? null);
   check(`${ruleId}: fires when the condition is met`, fired !== null);
   if (fired && cases.fires.tag) {
-    check(`${ruleId}: tag is ${cases.fires.tag}`, fired.tag === cases.fires.tag, `got ${fired.tag}`);
+    check(
+      `${ruleId}: tag is ${cases.fires.tag}`,
+      fired.tag === cases.fires.tag,
+      `got ${fired.tag}`,
+    );
   }
   if (fired) {
-    check(`${ruleId}: signal carries its own ruleId`, fired.ruleId === ruleId, `got ${fired.ruleId}`);
+    check(
+      `${ruleId}: signal carries its own ruleId`,
+      fired.ruleId === ruleId,
+      `got ${fired.ruleId}`,
+    );
   }
 
   const quiet = run(ruleId, cases.quiet.snapshot, cases.quiet.previous ?? null);
@@ -242,8 +252,16 @@ check(
   run('funding_flip', snap({ fundingRate: 0.0004 }), snap()) === null,
 );
 {
-  const negative = run('funding_flip', snap({ fundingRate: -0.0004 }), snap({ fundingRate: 0.0004 }));
-  check('funding_flip: flip to negative is BEARISH', negative?.tag === 'BEARISH', `got ${negative?.tag}`);
+  const negative = run(
+    'funding_flip',
+    snap({ fundingRate: -0.0004 }),
+    snap({ fundingRate: 0.0004 }),
+  );
+  check(
+    'funding_flip: flip to negative is BEARISH',
+    negative?.tag === 'BEARISH',
+    `got ${negative?.tag}`,
+  );
 }
 
 quartet('funding_extreme', {
@@ -254,7 +272,11 @@ quartet('funding_extreme', {
 });
 {
   const short = run('funding_extreme', snap({ fundingRate: -0.0015 }));
-  check('funding_extreme: crowd heavily short is BULLISH', short?.tag === 'BULLISH', `got ${short?.tag}`);
+  check(
+    'funding_extreme: crowd heavily short is BULLISH',
+    short?.tag === 'BULLISH',
+    `got ${short?.tag}`,
+  );
   check(
     'funding_extreme: negative extreme is detected by magnitude, not sign',
     run('funding_extreme', snap({ fundingRate: -FUNDING_EXTREME_RATE })) !== null,
@@ -271,7 +293,10 @@ quartet('oi_surge', {
     previous: snap({ price: 100.4 }),
     tag: 'NEUTRAL',
   },
-  quiet: { snapshot: snap({ openInterestChange24hPct: 5, price: 100 }), previous: snap({ price: 100 }) },
+  quiet: {
+    snapshot: snap({ openInterestChange24hPct: 5, price: 100 }),
+    previous: snap({ price: 100 }),
+  },
   boundary: {
     snapshot: snap({ openInterestChange24hPct: OI_SURGE_CHANGE_PCT, price: 100 }),
     previous: snap({ price: 100 }),
@@ -301,9 +326,9 @@ check(
 
 quartet('etf_streak', {
   fires: { snapshot: snap({ etfStreakDays: 8, etfNetFlowUsd: 190_000_000 }), tag: 'BULLISH' },
-  quiet: { snapshot: snap({ etfStreakDays: 2, etfNetFlowUsd: 190_000_000 }) },
+  quiet: { snapshot: snap({ etfStreakDays: 2, etfNetFlowUsd: 50_000_000 }) },
   boundary: {
-    snapshot: snap({ etfStreakDays: ETF_STREAK_DAYS, etfNetFlowUsd: 190_000_000 }),
+    snapshot: snap({ etfStreakDays: ETF_STREAK_MIN_DAYS, etfNetFlowUsd: 190_000_000 }),
     shouldFire: true,
   },
 });
@@ -311,7 +336,11 @@ quartet('etf_streak', {
   // The collector returns an unsigned day count and carries direction in the
   // flow itself, so an outflow streak must still fire — as BEARISH.
   const outflow = run('etf_streak', snap({ etfStreakDays: 7, etfNetFlowUsd: -120_000_000 }));
-  check('etf_streak: an outflow streak fires as BEARISH', outflow?.tag === 'BEARISH', `got ${outflow?.tag}`);
+  check(
+    'etf_streak: an outflow streak fires as BEARISH',
+    outflow?.tag === 'BEARISH',
+    `got ${outflow?.tag}`,
+  );
   check(
     'etf_streak: a zero net flow has no direction, so no signal',
     run('etf_streak', snap({ etfStreakDays: 9, etfNetFlowUsd: 0 })) === null,
@@ -320,6 +349,15 @@ quartet('etf_streak', {
     'etf_streak: streak count without a flow reading stays quiet',
     run('etf_streak', snap({ etfStreakDays: 9 })) === null,
   );
+  {
+    // Single-day severity: $150M (no streak) = (150 - 100) / 100 = 0.5
+    const singleDay = run('etf_streak', snap({ etfNetFlowUsd: 150_000_000 }));
+    check(
+      'etf_streak: single-day $150M flow (no streak) gives severity ≈ 0.5',
+      singleDay !== null && Math.abs(singleDay.severity - 0.5) < 0.01,
+      `got ${singleDay?.severity.toFixed(3)}`,
+    );
+  }
 }
 
 quartet('volume_spike', {
@@ -366,7 +404,11 @@ quartet('fear_greed_extreme', {
 });
 {
   const greed = run('fear_greed_extreme', snap({ fearGreed: 91 }));
-  check('fear_greed_extreme: extreme greed is BEARISH', greed?.tag === 'BEARISH', `got ${greed?.tag}`);
+  check(
+    'fear_greed_extreme: extreme greed is BEARISH',
+    greed?.tag === 'BEARISH',
+    `got ${greed?.tag}`,
+  );
   check(
     'fear_greed_extreme: the greed threshold itself fires',
     run('fear_greed_extreme', snap({ fearGreed: FEAR_GREED_GREED })) !== null,
@@ -377,7 +419,6 @@ quartet('fear_greed_extreme', {
       run('fear_greed_extreme', snap({ fearGreed: FEAR_GREED_GREED - 1 })) === null,
   );
 }
-
 
 // ---------------------------------------------------------------------------
 section('Second rule set');
@@ -407,7 +448,11 @@ quartet('ma_cross_daily', {
     snap({ ma7Daily: 2480, ma25Daily: 2500 }),
     snap({ ma7Daily: 2520, ma25Daily: 2500 }),
   );
-  check('ma_cross_daily: a downward cross is BEARISH', death?.tag === 'BEARISH', `got ${death?.tag}`);
+  check(
+    'ma_cross_daily: a downward cross is BEARISH',
+    death?.tag === 'BEARISH',
+    `got ${death?.tag}`,
+  );
   check(
     'ma_cross_daily: silent with no previous snapshot',
     run('ma_cross_daily', snap({ ma7Daily: 2510, ma25Daily: 2500 }), null) === null,
@@ -443,9 +488,7 @@ quartet('long_short_extreme', {
   const short025 = run('long_short_extreme', snap({ longShortRatio: 0.25 }));
   check(
     'long_short_extreme: mirrored skews (4.0 and 0.25) score equally',
-    long4 !== null &&
-      short025 !== null &&
-      Math.abs(long4.severity - short025.severity) < 1e-9,
+    long4 !== null && short025 !== null && Math.abs(long4.severity - short025.severity) < 1e-9,
     `${long4?.severity.toFixed(4)} vs ${short025?.severity.toFixed(4)}`,
   );
 }
@@ -460,7 +503,11 @@ quartet('sentiment_swing', {
 });
 {
   const cooling = run('sentiment_swing', snap({ fearGreed: 24, fearGreed7dAgo: 66 }));
-  check('sentiment_swing: a downward swing is BEARISH', cooling?.tag === 'BEARISH', `got ${cooling?.tag}`);
+  check(
+    'sentiment_swing: a downward swing is BEARISH',
+    cooling?.tag === 'BEARISH',
+    `got ${cooling?.tag}`,
+  );
   check(
     'sentiment_swing: needs the 7-day-ago reading, not just today',
     run('sentiment_swing', snap({ fearGreed: 72 })) === null,
@@ -514,13 +561,21 @@ quartet('structure_flip_daily', {
     snap({ structureDaily: 'RANGE' }),
     snap({ structureDaily: 'LH-LL' }),
   );
-  check('structure_flip_daily: a move into RANGE is NEUTRAL', intoRange?.tag === 'NEUTRAL', `got ${intoRange?.tag}`);
+  check(
+    'structure_flip_daily: a move into RANGE is NEUTRAL',
+    intoRange?.tag === 'NEUTRAL',
+    `got ${intoRange?.tag}`,
+  );
   const breakdown = run(
     'structure_flip_daily',
     snap({ structureDaily: 'LH-LL' }),
     snap({ structureDaily: 'HH-HL' }),
   );
-  check('structure_flip_daily: a breakdown is BEARISH', breakdown?.tag === 'BEARISH', `got ${breakdown?.tag}`);
+  check(
+    'structure_flip_daily: a breakdown is BEARISH',
+    breakdown?.tag === 'BEARISH',
+    `got ${breakdown?.tag}`,
+  );
   check(
     'structure_flip_daily: silent when the previous structure is unknown',
     run('structure_flip_daily', snap({ structureDaily: 'HH-HL' }), snap()) === null,
@@ -541,6 +596,55 @@ check(
 );
 
 // ---------------------------------------------------------------------------
+section('Market Pulse rules (minimal firing coverage)');
+// ---------------------------------------------------------------------------
+
+{
+  const prev = snap({ ts: '2026-09-01T11:00:00.000Z', price: 100, openInterestUsd: 1000 });
+  const flush = run('long_flush', snap({ price: 97, openInterestUsd: 950 }), prev);
+  check('long_flush: fires bearish on OI -5% and price -3%', flush?.tag === 'BEARISH');
+  const squeeze = run('short_squeeze', snap({ price: 103, openInterestUsd: 950 }), prev);
+  check('short_squeeze: fires bullish on OI -5% and price +3%', squeeze?.tag === 'BULLISH');
+  const velocity = run('price_velocity', snap({ price: 96 }), prev);
+  check('price_velocity: fires bearish on -4%', velocity?.tag === 'BEARISH');
+
+  const stale = snap({ ts: '2026-09-01T09:00:00.000Z', price: 100, openInterestUsd: 1000 });
+  check(
+    'price_velocity/long_flush: a 3h-old previous returns null',
+    run('price_velocity', snap({ price: 90 }), stale) === null &&
+      run('long_flush', snap({ price: 90, openInterestUsd: 900 }), stale) === null,
+  );
+
+  const rsiLow = run('rsi_1h_extreme', snap({ rsi1h: 20 }));
+  const rsiHigh = run('rsi_1h_extreme', snap({ rsi1h: 80 }));
+  check(
+    'rsi_1h_extreme: 20 is bullish, 80 is bearish',
+    rsiLow?.tag === 'BULLISH' && rsiHigh?.tag === 'BEARISH',
+  );
+  check('rsi_1h_extreme: 50 stays quiet', run('rsi_1h_extreme', snap({ rsi1h: 50 })) === null);
+
+  const candle = (low: number, high: number, close: number) => ({
+    openTime: 0,
+    open: close,
+    high,
+    low,
+    close,
+    volume: 1,
+    closeTime: 0,
+  });
+  const flat = Array.from({ length: 84 }, () => candle(90, 110, 100));
+  const breakDown = RULES_BY_ID['range_break'].run(snap(), null, {
+    history4h: [...flat, candle(80, 100, 85)],
+  });
+  if (breakDown) produced.push({ ruleId: 'range_break', signal: breakDown });
+  check('range_break: close below the 14-day low fires bearish', breakDown?.tag === 'BEARISH');
+  check(
+    'range_break: short history returns null',
+    RULES_BY_ID['range_break'].run(snap(), null, { history4h: flat }) === null,
+  );
+}
+
+// ---------------------------------------------------------------------------
 section('Invariants across every registered rule');
 // ---------------------------------------------------------------------------
 
@@ -550,11 +654,11 @@ section('Invariants across every registered rule');
   for (const rule of RULES) {
     check(
       `${rule.ruleId}: an all-null snapshot produces nothing (no previous)`,
-      rule.run(empty, null) === null,
+      rule.run(empty, null, EMPTY_CTX) === null,
     );
     check(
       `${rule.ruleId}: an all-null snapshot produces nothing (all-null previous)`,
-      rule.run(empty, empty) === null,
+      rule.run(empty, empty, EMPTY_CTX) === null,
     );
   }
 

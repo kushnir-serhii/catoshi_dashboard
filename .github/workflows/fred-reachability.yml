@@ -1,0 +1,43 @@
+name: FRED reachability check
+
+# Spec 027, Slice 3. One-off check that FRED (St. Louis Fed) answers from the
+# GitHub Actions runner, tested WITHOUT an API key. The keyed endpoint normally
+# answers HTTP 400 with an api_key error, which still proves DNS, TLS and HTTP.
+# The keyless CSV endpoint is probed as a possible fallback.
+#
+# Also runs on a push of this file to market-backfill-status, because a
+# workflow_dispatch workflow can only be triggered from the default branch.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [market-backfill-status]
+    paths: ['.github/workflows/fred-reachability.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe FRED
+        run: |
+          set -uo pipefail
+          probe() {
+            local label="$1" url="$2" lines="$3"
+            echo "=== $label ==="
+            echo "url: $url"
+            code=$(curl -sS --max-time 30 -o body.txt -w '%{http_code} time_total=%{time_total}s' "$url") || echo "curl failed (exit $?)"
+            echo "result: $code"
+            echo "--- first 300 bytes ---"
+            head -c 300 body.txt 2>/dev/null; echo
+            if [ "$lines" -gt 0 ]; then echo "--- first $lines lines ---"; head -n "$lines" body.txt 2>/dev/null; fi
+            rm -f body.txt
+            echo
+          }
+          probe "keyed API, no key" 'https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&file_type=json' 0
+          for id in DGS10 DCOILBRENTEU DTWEXBGS; do
+            probe "keyless CSV $id" "https://fred.stlouisfed.org/graph/fredgraph.csv?id=$id" 3
+          done

@@ -1,49 +1,16 @@
 import { NextResponse } from 'next/server';
 
-import { NEWS_PROMPT_VERSION } from '@/consts/news';
-import {
-  SIGNALS_COLLECTION_INTERVAL_MS,
-  SIGNALS_COUNT,
-  SIGNALS_FRESHNESS_HOURS,
-} from '@/consts/signals';
+import { SIGNALS_COLLECTION_INTERVAL_MS } from '@/consts/signals';
 import { mockSignalsResponse } from '@/data/signals';
-import type { NewsScope, NewsSignalItem, SignalItem, SignalsResponse } from '@/data/types';
+import type { NewsScope, SignalItem, SignalsResponse } from '@/data/types';
 import { query } from '@/lib/db/client';
+import { queryLiveMarketStateRows, queryLiveNewsRows } from '@/lib/db/signals-live';
 import { isNewsClassificationPaused } from '@/lib/freshness';
+import { collapseClusters } from '@/lib/news/collapse';
 
 // Collection runs hourly and the client polls every minute — a static cache
 // would hide a fresh signal for hours. Never cache this route.
 export const dynamic = 'force-dynamic';
-
-interface SignalRow {
-  // `public.signals.id` is `bigint generated always as identity`; node-postgres
-  // returns bigint as a string, so this is honest, not a placeholder.
-  id: string;
-  tag: SignalItem['tag'];
-  title: string;
-  body: string;
-  source: string;
-  snapshot_ts: string;
-  since_ts: string;
-  // Joined from `public.assets.symbol` — a signal row references a single asset.
-  symbol: string;
-}
-
-interface NewsSignalRow {
-  id: string;
-  tag: NewsSignalItem['tag'];
-  title: string;
-  body: string;
-  source: string;
-  source_url: string;
-  published_at: string;
-  expires_at: string;
-  severity: number;
-  scope: string;
-  magnitude: NewsSignalItem['magnitude'];
-  horizon_hours: number;
-  confidence: number;
-}
 
 interface SnapshotTsRow {
   ts: string;
@@ -94,82 +61,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     );
     const newestSnapshotTs = snapshot ? new Date(snapshot.ts) : null;
 
-    // Collapse the per-hour rows to one per (asset_id, rule_id) — a condition
-    // that held for twenty hours is one card, not twenty (functional-spec 2.3).
-    // `distinct on` keeps the newest row per condition inside the freshness
-    // window; the outer query then orders newest-first (severity, then id, break
-    // ties so the order is stable across refreshes) and caps the card count.
-    // Explicit column list, not `select *`: a renamed column is a compile error
-    // against SignalRow, not a runtime `undefined`.
-    const marketStateRows = await query<SignalRow>(
-      `select collapsed.id,
-              collapsed.tag,
-              collapsed.title,
-              collapsed.body,
-              collapsed.source,
-              collapsed.snapshot_ts,
-              collapsed.since_ts,
-              collapsed.symbol
-         from (
-           select distinct on (s.asset_id, s.rule_id)
-                  s.id,
-                  s.tag,
-                  s.title,
-                  s.body,
-                  s.source,
-                  s.snapshot_ts,
-                  s.since_ts,
-                  s.severity,
-                  a.symbol
-             from public.signals s
-             join public.assets a on a.id = s.asset_id
-            where s.kind = 'market_state'
-              and s.snapshot_ts > now() - make_interval(hours => $1::int)
-              and ($3::text is null or a.symbol = $3::text)
-            order by s.asset_id, s.rule_id, s.snapshot_ts desc
-         ) collapsed
-        order by collapsed.snapshot_ts desc, collapsed.severity desc, collapsed.id desc
-        limit $2`,
-      [SIGNALS_FRESHNESS_HOURS, SIGNALS_COUNT, assetScope],
-    );
-
-    // Live news rows: kind = 'news' AND not past expiry. Expired rows stay in
-    // the table for scoring but never appear here. Reads stored rows only — no
-    // computation, no external call (technical-considerations §2.5).
-    //   - $1 market-only filter (scope=market)   → asset_id IS NULL
-    //   - $2 asset filter (scope=BTC|ETH|SOL)    → a.symbol = $2
-    //   - $3 current prompt version, for magnitude/horizon/confidence join
-    const newsRows = await query<NewsSignalRow>(
-      `select s.id,
-              s.tag,
-              s.title,
-              s.body,
-              s.source,
-              s.source_url,
-              ni.published_at,
-              s.expires_at,
-              s.severity,
-              coalesce(a.symbol, 'market') as scope,
-              nc.magnitude,
-              nc.horizon_hours,
-              nc.confidence
-         from public.signals s
-         join public.news_items ni on ni.id = s.news_item_id
-         left join public.assets a on a.id = s.asset_id
-         left join lateral (
-           select magnitude, horizon_hours, confidence
-             from public.news_classifications
-            where news_item_id = s.news_item_id
-            order by (prompt_version = $3) desc, created_at desc
-            limit 1
-         ) nc on true
-        where s.kind = 'news'
-          and s.expires_at > now()
-          and ($1::boolean is not true or s.asset_id is null)
-          and ($2::text is null or a.symbol = $2::text)
-        order by ni.published_at desc, s.severity desc, s.id desc`,
-      [scope === 'market', assetScope, NEWS_PROMPT_VERSION],
-    );
+    // Live-row read definitions live in `src/lib/db/signals-live.ts`, shared
+    // with the Pulse loader. Market-state: one row per (asset_id, rule_id) in the
+    // freshness window; news: unexpired rows, collapsed per cluster below.
+    const marketStateRows = await queryLiveMarketStateRows(assetScope);
+    const newsRows = await queryLiveNewsRows(scope === 'market', assetScope);
 
     const signals: SignalItem[] = marketStateRows.map((row) => ({
       id: row.id,
@@ -179,27 +75,14 @@ export async function GET(request: Request): Promise<NextResponse> {
       source: row.source,
       publishedAt: row.snapshot_ts,
       since: row.since_ts,
-      // A signal row is about exactly one asset; `symbol` is constrained by the
+      // A market-state row is about exactly one asset; `symbol` is constrained by the
       // seeded `public.assets` rows to the tracked-coin set.
-      coins: [row.symbol] as SignalItem['coins'],
+      // Macro rows have no asset: an empty list reads as market-wide in the UI.
+      coins: (row.symbol ? [row.symbol] : []) as SignalItem['coins'],
+      kind: row.kind,
     }));
 
-    const newsSignals: NewsSignalItem[] = newsRows.map((row) => ({
-      id: row.id,
-      kind: 'news',
-      tag: row.tag,
-      title: row.title,
-      body: row.body,
-      source: row.source,
-      sourceUrl: row.source_url,
-      publishedAt: new Date(row.published_at).toISOString(),
-      expiresAt: new Date(row.expires_at).toISOString(),
-      scope: row.scope as NewsScope,
-      magnitude: row.magnitude,
-      severity: row.severity,
-      horizonHours: row.horizon_hours,
-      confidence: row.confidence,
-    }));
+    const newsSignals = collapseClusters(newsRows);
 
     const response: SignalsResponse = {
       lastUpdated: newestSnapshotTs ? newestSnapshotTs.toISOString() : null,

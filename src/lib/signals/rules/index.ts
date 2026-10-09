@@ -1,18 +1,22 @@
 import type { RuleDefinition } from '../types';
-
 import { etfStreak } from './etf_streak';
 import { fearGreedExtreme } from './fear_greed_extreme';
 import { fundingExtreme } from './funding_extreme';
 import { fundingFlip } from './funding_flip';
+import { longFlush } from './long_flush';
 import { longShortExtreme } from './long_short_extreme';
 import { maCompression } from './ma_compression';
 import { maCrossDaily } from './ma_cross_daily';
 import { oiSurge } from './oi_surge';
 import { priceStretchedMa99 } from './price_stretched_ma99';
+import { priceVelocity } from './price_velocity';
+import { rangeBreak } from './range_break';
 import { rsi1dOverbought } from './rsi_1d_overbought';
 import { rsi1dOversold } from './rsi_1d_oversold';
+import { rsi1hExtreme } from './rsi_1h_extreme';
 import { rsiDivergence4h1d } from './rsi_divergence_4h_1d';
 import { sentimentSwing } from './sentiment_swing';
+import { shortSqueeze } from './short_squeeze';
 import { structureFlipDaily } from './structure_flip_daily';
 import { volatilityExpansion } from './volatility_expansion';
 import { volumeSpike } from './volume_spike';
@@ -40,6 +44,13 @@ export const RULES: readonly RuleDefinition[] = [
   priceStretchedMa99,
   structureFlipDaily,
   volatilityExpansion,
+
+  // Market Pulse (spec 027): 1h moves and range breaks.
+  longFlush,
+  shortSqueeze,
+  priceVelocity,
+  rangeBreak,
+  rsi1hExtreme,
 ] as const;
 
 /** The same rules keyed by `ruleId`, for provenance lookups. */

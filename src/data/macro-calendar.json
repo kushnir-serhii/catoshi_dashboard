@@ -1,0 +1,35 @@
+{
+  "updated": "2026-10-09",
+  "events": [
+    {
+      "ts": "2026-10-14T12:30:00Z",
+      "title": "CPI (Consumer Price Index)",
+      "importance": "high"
+    },
+    {
+      "ts": "2026-10-15T12:30:00Z",
+      "title": "PPI (Producer Price Index)",
+      "importance": "medium"
+    },
+    {
+      "ts": "2026-10-15T12:30:00Z",
+      "title": "Retail Sales",
+      "importance": "medium"
+    },
+    {
+      "ts": "2026-10-28T18:00:00Z",
+      "title": "FOMC Rate Decision",
+      "importance": "high"
+    },
+    {
+      "ts": "2026-10-29T12:30:00Z",
+      "title": "PCE (Personal Consumption Expenditures)",
+      "importance": "high"
+    },
+    {
+      "ts": "2026-11-03T05:00:00Z",
+      "title": "US Midterm Elections",
+      "importance": "high"
+    }
+  ]
+}

@@ -59,7 +59,7 @@ export const NEWS_CLASSIFY_INTERVAL_HOURS = 6;
  * classification system prompt, so a prompt change is visible in the record
  * and re-classification inserts rather than overwrites (functional-spec 2.4).
  */
-export const NEWS_PROMPT_VERSION = 'news-v1';
+export const NEWS_PROMPT_VERSION = 'news-v3';
 
 /**
  * Cheap-tier model for classification. Matches the Haiku id in
@@ -95,6 +95,17 @@ export const NEWS_HORIZON_HOURS_MIN = 6;
 export const NEWS_HORIZON_HOURS_MAX = 720;
 
 /**
+ * Upper bound on `horizon_hours` per magnitude band (spec 027 functional 2.5.4):
+ * a weak catalyst cannot assert a month-long impact. Stated to the model in the
+ * classification prompt.
+ */
+export const NEWS_HORIZON_CAP_HOURS: Record<'LOW' | 'MEDIUM' | 'HIGH', number> = {
+  LOW: 72,
+  MEDIUM: 336,
+  HIGH: 720,
+};
+
+/**
  * `public.app_settings.key` under which the admin-toggled news-classification
  * pause is stored (spec 022 §2.9). A row value of `'true'` means paused,
  * `'false'` means running; when the row is ABSENT the pause falls back to
@@ -110,3 +121,156 @@ export const APP_SETTING_NEWS_PAUSE = 'news_classification_paused';
  * this value.
  */
 export const NEWS_CLASSIFY_ENABLED = process.env.NEWS_CLASSIFY_ENABLED !== 'false';
+
+/**
+ * Duplicate clustering (spec 027 technical 5.3). A new item joins an existing
+ * item's cluster when the overlap coefficient (|A∩B| / min(|A|,|B|)) of their
+ * normalised title token sets is at least this AND they share at least
+ * `NEWS_CLUSTER_MIN_SHARED_ENTITIES` named entities.
+ */
+export const NEWS_CLUSTER_OVERLAP_MIN = 0.35;
+
+/**
+ * Direction-conflict guard: two titles never cluster when one contains a down
+ * word and the other an up word ("breaks below" story vs "rebounds" story).
+ * Matched as whole lowercase words of the raw title; an entry with a space is a
+ * phrase matched as consecutive words ("breaks below").
+ */
+export const NEWS_CLUSTER_DOWN_WORDS: readonly string[] = [
+  'drop',
+  'drops',
+  'dropped',
+  'dropping',
+  'fall',
+  'falls',
+  'fell',
+  'falling',
+  'plunge',
+  'plunges',
+  'plunged',
+  'plunging',
+  'slide',
+  'slides',
+  'slid',
+  'sliding',
+  'slip',
+  'slips',
+  'slipped',
+  'dip',
+  'dips',
+  'dipped',
+  'sink',
+  'sinks',
+  'sank',
+  'breaks below',
+];
+export const NEWS_CLUSTER_UP_WORDS: readonly string[] = [
+  'rebound',
+  'rebounds',
+  'rebounded',
+  'rebounding',
+  'rise',
+  'rises',
+  'rose',
+  'rising',
+  'risen',
+  'surge',
+  'surges',
+  'surged',
+  'surging',
+  'rally',
+  'rallies',
+  'rallied',
+  'rallying',
+  'jump',
+  'jumps',
+  'jumped',
+  'climb',
+  'climbs',
+  'climbed',
+  'gain',
+  'gains',
+  'gained',
+];
+
+/**
+ * Amount-mismatch guard: when both titles carry a dollar amount (or both a
+ * percentage) and no amount in one is within this ratio of an amount in the
+ * other, they are different events ($100M move vs $1B move) and never cluster.
+ */
+export const NEWS_CLUSTER_AMOUNT_MAX_RATIO = 2;
+
+/**
+ * A pre-colon segment of at most this many words is a series label ("Live
+ * updates:", "Morning Minute:") and is ignored when comparing titles; a longer
+ * one is content and kept.
+ */
+export const NEWS_CLUSTER_SERIES_PREFIX_MAX_WORDS = 4;
+
+/** Named entities (ticker or capitalised token) two titles must share to cluster. */
+export const NEWS_CLUSTER_MIN_SHARED_ENTITIES = 2;
+
+/** Only items published within this window of the new item are cluster candidates. */
+export const NEWS_CLUSTER_WINDOW_HOURS = 24;
+
+/** Words dropped from titles before comparison; they carry no event identity. */
+export const NEWS_CLUSTER_STOP_WORDS: readonly string[] = [
+  'a',
+  'an',
+  'the',
+  'and',
+  'or',
+  'but',
+  'of',
+  'to',
+  'in',
+  'on',
+  'at',
+  'for',
+  'with',
+  'by',
+  'from',
+  'as',
+  'is',
+  'are',
+  'was',
+  'were',
+  'be',
+  'been',
+  'it',
+  'its',
+  'this',
+  'that',
+  'these',
+  'those',
+  'into',
+  'over',
+  'after',
+  'amid',
+  'than',
+  'what',
+  'how',
+  'why',
+  'here',
+  's',
+  'just',
+  'new',
+  'says',
+  'could',
+  'will',
+  'may',
+];
+
+/**
+ * Spelling variants folded to one canonical lowercase name before clustering
+ * compares titles (keys are lowercase; multi-word keys match across spaces and
+ * dots, "J.P. Morgan"). Canonical names here also count as named entities
+ * whatever their case. Keep it small and explicit.
+ */
+export const NEWS_CLUSTER_ENTITY_ALIASES: Readonly<Record<string, string>> = {
+  ether: 'ethereum',
+  eth: 'ethereum',
+  btc: 'bitcoin',
+  sol: 'solana',
+  'jp morgan': 'jpmorgan',
+};

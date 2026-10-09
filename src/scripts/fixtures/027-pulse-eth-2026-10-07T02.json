@@ -1,0 +1,71 @@
+{
+  "_meta": {
+    "spec": "027-market-pulse",
+    "scope": "ETH",
+    "computedAt": "2026-10-07T02:00:00Z",
+    "source": "real DB snapshots replayed through the current rule set (runRulesAt + marketStateRowsAsOf liveness); Binance spot 4h klines; read-only",
+    "note": "The hour of the actual ETH drop (2693 to 2599).."
+  },
+  "rows": [
+    {
+      "kind": "market_state",
+      "id": "replay:ETH:rsi_divergence_4h_1d:1791334800000",
+      "asset": "ETH",
+      "tag": "NEUTRAL",
+      "severity": 0.5,
+      "title": "4h and daily RSI diverge",
+      "body": "4h RSI 47, daily 59 — timeframes disagree on direction.",
+      "ruleId": "rsi_divergence_4h_1d"
+    },
+    {
+      "kind": "market_state",
+      "id": "replay:ETH:ma_compression:1791338400000",
+      "asset": "ETH",
+      "tag": "NEUTRAL",
+      "severity": 0.356250200448452,
+      "title": "4h moving averages compressing",
+      "body": "4h MA7 and MA25 within 0.32% — volatility expansion often follows a squeeze.",
+      "ruleId": "ma_compression"
+    },
+    {
+      "kind": "market_state",
+      "id": "replay:ETH:long_short_extreme:1791338400000",
+      "asset": "ETH",
+      "tag": "BEARISH",
+      "severity": 0.47019681564649596,
+      "title": "Positioning heavily long",
+      "body": "Long/short ratio at 2.77 — one-sided crowd, vulnerable to a squeeze.",
+      "ruleId": "long_short_extreme"
+    },
+    {
+      "kind": "market_state",
+      "id": "replay:ETH:long_flush:1791338400000",
+      "asset": "ETH",
+      "tag": "BEARISH",
+      "severity": 0.08728517627408446,
+      "title": "Longs flushed out",
+      "body": "Open interest -3.4% and price -3.5% in 1h: longs being liquidated.",
+      "ruleId": "long_flush"
+    },
+    {
+      "kind": "market_state",
+      "id": "replay:ETH:price_velocity:1791338400000",
+      "asset": "ETH",
+      "tag": "BEARISH",
+      "severity": 0.1529172036341726,
+      "title": "Price dropping fast in one hour",
+      "body": "Price -3.5% over the last hour.",
+      "ruleId": "price_velocity"
+    },
+    {
+      "kind": "market_state",
+      "id": "replay:ETH:rsi_1h_extreme:1791338400000",
+      "asset": "ETH",
+      "tag": "BULLISH",
+      "severity": 0.25,
+      "title": "Hourly RSI oversold",
+      "body": "Hourly RSI at 17: short-term selling stretched, bounce possible.",
+      "ruleId": "rsi_1h_extreme"
+    }
+  ]
+}

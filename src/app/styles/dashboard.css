@@ -1749,6 +1749,14 @@
   cursor: default;
 }
 
+/* Pulse driver chip jump target (spec 027): outline is not clipped by the
+   card's own overflow:hidden. The class is added and removed by
+   useCardHighlight after PULSE_HIGHLIGHT_MS. */
+.prowl .signal.signal-highlight {
+  outline: 2px solid var(--color-violet);
+  outline-offset: 2px;
+}
+
 /* AI prediction cards ARE buttons (they select a coin to forecast) — hover
    and press feedback are earned here. On the landing page's static showcase
    the same markup is a plain div and correctly gets neither. */
@@ -1980,4 +1988,28 @@
 .prowl .today-footer {
   margin: var(--sp-4) 0 0;
   font-size: var(--fs-xs);
+}
+
+/* FRED API attribution (required by the FRED API Terms of Use) */
+.prowl .app-footer {
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+.prowl .fred-attribution {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--text-3);
+  margin: var(--sp-4) 0 0;
+  width: 100%;
+}
+.prowl .app-footer .fred-attribution {
+  margin-top: 0;
+}
+.prowl .fred-attribution a {
+  color: var(--text-2);
+  text-decoration: underline;
+}
+.prowl .fred-attribution a:hover {
+  color: var(--text);
 }

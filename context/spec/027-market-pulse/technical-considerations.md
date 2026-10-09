@@ -1,7 +1,7 @@
 # Technical Specification: Market Pulse & Signals Coverage
 
 - **Functional Specification:** `./functional-spec.md` (§0 explains why, §2.8 is a gate)
-- **Status:** Draft
+- **Status:** Completed
 - **Author(s):** Serhii Kushnir
 
 ---

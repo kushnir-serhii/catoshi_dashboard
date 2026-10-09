@@ -1,7 +1,7 @@
 # Functional Specification: Market Pulse & Signals Coverage
 
 - **Roadmap Item:** Phase 4 — Signals That Explain, Not Just Flag → one-glance market summary
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** Serhii Kushnir
 - **Created:** 2026-10-07
 - **Builds on:** spec 014 (market-state rules), spec 015 (news classification)
@@ -97,10 +97,10 @@ At the top of the Signals page, above all cards:
    (yet). Not a forecast. Not financial advice."
 
 **Acceptance Criteria:**
-- [ ] The bar, label, ghost marker, drivers, summary, freshness line and disclaimer all render for each scope.
-- [ ] The Conflict state renders when both indices are ≥ `PULSE_CONFLICT_MIN`, and only then.
-- [ ] Clicking a driver chip scrolls to the card it came from.
-- [ ] Readable at 375px with no horizontal scroll. Dark theme only. No text below 12px.
+- [x] The bar, label, ghost marker, drivers, summary, freshness line and disclaimer all render for each scope. _Verified 2026-10-09: production /signals rendered (docs/screenshots/027-market-pulse-desktop-1440-emulated.png, -mobile-375-emulated.png); ghost marker (`prev24h`) by pulse-api.test.ts, live only once a ±2h/24h-old row exists (first expected ~2026-10-10 11:00Z)._
+- [x] The Conflict state renders when both indices are ≥ `PULSE_CONFLICT_MIN`, and only then. _Verified by pulse.test.ts (Conflict boundary, MEDIUM-vs-MEDIUM no Conflict); no live Conflict on 2026-10-09 (bull 41, bear 50)._
+- [x] Clicking a driver chip scrolls to the card it came from. _Verified 2026-10-09 on production at 375px: click scrolled and highlighted `signal-3060`._
+- [x] Readable at 375px with no horizontal scroll. Dark theme only. No text below 12px. _Verified 2026-10-09: scrollWidth 375 at 375px, min font 12px, see docs/screenshots/027-market-pulse-mobile-375-emulated.png._
 
 ### 2.2 — Pulse failure states (README §4 rule 1)
 
@@ -112,8 +112,8 @@ At the top of the Signals page, above all cards:
 | A source category is down (e.g. macro collector failed) | Bar renders; a line names the missing category: "Without: macro" |
 
 **Acceptance Criteria:**
-- [ ] No state renders a number the system did not compute from live inputs.
-- [ ] A missing category is named, never silently treated as neutral.
+- [x] No state renders a number the system did not compute from live inputs. _Verified by pulse-api.test.ts (stale/insufficient/unavailable carry no numbers) and Slice 5 route-interception run._
+- [x] A missing category is named, never silently treated as neutral. _Verified on production: "Without: flows" shown (BTC:etfFlows collector null)._
 
 ### 2.3 — Market-state coverage (extends spec 014)
 
@@ -136,8 +136,8 @@ stays out of scope (repo-level `decisions.md` §8 #7).
 under "Show N more".
 
 **Acceptance Criteria:**
-- [ ] Replaying the 2026-10-07 02:00Z ETH snapshot (the drop hour) fires `long_flush` or `price_velocity` (bearish, ETH). `etf_streak` (bearish, ETH) fires on the same snapshot with the ETF fields that were public that day (−$201.9M on 10-06, 3+ outflow days) injected, because ETF flows were not stored before 2026-10-09.
-- [ ] Every live market-state signal is reachable on the page; none is dropped by the cap.
+- [x] Replaying the 2026-10-07 02:00Z ETH snapshot (the drop hour) fires `long_flush` or `price_velocity` (bearish, ETH). `etf_streak` (bearish, ETH) fires on the same snapshot with the ETF fields that were public that day (−$201.9M on 10-06, 3+ outflow days) injected, because ETF flows were not stored before 2026-10-09. _Verified by signals-coverage.test.ts (2026-10-07 replay: `etf_streak` and `long_flush`/`price_velocity` fire for ETH)._
+- [x] Every live market-state signal is reachable on the page; none is dropped by the cap. _Verified 2026-10-09: /api/signals returns all 3 live rows, all 3 rendered on /signals._
 
 ### 2.4 — New inputs
 
@@ -157,9 +157,9 @@ macro card states its observation date ("as of 10-06") and ages out per series (
 §4.2).
 
 **Acceptance Criteria:**
-- [ ] A FRED outage nulls the macro rules only. Everything else keeps working.
-- [ ] Macro signals carry scope `market`.
-- [ ] **FRED attribution (FRED API Terms of Use, https://fred.stlouisfed.org/docs/api/terms_of_use.html; required because the app may become commercial):**
+- [x] A FRED outage nulls the macro rules only. Everything else keeps working. _Verified by signals-coverage.test.ts and Slice 3 local collect (macro null, other sources ok); production macro status success, rows=59._
+- [x] Macro signals carry scope `market`. _Verified by signals-coverage.test.ts; no macro signal live on 2026-10-09 (no threshold crossed)._
+- [x] **FRED attribution (FRED API Terms of Use, https://fred.stlouisfed.org/docs/api/terms_of_use.html; required because the app may become commercial):**
   - Every page footer shows: "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis." followed by a "FRED API Terms of Use" link (new tab, `rel="noopener noreferrer"`), at least 12px and readable at 375px.
   - Every macro card shows "Source: FRED, as of <obs date>".
   - No FRB logo, and no "FRED" or "Federal Reserve" in any name, hostname or branding.
@@ -182,10 +182,10 @@ macro card states its observation date ("as of 10-06") and ages out per series (
    record it as dead in source status. It must not fail silently.
 
 **Acceptance Criteria:**
-- [ ] Re-classifying the 2026-10-07 tanker headline yields scope `market`, magnitude ≥ `MEDIUM`.
-- [ ] The duplicate pairs listed in §0 render as one card each.
-- [ ] "Bitcoin beats gold, surge to $100,000 in play" is `opinion`.
-- [ ] Source status shows all three feeds with a real last-success time.
+- [x] Re-classifying the 2026-10-07 tanker headline yields scope `market`, magnitude ≥ `MEDIUM`. _Verified in Slice 1 on live data (decisions.md) and news-classify tests._
+- [x] The duplicate pairs listed in §0 render as one card each. _Verified in Slice 1 (decisions.md) and news-cluster/news-collapse tests._
+- [x] "Bitcoin beats gold, surge to $100,000 in play" is `opinion`. _Verified in Slice 1 (decisions.md)._
+- [x] Source status shows all three feeds with a real last-success time. _Verified 2026-10-09: /api/health lists news:coindesk, news:cointelegraph, news:decrypt, all success._
 
 ### 2.6 — Pulse history
 

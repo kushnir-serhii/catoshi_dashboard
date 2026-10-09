@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { AdminPage } from '@/components/pages';
+import { buttonVariants, Card, CardHeader, CardTitle, Muted } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/authorize';
 
 export const metadata: Metadata = {
@@ -29,36 +30,21 @@ export default async function Page() {
       redirect('/api/auth/signin?callbackUrl=/admin');
     }
     return (
-      <div className="page-content">
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              <span className="marker"></span>Administration
-            </div>
-          </div>
-          <div
-            style={{
-              padding: '48px 24px',
-              textAlign: 'center',
-              borderRadius: 12,
-              background: 'var(--surface-2)',
-              border: '1px solid var(--surface-3)',
-            }}
-          >
-            <h4 style={{ fontSize: 'var(--fs-md)', marginBottom: 8, color: 'var(--text)' }}>
-              You do not have access
-            </h4>
-            <p
-              className="small muted"
-              style={{ margin: '0 auto 16px', maxWidth: 420, lineHeight: 1.6 }}
-            >
+      <div className="mt-4 flex w-full min-w-0 flex-col gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle marker="violet">Administration</CardTitle>
+          </CardHeader>
+          <div className="border-surface-3 bg-surface-2 rounded-lg border px-6 py-12 text-center">
+            <h4 className="text-text mb-2 text-base">You do not have access</h4>
+            <Muted as="p" className="mx-auto mb-4 max-w-105">
               The administration area is available to admins only.
-            </p>
-            <Link className="btn btn-ghost" href="/projections">
+            </Muted>
+            <Link className={buttonVariants({ variant: 'ghost' })} href="/projections">
               Back to the dashboard
             </Link>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }

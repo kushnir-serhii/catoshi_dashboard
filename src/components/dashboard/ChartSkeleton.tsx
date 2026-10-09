@@ -22,13 +22,8 @@ export function ChartSkeleton({ height = 320 }: { height?: number }) {
     <div
       role="status"
       aria-label="Loading chart"
-      className="animate-pulse"
-      style={{
-        height,
-        borderRadius: 'var(--radius)',
-        background: 'var(--color-surface-2)',
-        overflow: 'hidden',
-      }}
+      className="bg-surface-2 animate-pulse overflow-hidden rounded"
+      style={{ height }}
     >
       <svg
         viewBox="0 0 800 320"
@@ -71,9 +66,24 @@ export function ChartSkeleton({ height = 320 }: { height?: number }) {
         />
 
         {/* forecast fan */}
-        <path d="M400 186 L800 104" stroke="var(--color-surface-3)" strokeDasharray="5 7" {...stroke} />
-        <path d="M400 186 L800 182" stroke="var(--color-surface-3)" strokeDasharray="5 7" {...stroke} />
-        <path d="M400 186 L800 258" stroke="var(--color-surface-3)" strokeDasharray="5 7" {...stroke} />
+        <path
+          d="M400 186 L800 104"
+          stroke="var(--color-surface-3)"
+          strokeDasharray="5 7"
+          {...stroke}
+        />
+        <path
+          d="M400 186 L800 182"
+          stroke="var(--color-surface-3)"
+          strokeDasharray="5 7"
+          {...stroke}
+        />
+        <path
+          d="M400 186 L800 258"
+          stroke="var(--color-surface-3)"
+          strokeDasharray="5 7"
+          {...stroke}
+        />
       </svg>
     </div>
   );

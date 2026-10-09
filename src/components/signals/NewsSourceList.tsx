@@ -6,12 +6,12 @@ import type { NewsSource } from '@/data/types';
  */
 export function NewsSourceList({ sources }: { sources: NewsSource[] }) {
   return (
-    <div className="small" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)' }}>
-      <span className="muted">Sources:</span>
+    <div className="flex flex-wrap gap-2 text-sm leading-(--lh-normal)">
+      <span className="text-text-3">Sources:</span>
       {sources.map((s) => (
         <a
           key={s.url}
-          className="news-link"
+          className="text-info no-underline hover:underline"
           href={s.url}
           title={s.title}
           target="_blank"

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 interface DashboardState {
   glow: number;
@@ -19,11 +19,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.setProperty('--glow', String(glow / 100));
   }, [glow]);
 
-  return (
-    <DashboardCtx.Provider value={{ glow, setGlow }}>
-      {children}
-    </DashboardCtx.Provider>
-  );
+  return <DashboardCtx.Provider value={{ glow, setGlow }}>{children}</DashboardCtx.Provider>;
 }
 
 export const useDashboard = () => useContext(DashboardCtx);

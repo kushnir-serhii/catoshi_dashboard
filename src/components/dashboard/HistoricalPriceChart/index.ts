@@ -1,0 +1,1 @@
+export { HistoricalPriceChart } from './HistoricalPriceChart';

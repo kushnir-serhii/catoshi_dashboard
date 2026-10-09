@@ -1,4 +1,5 @@
 import { PULSE_ZONE_THRESHOLD } from '@/consts/pulse';
+import { cn } from '@/utils/cn';
 
 interface PulseBarProps {
   value: number;
@@ -6,9 +7,6 @@ interface PulseBarProps {
   conflict: boolean;
   greyed?: boolean;
 }
-
-const MARKER_SIZE = 14;
-const TRACK_INSET = `${MARKER_SIZE / 2 - 3}px 0`;
 
 const CONFLICT_COPY =
   'Strong signals point both ways. Direction is unreliable; expect wider swings.';
@@ -49,22 +47,14 @@ export function PulseBar({ value, prev24h, conflict, greyed = false }: PulseBarP
   const valueText = `${label}, ${signed}${conflict ? ', conflict' : ''}`;
 
   return (
-    <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
-      <div
-        style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)', flexWrap: 'wrap' }}
-      >
-        <span style={{ fontSize: 'var(--fs-lg)', color: zoneColor(value) }}>{signed}</span>
-        <span className="small">{label}</span>
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="text-lg" style={{ color: zoneColor(value) }}>
+          {signed}
+        </span>
+        <span className="text-sm leading-(--lh-normal)">{label}</span>
         {conflict ? (
-          <span
-            className="small"
-            style={{
-              padding: 'var(--sp-1) var(--sp-2)',
-              borderRadius: 'var(--radius-pill)',
-              border: '1px solid var(--line)',
-              background: 'var(--surface-2)',
-            }}
-          >
+          <span className="rounded-pill border-line bg-surface-2 border px-2 py-1 text-sm leading-(--lh-normal)">
             <span aria-hidden="true">{'⚖️'} </span>Conflict
           </span>
         ) : null}
@@ -77,75 +67,37 @@ export function PulseBar({ value, prev24h, conflict, greyed = false }: PulseBarP
         aria-valuemax={100}
         aria-valuenow={Math.round(value)}
         aria-valuetext={valueText}
-        style={{
-          position: 'relative',
-          height: MARKER_SIZE,
-          margin: `0 ${MARKER_SIZE / 2}px`,
-          filter: greyed ? 'grayscale(1)' : undefined,
-          opacity: greyed ? 0.6 : undefined,
-        }}
+        className={cn('relative mx-1.75 h-3.5', greyed && 'opacity-60 grayscale')}
       >
         <div
+          className="rounded-pill absolute inset-x-0 inset-y-1 opacity-85"
           style={{
-            position: 'absolute',
-            inset: TRACK_INSET,
-            borderRadius: 'var(--radius-pill)',
             background: `linear-gradient(to right, var(--pulse-bear) 0%, var(--pulse-bear) ${LOW_EDGE}%, var(--pulse-range) ${LOW_EDGE}%, var(--pulse-range) ${HIGH_EDGE}%, var(--pulse-bull) ${HIGH_EDGE}%, var(--pulse-bull) 100%)`,
-            opacity: 0.85,
           }}
         />
         {conflict ? (
           <div
             aria-hidden="true"
-            style={{
-              position: 'absolute',
-              inset: TRACK_INSET,
-              borderRadius: 'var(--radius-pill)',
-              backgroundColor: 'rgba(0, 0, 0, 0.35)',
-              backgroundImage:
-                'repeating-linear-gradient(135deg, var(--pulse-conflict-stripe) 0 4px, transparent 4px 8px)',
-            }}
+            className="rounded-pill absolute inset-x-0 inset-y-1 bg-[rgba(0,0,0,0.35)] bg-[repeating-linear-gradient(135deg,var(--pulse-conflict-stripe)_0_4px,transparent_4px_8px)]"
           />
         ) : null}
         {prev24h != null ? (
           <span
             aria-hidden="true"
             title={`24h ago: ${formatSigned(prev24h)}`}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: `${toPercent(prev24h)}%`,
-              width: MARKER_SIZE,
-              height: MARKER_SIZE,
-              marginLeft: -MARKER_SIZE / 2,
-              boxSizing: 'border-box',
-              borderRadius: '50%',
-              border: '2px solid var(--text-2)',
-              background: 'transparent',
-            }}
+            className="border-text-2 absolute top-0 -ml-1.75 box-border size-3.5 rounded-[50%] border-2 bg-transparent"
+            style={{ left: `${toPercent(prev24h)}%` }}
           />
         ) : null}
         <span
           aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: `${toPercent(value)}%`,
-            width: MARKER_SIZE,
-            height: MARKER_SIZE,
-            marginLeft: -MARKER_SIZE / 2,
-            boxSizing: 'border-box',
-            borderRadius: '50%',
-            border: '2px solid var(--surface-2)',
-            background: 'var(--text)',
-          }}
+          className="border-surface-2 bg-text absolute top-0 -ml-1.75 box-border size-3.5 rounded-[50%] border-2"
+          style={{ left: `${toPercent(value)}%` }}
         />
       </div>
 
       {conflict ? (
-        <p className="small muted" style={{ margin: 0 }}>
-          {CONFLICT_COPY}
-        </p>
+        <p className="text-text-3 m-0 text-sm leading-(--lh-normal)">{CONFLICT_COPY}</p>
       ) : null}
     </div>
   );

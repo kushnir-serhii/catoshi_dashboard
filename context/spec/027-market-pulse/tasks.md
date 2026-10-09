@@ -36,11 +36,11 @@ Slice 1 was implemented before this file was regenerated; its checked items are 
   - [x] `src/app/api/signals/route.ts` returns all live rows (no truncation). `SignalsPage.tsx` (extend) expands the top `SIGNALS_EXPANDED_COUNT` and collapses the rest under "Show N more"; reuse `SignalCard`. **[Agent: nextjs-fullstack]** **[Model: sonnet]**
   - [x] Verify: eslint on touched files, `npx tsc --noEmit`, `npm test`; load `/signals` and confirm the "Show N more" control works. No new tests. **[Agent: general-purpose]** **[Model: sonnet]**
 
-- [ ] **Slice 3: Macro + calendar**
+- [x] **Slice 3: Macro + calendar**
 
   > Brent / 10Y / dollar backdrop cards with observation dates, and a hand-maintained event calendar.
-  - [ ] Reachability `workflow_dispatch`: FRED from the Actions runner and from Vercel `fra1`. Record the result here. **Stop the slice if unreachable.** Run this first, in parallel with Slices 1–2, because it can stop the slice. **[Agent: nextjs-fullstack]** **[Model: sonnet]**
-    > Result 2026-10-09: Actions runner → reachable (run 37916232825, success), keyed API without key HTTP 400 "api_key is not set" in 0.23s; keyless CSV fredgraph.csv DGS10 / DCOILBRENTEU / DTWEXBGS all HTTP 200 with data in 0.13-0.21s (a keyless fallback exists); Vercel fra1: pending operator deploy.
+  - [x] Reachability `workflow_dispatch`: FRED from the Actions runner and from Vercel `fra1`. Record the result here. **Stop the slice if unreachable.** Run this first, in parallel with Slices 1–2, because it can stop the slice. **[Agent: nextjs-fullstack]** **[Model: sonnet]**
+    > Result 2026-10-09: Actions runner → reachable (run 37916232825, success), keyed API without key HTTP 400 "api_key is not set" in 0.23s; keyless CSV fredgraph.csv DGS10 / DCOILBRENTEU / DTWEXBGS all HTTP 200 with data in 0.13-0.21s (a keyless fallback exists); Vercel fra1: reachable. After the production deploy (PR #20, `174fe66`), `collect.yml` workflow_dispatch (run 37946738824, success) wrote `collector_status` `macro`: last_success_at 2026-10-09T14:47:01Z, last_error null, detail `rows=59`.
   - [x] `src/consts/macro.ts`: series ids, `MACRO_FETCH_INTERVAL_HOURS` 6, per-series `MACRO_MAX_AGE_DAYS` (`DGS10` 4, `DCOILBRENTEU` 10, `DTWEXBGS` 12), `MACRO_DECAY_HOURS` 72; add `FRED_API_KEY` to `.env.example`. **[Agent: nextjs-fullstack]** **[Model: haiku]**
   - [x] Migration `macro_readings` (next free number in `db/migrations/`); `src/lib/collectors/macro.ts`, 6h gate, `.` values skipped, `collector_status` row `macro`; wire into `/api/collect` as non-fatal. **[Agent: nextjs-fullstack]** **[Model: sonnet]**
   - [x] Rules `macro_brent` (±3%), `macro_10y` (±8 bp), `macro_dollar` (±0.5%), scope `market`, rising = bearish. Null on a missing reading or beyond per-series max age; card text carries "as of <obs date>"; decay by observation age. **[Agent: nextjs-fullstack]** **[Model: sonnet]**
@@ -83,7 +83,7 @@ Slice 1 was implemented before this file was regenerated; its checked items are 
   | B | Slice 7, `PULSE_NOTIFY_VERDICT=B` (labelled "Unvalidated"); re-run monthly |
   | C | **Skip Slice 7.** Keep the UI. Open a follow-on to revisit weights |
 
-- [ ] **Slice 7: Telegram (operator only; skip on Verdict C)**
+- [x] **Slice 7: Telegram (operator only; skip on Verdict C)**
 
   > The operator gets confluence, conflict and reversal messages; nobody else.
   - [x] **Before anything is sent:** record the reversal in `product-definition.md` §3.2 (bounded operator-only exception, functional §2.7) and in the repo-level `decisions.md` (reasons: functional §0). Telegram must not ship while the product definition still says "no alerts". **[Agent: general-purpose]** **[Model: haiku]**
